@@ -20,6 +20,7 @@ phases:
       - 'echo "Compose REPO_PREFIX and login to ECR"'
       - 'export REPO_PREFIX="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"'
       - 'echo "REPO_PREFIX=$REPO_PREFIX"'
+      - 'aws sts get-caller-identity'
       - 'aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REPO_PREFIX"'
 
   build:
@@ -30,34 +31,37 @@ phases:
       - 'set -e'
       - 'echo "SERVICES=$SERVICES"'
       - |
-        IFS=' ' read -r -a ARR <<< "$SERVICES"
-        for ITEM in "${ARR[@]}"; do
+        for ITEM in $SERVICES; do
           echo "ITEM=$ITEM"
-        
+
           MODULE="${ITEM%%:*}"
           REPO_PATH="${ITEM#*:}"
-        
+
           MODULE_DIR="./demo/$MODULE"
           DF="$MODULE_DIR/docker/Dockerfile"
           CTX="$MODULE_DIR"
-        
+
           IMAGE_BASE="$REPO_PREFIX/$REPO_PATH"
           IMAGE_TAG="$IMAGE_BASE:$BUILD_VERSION"
-        
+
+          # 确保 ECR 仓库存在（无权限创建则忽略，不影响已有仓库）
+          aws ecr describe-repositories --repository-names "$REPO_PATH" --region "$AWS_REGION" >/dev/null 2>&1 || \
+          aws ecr create-repository --repository-name "$REPO_PATH" --region "$AWS_REGION" >/dev/null 2>&1 || true
+
           # 1) 路径/文件存在性检查
           [ -d "$MODULE_DIR" ] || { echo "ERROR: MODULE_DIR not found: $MODULE_DIR"; exit 2; }
           [ -f "$DF" ] || { echo "ERROR: Dockerfile not found: $DF"; exit 3; }
-        
-          # 2) 至少有一个可运行 jar（可按需换更精确通配）
-          ls -1 "$MODULE_DIR"/target/*.jar 2>/dev/null | head -n1 > /dev/null || { \
+
+          # 2) 至少有一个可运行 jar（避免只剩 *-sources.jar）
+          ls -1 "$MODULE_DIR"/target/*.jar 2>/dev/null | head -n1 > /dev/null || {
             echo "ERROR: No jar under $MODULE_DIR/target"; exit 4; }
-        
+
           echo "==> BUILD $MODULE -> $IMAGE_TAG (DF=$DF, CTX=$CTX)"
           docker build -t "$IMAGE_TAG" -f "$DF" "$CTX" || { echo "ERROR: docker build failed for $MODULE"; exit 5; }
-        
+
           echo "==> PUSH $IMAGE_TAG"
           docker push "$IMAGE_TAG" || { echo "ERROR: push failed for $IMAGE_TAG"; exit 6; }
-        
+
           echo "==> TAG & PUSH latest"
           docker tag "$IMAGE_TAG" "$IMAGE_BASE:latest" || { echo "ERROR: tag latest failed"; exit 7; }
           docker push "$IMAGE_BASE:latest" || { echo "ERROR: push latest failed"; exit 8; }
