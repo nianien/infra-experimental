@@ -1,20 +1,20 @@
-# runtime
+# 运行阶段
 FROM amazoncorretto:21-alpine3.19
 
 WORKDIR /app
 
-# non-root
+# 非 root 运行
 RUN addgroup -S app && adduser -S app -G app
 
-# 精确指定要复制的可运行 JAR
+# 通过构建参数精确指定要复制的 JAR
+# 构建时可传 --build-arg JAR_FILE=target/demo-web-*.jar
 ARG JAR_FILE=target/*.jar
 COPY --chown=app:app ${JAR_FILE} /app/app.jar
 
-# JDK21 已容器感知，无需 UseContainerSupport
+# JDK21 已默认容器感知，无需 UseContainerSupport
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 
-# 核对端口：Order 常用 9091（如你已改，请同步这里）
-EXPOSE 9091
+EXPOSE 8080
 
 USER app
 ENTRYPOINT ["java","-jar","/app/app.jar"]
