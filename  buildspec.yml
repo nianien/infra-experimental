@@ -1,0 +1,56 @@
+version: 0.2
+
+env:
+  variables:
+    REPO_PREFIX: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    # 格式：<maven模块目录名>:<ECR 仓库路径>
+    SERVICES: "demo-user-server:demo/user-service demo-order-server:demo/order-service demo-web:demo/web"
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto21
+      docker: 20
+
+  pre_build:
+    commands:
+      - echo ">>> Resolve build version"
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - export BUILD_VERSION=${BUILD_VERSION:-$COMMIT_HASH}
+      - if [ -z "$BUILD_VERSION" ]; then export BUILD_VERSION=latest; fi
+      - echo "BUILD_VERSION=$BUILD_VERSION"
+      - echo ">>> Login to ECR"
+      - aws ecr get-login-password --region "$AWS_REGION" \
+        | docker login --username AWS --password-stdin "$REPO_PREFIX"
+
+  build:
+    commands:
+      - echo ">>> Build Java modules"
+      - mvn -B -DskipTests clean package
+      - echo ">>> Build and push Docker images"
+      - |
+        for ITEM in $SERVICES; do
+          MODULE="${ITEM%%:*}"
+          REPO_PATH="${ITEM#*:}"
+
+          MODULE_DIR="./demo/$MODULE"
+          DF="$MODULE_DIR/deploy/Dockerfile"
+          CTX="$MODULE_DIR"
+
+          IMAGE_BASE="$REPO_PREFIX/$REPO_PATH"
+          IMAGE_TAG="$IMAGE_BASE:$BUILD_VERSION"
+
+          echo "==> BUILD $MODULE  -> $IMAGE_TAG"
+          docker build -t "$IMAGE_TAG" -f "$DF" "$CTX"
+
+          echo "==> PUSH $IMAGE_TAG"
+          docker push "$IMAGE_TAG"
+
+          echo "==> TAG & PUSH latest"
+          docker tag "$IMAGE_TAG" "$IMAGE_BASE:latest"
+          docker push "$IMAGE_BASE:latest"
+        done
+
+  post_build:
+    commands:
+      - echo "DONE: Build version $BUILD_VERSION pushed to ECR"
