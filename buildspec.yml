@@ -34,7 +34,7 @@ phases:
           REPO_PATH="${ITEM#*:}"
 
           MODULE_DIR="./demo/$MODULE"
-          DF="$MODULE_DIR/deploy/Dockerfile"
+          DF="$MODULE_DIR/docker/Dockerfile"
           CTX="$MODULE_DIR"
 
           IMAGE_BASE="$REPO_PREFIX/$REPO_PATH"
