@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     # 格式：<maven模块目录名>:<ECR 仓库路径>
-    SERVICES: "demo-user-server:demo/user-service demo-order-server:demo/order-service demo-web:demo/web"
+    SERVICES: "demo-user-server:demo/user-service demo-order-server:demo/order-service demo-web:demo/web-app"
 
 phases:
   install:
@@ -27,27 +27,40 @@ phases:
       - 'echo "Maven build all modules"'
       - 'mvn -B -DskipTests clean package'
       - 'echo "Build & push Docker images"'
+      - 'set -euo pipefail'
+      - 'echo "SERVICES=$SERVICES"'
       - |
-        for ITEM in $SERVICES; do
+        IFS=' ' read -r -a ARR <<< "$SERVICES"
+        for ITEM in "${ARR[@]}"; do
+          echo "ITEM=$ITEM"
+        
           MODULE="${ITEM%%:*}"
           REPO_PATH="${ITEM#*:}"
-
+        
           MODULE_DIR="./demo/$MODULE"
           DF="$MODULE_DIR/docker/Dockerfile"
           CTX="$MODULE_DIR"
-
+        
           IMAGE_BASE="$REPO_PREFIX/$REPO_PATH"
           IMAGE_TAG="$IMAGE_BASE:$BUILD_VERSION"
-
-          echo "==> BUILD $MODULE -> $IMAGE_TAG"
-          docker build -t "$IMAGE_TAG" -f "$DF" "$CTX"
-
+        
+          # 1) 路径/文件存在性检查
+          [ -d "$MODULE_DIR" ] || { echo "ERROR: MODULE_DIR not found: $MODULE_DIR"; exit 2; }
+          [ -f "$DF" ] || { echo "ERROR: Dockerfile not found: $DF"; exit 3; }
+        
+          # 2) 至少有一个可运行 jar（可按需换更精确通配）
+          ls -1 "$MODULE_DIR"/target/*.jar 2>/dev/null | head -n1 > /dev/null || { \
+            echo "ERROR: No jar under $MODULE_DIR/target"; exit 4; }
+        
+          echo "==> BUILD $MODULE -> $IMAGE_TAG (DF=$DF, CTX=$CTX)"
+          docker build -t "$IMAGE_TAG" -f "$DF" "$CTX" || { echo "ERROR: docker build failed for $MODULE"; exit 5; }
+        
           echo "==> PUSH $IMAGE_TAG"
-          docker push "$IMAGE_TAG"
-
+          docker push "$IMAGE_TAG" || { echo "ERROR: push failed for $IMAGE_TAG"; exit 6; }
+        
           echo "==> TAG & PUSH latest"
-          docker tag "$IMAGE_TAG" "$IMAGE_BASE:latest"
-          docker push "$IMAGE_BASE:latest"
+          docker tag "$IMAGE_TAG" "$IMAGE_BASE:latest" || { echo "ERROR: tag latest failed"; exit 7; }
+          docker push "$IMAGE_BASE:latest" || { echo "ERROR: push latest failed"; exit 8; }
         done
 
   post_build:
