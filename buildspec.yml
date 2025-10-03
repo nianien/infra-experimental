@@ -14,20 +14,19 @@ phases:
 
   pre_build:
     commands:
-      - echo ">>> Resolve build version"
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
-      - export BUILD_VERSION=${BUILD_VERSION:-$COMMIT_HASH}
-      - if [ -z "$BUILD_VERSION" ]; then export BUILD_VERSION=latest; fi
-      - echo "BUILD_VERSION=$BUILD_VERSION"
-      - echo ">>> Login to ECR"
-      - aws ecr get-login-password --region "$AWS_REGION" \
-        | docker login --username AWS --password-stdin "$REPO_PREFIX"
+      - 'echo "Resolve build version"'
+      - 'COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)'
+      - 'export BUILD_VERSION=${BUILD_VERSION:-$COMMIT_HASH}'
+      - '[ -z "$BUILD_VERSION" ] && export BUILD_VERSION=latest || true'
+      - 'echo "BUILD_VERSION=$BUILD_VERSION"'
+      - 'echo "Login to ECR"'
+      - 'aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REPO_PREFIX"'
 
   build:
     commands:
-      - echo ">>> Build Java modules"
-      - mvn -B -DskipTests clean package
-      - echo ">>> Build and push Docker images"
+      - 'echo "Maven build all modules"'
+      - 'mvn -B -DskipTests clean package'
+      - 'echo "Build & push Docker images"'
       - |
         for ITEM in $SERVICES; do
           MODULE="${ITEM%%:*}"
@@ -40,7 +39,7 @@ phases:
           IMAGE_BASE="$REPO_PREFIX/$REPO_PATH"
           IMAGE_TAG="$IMAGE_BASE:$BUILD_VERSION"
 
-          echo "==> BUILD $MODULE  -> $IMAGE_TAG"
+          echo "==> BUILD $MODULE -> $IMAGE_TAG"
           docker build -t "$IMAGE_TAG" -f "$DF" "$CTX"
 
           echo "==> PUSH $IMAGE_TAG"
@@ -53,4 +52,4 @@ phases:
 
   post_build:
     commands:
-      - echo "DONE: Build version $BUILD_VERSION pushed to ECR"
+      - 'echo "DONE: Build version $BUILD_VERSION pushed to ECR"'
