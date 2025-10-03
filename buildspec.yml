@@ -27,7 +27,7 @@ phases:
       - 'echo "Maven build all modules"'
       - 'mvn -B -DskipTests clean package'
       - 'echo "Build & push Docker images"'
-      - 'set -euo pipefail'
+      - 'set -e'
       - 'echo "SERVICES=$SERVICES"'
       - |
         IFS=' ' read -r -a ARR <<< "$SERVICES"
