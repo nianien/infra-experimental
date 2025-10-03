@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: demo-up-server
+
+# gRPC 服务端配置 - OrderService 端口 (上游服务)
+grpc:
+  server:
+    port: 9091
+  client:
+    # UserService 客户端配置 - 连接到下游的 UserService (端口 9092)
+    user-service:
+      address: 'static://localhost:9092'
+      negotiationType: plaintext
+
+# 日志配置
+logging:
+  level:
+    com.ddm.demo: DEBUG
+    net.devh.boot.grpc: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:--}] %logger{36} - %msg%n"

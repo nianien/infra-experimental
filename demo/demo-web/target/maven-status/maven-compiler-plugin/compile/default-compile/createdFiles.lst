@@ -1,0 +1,3 @@
+com/ddm/demo/client/WebApplication.class
+com/ddm/demo/client/WebController.class
+com/ddm/demo/client/GrpcClientConfig.class

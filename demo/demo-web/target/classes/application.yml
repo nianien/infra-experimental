@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: demo-web
+
+# Web 服务配置
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# gRPC 客户端配置
+grpc:
+  client:
+    # OrderService 客户端配置 (上游服务)
+    order-service:
+      address: 'static://localhost:9091'
+      negotiationType: plaintext
+    
+    # UserService 客户端配置 (下游服务)
+    user-service:
+      address: 'static://localhost:9092'
+      negotiationType: plaintext
+
+# 日志配置
+logging:
+  level:
+    com.ddm.demo: DEBUG
+    net.devh.boot.grpc: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:--}] %logger{36} - %msg%n"
