@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: order-service
+
+# gRPC 服务端（本服务）
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:9092}
+
+  # gRPC 客户端（下游：UserService）
+  # 直接把完整地址做成一个环境变量，最省事
+  # 本地默认 localhost:9092；在 ECS 注入 test 环境地址即可
+  client:
+    user-service:
+      address: ${USER_SERVICE_ADDR:static://localhost:9091}
+      negotiationType: plaintext
+
+logging:
+  level:
+    com.ddm.demo: DEBUG
+    net.devh.boot.grpc: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:--}] %logger{36} - %msg%n"

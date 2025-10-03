@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: user-service
+
+# gRPC 服务端配置 - UserService 端口 (下游服务)
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:9091}
+
+# 日志配置
+logging:
+  level:
+    com.ddm.demo: DEBUG
+    net.devh.boot.grpc: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:--}] %logger{36} - %msg%n"

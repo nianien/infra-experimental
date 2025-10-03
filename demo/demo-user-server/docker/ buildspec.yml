@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo ">>> 登录 ECR ..."
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+  build:
+    commands:
+      - echo ">>> 构建 Docker 镜像 ..."
+      - docker build -t $SERVICE_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION .
+      - docker tag $SERVICE_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$SERVICE_NAME:latest
+  post_build:
+    commands:
+      - echo ">>> 推送镜像到 ECR ..."
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$SERVICE_NAME:latest
+
+artifacts:
+  files:
+    - '**/*'
