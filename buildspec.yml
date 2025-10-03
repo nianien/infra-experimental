@@ -2,7 +2,6 @@ version: 0.2
 
 env:
   variables:
-    REPO_PREFIX: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     # 格式：<maven模块目录名>:<ECR 仓库路径>
     SERVICES: "demo-user-server:demo/user-service demo-order-server:demo/order-service demo-web:demo/web"
 
@@ -18,7 +17,9 @@ phases:
       - 'export BUILD_VERSION=${BUILD_VERSION:-$COMMIT_HASH}'
       - '[ -z "$BUILD_VERSION" ] && export BUILD_VERSION=latest || true'
       - 'echo "BUILD_VERSION=$BUILD_VERSION"'
-      - 'echo "Login to ECR"'
+      - 'echo "Compose REPO_PREFIX and login to ECR"'
+      - 'export REPO_PREFIX="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"'
+      - 'echo "REPO_PREFIX=$REPO_PREFIX"'
       - 'aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REPO_PREFIX"'
 
   build:
