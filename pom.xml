@@ -56,6 +56,13 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- AWS SDK v2 HTTP clients -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>url-connection-client</artifactId>
+                <version>${aws.sdk.version}</version>
+            </dependency>
+
             <!-- Spring Boot gRPC -->
             <dependency>
                 <groupId>net.devh</groupId>
@@ -129,6 +136,7 @@
                 <artifactId>jakarta.servlet-api</artifactId>
                 <version>6.0.0</version>
             </dependency>
+
         </dependencies>
     </dependencyManagement>
 
