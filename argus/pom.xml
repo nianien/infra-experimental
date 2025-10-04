@@ -78,19 +78,16 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <scope>provided</scope>
         </dependency>
 
         <!-- AWS SDK v2: ECS + ServiceDiscovery -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ecs</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>servicediscovery</artifactId>
-            <scope>provided</scope>
         </dependency>
 
     </dependencies>
