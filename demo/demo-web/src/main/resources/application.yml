@@ -11,14 +11,13 @@ server:
 # gRPC 客户端配置
 grpc:
   client:
-    # OrderService 客户端配置 (上游服务)
-    order-service:
-      address: ${ORDER_SERVICE_ADDR:static://localhost:9092}
-      negotiationType: plaintext
-    
-    # UserService 客户端配置 (下游服务)
+    # UserService 客户端配置
     user-service:
-      address: ${USER_SERVICE_ADDR:static://localhost:9091}
+      address: static://localhost:9091
+      negotiationType: plaintext
+    # OrderService 客户端配置
+    order-service:
+      address: static://localhost:9092
       negotiationType: plaintext
 
 # 日志配置
@@ -28,3 +27,17 @@ logging:
     net.devh.boot.grpc: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:--}] %logger{36} - %msg%n"
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: test
+
+grpc:
+  client:
+    user-service:
+      address: "dns://demo-user-service.test.local:9091"
+    order-service:
+      address: "dns://demo-order-service.test.local:9092"
