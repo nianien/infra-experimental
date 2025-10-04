@@ -25,30 +25,22 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
  * LaneBootstrap（统一版 & 零环境变量）
  * <p>
- * 运行机制：
- * - 仅当容器中存在 ECS 元数据 v4（ECS/Fargate 注入的环境变量）时启用；
- * - 启动时自动：
- * 1) 通过元数据拿到 clusterArn / taskArn / 容器 IP / 端口；
- * 2) 调 ECS：DescribeTasks → 得到 serviceName（来自 group: "service:<name>"）；
- * 3) 调 ECS：DescribeServices → 解析 Cloud Map 的 registryArn → serviceId (srv-xxxx)；
- * 4) 计算 lane：
- * a) 优先从 ECS Service 标签中读取 key=lane（忽略大小写）；
- * b) 否则取服务名最后一个 '-' 的后缀；
- * c) 再否则用 taskId 兜底；
- * 5) 调 Cloud Map：RegisterInstance(instanceId=taskId)，附加属性 {AWS_INSTANCE_IPV4, AWS_INSTANCE_PORT, lane}。
- * <p>
- * 说明：
- * - 幂等：同一个 instanceId（taskId）重复 register 会覆盖属性；无副作用。
- * - 与部署解耦：不需要在 Task Definition/Service 里预置环境变量即可完成 lane 上报。
+ * 工作流：
+ * 1) 仅在 ECS/Fargate 且存在 ECS_CONTAINER_METADATA_URI_V4 时运行；
+ * 2) 读 /task 与 /container 元数据，按 DockerId/Name 匹配“当前容器”，
+ * 从 /task 的容器项中拿私网 IP 与容器端口（拿不到就放弃注册，不再回落 127.0.0.1）；
+ * 3) ECS DescribeTasks -> group = "service:<name>" 拿 serviceName；
+ * 4) ECS DescribeServices -> 解析 Cloud Map registryArn 得 serviceId (srv-xxxx)；
+ * 5) 计算 lane：优先 Service 标签 key=lane（忽略大小写）-> 名称后缀 -> taskId；
+ * 6) Cloud Map RegisterInstance(instanceId=taskId, attrs={AWS_INSTANCE_IPV4, AWS_INSTANCE_PORT, lane}),
+ * 幂等覆盖；带 attempts 重试 + 指数退避。
  */
 @Component
 public class LaneBootstrap {
@@ -56,7 +48,7 @@ public class LaneBootstrap {
     private static final Logger log = LoggerFactory.getLogger(LaneBootstrap.class);
     private static final ObjectMapper M = new ObjectMapper();
 
-    // ===== 可按需微调 =====
+    // 可调参数
     private static final int DEFAULT_APP_PORT = 9091;
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration SDK_API_TIMEOUT = Duration.ofSeconds(5);
@@ -66,15 +58,15 @@ public class LaneBootstrap {
         final String metaBase = System.getenv("ECS_CONTAINER_METADATA_URI_V4");
         if (metaBase == null || metaBase.isBlank()) {
             log.info("LaneBootstrap: no ECS metadata (likely local run). Skip lane registration.");
-            return; // 本地/非 ECS 环境自动跳过
+            return;
         }
 
         try {
             final HttpClient http = HttpClient.newBuilder().connectTimeout(HTTP_TIMEOUT).build();
 
             // 1) 读取 Task / Container 元数据
-            JsonNode taskMeta = getJson(http, metaBase + "/task");
-            JsonNode contMeta = getJson(http, metaBase + "/container");
+            final JsonNode taskMeta = getJson(http, metaBase + "/task");
+            final JsonNode contMeta = getJson(http, metaBase + "/container");
 
             final String clusterArn = text(taskMeta, "Cluster");
             final String taskArn = text(taskMeta, "TaskARN");
@@ -82,18 +74,24 @@ public class LaneBootstrap {
                 log.warn("LaneBootstrap: metadata missing Cluster/TaskARN. Skip.");
                 return;
             }
-
             final String taskId = taskArn.substring(taskArn.lastIndexOf('/') + 1);
-            final String ip = firstIp(contMeta).orElse("127.0.0.1");
-            final int port = detectPort(contMeta);
+
+            // === 精确定位“当前容器”并取 IP/端口（严格：拿不到就不注册）===
+            final JsonNode me = matchSelfContainer(taskMeta, contMeta); // 从 /task 容器列表里，按 DockerId/Name 匹配
+            final String ip = extractPrivateIp(me).orElse(null);
+            final int port = detectPort(me).orElseGet(() -> detectPort(contMeta).orElse(DEFAULT_APP_PORT));
+
+            if (ip == null || ip.startsWith("127.") || "localhost".equalsIgnoreCase(ip)) {
+                log.warn("LaneBootstrap: cannot resolve private IP from ECS metadata; skip registration. ip={}", ip);
+                return;
+            }
 
             final Region region = resolveRegion(clusterArn);
-
             final ClientOverrideConfiguration cfg = ClientOverrideConfiguration.builder()
                     .apiCallTimeout(SDK_API_TIMEOUT)
                     .build();
 
-            // 2) DescribeTasks → "service:<name>"
+            // 2) DescribeTasks -> "service:<name>"
             final String serviceName;
             try (EcsClient ecs = EcsClient.builder()
                     .region(region)
@@ -114,50 +112,44 @@ public class LaneBootstrap {
                 }
                 serviceName = group.substring("service:".length());
 
-                // 3) DescribeServices → Cloud Map registryArn → serviceId (srv-xxxx)
+                // 3) DescribeServices -> Cloud Map registryArn -> serviceId (srv-xxxx)
                 var ds = ecs.describeServices(DescribeServicesRequest.builder()
                         .cluster(clusterArn)
                         .services(serviceName)
                         .build());
-
                 Service svc = ds.services().isEmpty() ? null : ds.services().get(0);
                 if (svc == null || svc.serviceRegistries().isEmpty()) {
                     log.warn("LaneBootstrap: ECS Service has NO Cloud Map binding. service={}", serviceName);
                     return;
                 }
-
-                final String registryArn = svc.serviceRegistries()
-                        .stream()
+                final String registryArn = svc.serviceRegistries().stream()
                         .map(r -> r.registryArn())
                         .filter(a -> a != null && !a.isBlank())
-                        .findFirst()
-                        .orElse(null);
-
+                        .findFirst().orElse(null);
                 if (registryArn == null) {
                     log.warn("LaneBootstrap: No registryArn in serviceRegistries. service={}", serviceName);
                     return;
                 }
-
                 final String serviceId = registryArn.substring(registryArn.lastIndexOf('/') + 1);
 
-                // 4) lane = 标签优先 → 服务名后缀 → taskId
-                final String laneFromTag = fetchLaneFromServiceTags(ecs, svc.serviceArn());
-                final String lane = Optional.ofNullable(laneFromTag)
+                // 4) lane：标签优先 -> 名称后缀 -> taskId
+                final String lane = Optional.ofNullable(fetchLaneFromServiceTags(ecs, svc.serviceArn()))
                         .filter(s -> !s.isBlank())
                         .orElseGet(() -> parseLaneFromServiceName(serviceName).orElse(taskId));
 
-                // 5) RegisterInstance 幂等上报（带一次退避重试）
-                Map<String, String> attrs = new LinkedHashMap<>();
-                attrs.put("AWS_INSTANCE_IPV4", ip);
-                attrs.put("AWS_INSTANCE_PORT", String.valueOf(port));
-                attrs.put("lane", lane);
+                // 5) RegisterInstance 幂等上报（attempts 写法 + 指数退避）
+                final Map<String, String> attrs = Map.of(
+                        "AWS_INSTANCE_IPV4", ip,
+                        "AWS_INSTANCE_PORT", String.valueOf(port),
+                        "lane", lane
+                );
 
                 try (ServiceDiscoveryClient sd = ServiceDiscoveryClient.builder()
                         .region(region)
                         .credentialsProvider(DefaultCredentialsProvider.create())
                         .overrideConfiguration(cfg)
                         .build()) {
-                    registerInstanceWithRetry(sd, serviceId, taskId, attrs);
+                    registerInstanceWithAttempts(sd, serviceId, taskId, attrs, 3, 300L);
                 }
 
                 log.info("LaneBootstrap: registered. serviceId={}, instanceId={}, ip={}, port={}, lane={}, serviceName={}, region={}",
@@ -177,22 +169,13 @@ public class LaneBootstrap {
 
     // ================= helpers =================
 
-    /**
-     * 优先从 clusterArn 解析 region；再看 AWS_REGION；最后兜底 us-east-1。
-     */
     private static Region resolveRegion(String clusterArn) {
         String fromArn = parseRegionFromArn(clusterArn);
         if (fromArn != null) return Region.of(fromArn);
-
         String envRegion = System.getenv("AWS_REGION");
-        if (envRegion != null && !envRegion.isBlank()) return Region.of(envRegion);
-
-        return Region.US_EAST_1;
+        return (envRegion != null && !envRegion.isBlank()) ? Region.of(envRegion) : Region.US_EAST_1;
     }
 
-    /**
-     * arn:aws:ecs:us-east-1:123456789012:cluster/xxx → 提取 us-east-1
-     */
     private static String parseRegionFromArn(String arn) {
         try {
             String[] parts = arn.split(":");
@@ -203,10 +186,7 @@ public class LaneBootstrap {
     }
 
     private static JsonNode getJson(HttpClient http, String url) throws Exception {
-        var req = HttpRequest.newBuilder(URI.create(url))
-                .timeout(HTTP_TIMEOUT)
-                .GET()
-                .build();
+        var req = HttpRequest.newBuilder(URI.create(url)).timeout(HTTP_TIMEOUT).GET().build();
         var res = http.send(req, HttpResponse.BodyHandlers.ofString());
         return M.readTree(res.body());
     }
@@ -220,70 +200,58 @@ public class LaneBootstrap {
     }
 
     /**
-     * 从容器元数据中提取首个可用 IP（优先 IPv4，退化 IPv6）。
+     * 在 /task 的 Containers[] 中，按 /container 的 DockerId 或 Name 匹配当前容器项
      */
-    private static Optional<String> firstIp(JsonNode contMeta) {
-        if (contMeta == null) return Optional.empty();
-        JsonNode nets = contMeta.path("Networks");
+    private static JsonNode matchSelfContainer(JsonNode taskMeta, JsonNode contMeta) {
+        if (taskMeta == null || contMeta == null) return null;
+        String dockerId = text(contMeta, "DockerId");
+        String name = text(contMeta, "Name");
+
+        JsonNode list = taskMeta.path("Containers");
+        if (!list.isArray()) return null;
+
+        for (JsonNode c : list) {
+            String did = text(c, "DockerId");
+            String nm = text(c, "Name");
+            if ((dockerId != null && dockerId.equals(did)) ||
+                    (name != null && name.equals(nm))) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 从匹配到的容器项里取私网 IPv4
+     */
+    private static Optional<String> extractPrivateIp(JsonNode me) {
+        if (me == null) return Optional.empty();
+        JsonNode nets = me.path("Networks");
         if (!nets.isArray()) return Optional.empty();
-
-        // Iterable<JsonNode> → Stream<JsonNode>
-        Stream<JsonNode> netStream = StreamSupport.stream(nets.spliterator(), false);
-
-        // 优先 IPv4
-        Optional<String> ip4 = netStream
+        return StreamSupport.stream(nets.spliterator(), false)
                 .map(n -> n.path("IPv4Addresses"))
                 .filter(JsonNode::isArray)
                 .flatMap(arr -> StreamSupport.stream(arr.spliterator(), false))
                 .map(JsonNode::asText)
-                .filter(s -> s != null && !s.isBlank())
-                .findFirst();
-
-        if (ip4.isPresent()) return ip4;
-
-        // 再试 IPv6
-        netStream = StreamSupport.stream(nets.spliterator(), false);
-        return netStream
-                .map(n -> n.path("IPv6Addresses"))
-                .filter(JsonNode::isArray)
-                .flatMap(arr -> StreamSupport.stream(arr.spliterator(), false))
-                .map(JsonNode::asText)
-                .filter(s -> s != null && !s.isBlank())
+                .filter(ip -> ip != null && !ip.isBlank())
                 .findFirst();
     }
 
     /**
-     * 端口探测：Metadata → 环境变量 → 默认值。
+     * 端口探测：优先 me.Ports[].ContainerPort；其次 contMeta；最后默认（上层兜底）
      */
-    private static int detectPort(JsonNode contMeta) {
-        // Metadata Ports
-        if (contMeta != null) {
-            JsonNode ports = contMeta.path("Ports");
-            if (ports.isArray()) {
-                Optional<Integer> metaPort = StreamSupport.stream(ports.spliterator(), false)
-                        .map(p -> p.path("ContainerPort").asInt(-1))
-                        .filter(p -> p > 0)
-                        .findFirst();
-                if (metaPort.isPresent()) return metaPort.get();
-            }
-        }
-
-        // 环境变量兜底
-        String env = Optional.ofNullable(System.getenv("GRPC_SERVER_PORT"))
-                .filter(s -> !s.isBlank())
-                .orElse(System.getenv("APP_PORT"));
-        if (env != null && !env.isBlank()) {
-            try {
-                return Integer.parseInt(env);
-            } catch (NumberFormatException ignore) {
-            }
-        }
-
-        return DEFAULT_APP_PORT;
+    private static Optional<Integer> detectPort(JsonNode node) {
+        if (node == null) return Optional.empty();
+        JsonNode ports = node.path("Ports");
+        if (!ports.isArray()) return Optional.empty();
+        return StreamSupport.stream(ports.spliterator(), false)
+                .map(p -> p.path("ContainerPort").asInt(-1))
+                .filter(p -> p > 0)
+                .findFirst();
     }
 
     /**
-     * 从 ECS Service 标签中读取 lane（忽略大小写）。
+     * 从 Service 标签中读 lane（忽略大小写）
      */
     private static String fetchLaneFromServiceTags(EcsClient ecs, String serviceArn) {
         try {
@@ -291,9 +259,7 @@ public class LaneBootstrap {
                             .resourceArn(serviceArn)
                             .build())
                     .tags();
-
-            return Optional.ofNullable(tags).orElseGet(Collections::emptyList)
-                    .stream()
+            return Optional.ofNullable(tags).orElseGet(Collections::emptyList).stream()
                     .filter(t -> {
                         String k = t.key();
                         return k != null && "lane".equalsIgnoreCase(k);
@@ -302,54 +268,52 @@ public class LaneBootstrap {
                     .filter(v -> v != null && !v.isBlank())
                     .findFirst()
                     .orElse(null);
-
         } catch (Exception e) {
-            // 标签获取失败不致命，后续会走其他兜底
             log.debug("LaneBootstrap: listTagsForResource failed, fallback to name-suffix. {}", e.toString());
             return null;
         }
     }
 
     /**
-     * 从服务名解析 lane（最后一个 '-' 后的片段）。
+     * 从 serviceName 最后一个 '-' 后取 lane
      */
     private static Optional<String> parseLaneFromServiceName(String serviceName) {
         if (serviceName == null) return Optional.empty();
         int i = serviceName.lastIndexOf('-');
-        if (i > 0 && i < serviceName.length() - 1) {
-            return Optional.of(serviceName.substring(i + 1));
-        }
-        return Optional.empty();
+        return (i > 0 && i < serviceName.length() - 1)
+                ? Optional.of(serviceName.substring(i + 1))
+                : Optional.empty();
     }
 
     /**
-     * 幂等上报 + 一次退避重试（处理偶发一致性错误）。
+     * attempts 写法 + 指数退避（幂等 upsert）
      */
-    private void registerInstanceWithRetry(ServiceDiscoveryClient sd,
-                                           String serviceId,
-                                           String taskId,
-                                           Map<String, String> attrs) throws InterruptedException {
-        int retries = 2;               // 最大重试次数（=执行2次：初始 + 重试1次）
-        long backoffMs = 300L;         // 初始退避时间
-
-        while (retries-- > 0) {
+    private void registerInstanceWithAttempts(ServiceDiscoveryClient sd,
+                                              String serviceId,
+                                              String instanceId,
+                                              Map<String, String> attrs,
+                                              int attempts,
+                                              long initialBackoffMs) throws InterruptedException {
+        long backoff = initialBackoffMs;
+        for (int i = 1; i <= attempts; i++) {
             try {
                 sd.registerInstance(RegisterInstanceRequest.builder()
                         .serviceId(serviceId)
-                        .instanceId(taskId)
+                        .instanceId(instanceId)
                         .attributes(attrs)
                         .build());
-                log.info("Cloud Map 注册成功: serviceId={}, instanceId={}, attrs={}", serviceId, taskId, attrs);
-                return; // 成功就直接退出
+                log.info("Cloud Map upsert OK (attempt {}/{}): serviceId={}, instanceId={}, attrs={}",
+                        i, attempts, serviceId, instanceId, attrs);
+                return;
             } catch (AwsServiceException e) {
-                log.warn("Cloud Map 注册失败 (剩余重试次数={}): code={}, msg={}",
-                        retries, e.awsErrorDetails().errorCode(), e.awsErrorDetails().errorMessage());
-
-                if (retries > 0) {
-                    Thread.sleep(backoffMs);
-                    backoffMs *= 2; // 指数退避
+                var d = e.awsErrorDetails();
+                log.warn("Cloud Map upsert FAILED (attempt {}/{}): code={}, msg={}",
+                        i, attempts, d.errorCode(), d.errorMessage());
+                if (i < attempts) {
+                    Thread.sleep(backoff);
+                    backoff *= 2;
                 } else {
-                    throw e; // 最后一次也失败则抛出
+                    throw e;
                 }
             }
         }
