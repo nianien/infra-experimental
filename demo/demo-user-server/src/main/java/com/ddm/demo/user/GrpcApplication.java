@@ -9,7 +9,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 运行 down 模块相关的服务，监听端口 9092
  */
 @SpringBootApplication(scanBasePackages = {
-        "com.ddm.demo.user"
+        "com.ddm.demo.user",
+        "com.ddm.argus.ecs"
 })
 public class GrpcApplication {
 
