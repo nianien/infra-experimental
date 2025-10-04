@@ -10,11 +10,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = {
         "com.ddm.demo.order",
-        "com.ddm.argus.ecs"
 })
-public class GrpcApplication {
+public class OrderApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(GrpcApplication.class, args);
+        SpringApplication.run(OrderApplication.class, args);
     }
 }

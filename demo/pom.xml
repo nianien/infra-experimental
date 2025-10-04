@@ -13,10 +13,8 @@
     <packaging>pom</packaging>
     <modules>
         <module>demo-proto</module>
-        <module>demo-order-service</module>
         <module>demo-user-service</module>
-        <module>demo-order-server</module>
-        <module>demo-user-server</module>
+        <module>demo-order-service</module>
         <module>demo-web</module>
     </modules>
 

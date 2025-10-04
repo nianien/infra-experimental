@@ -10,6 +10,7 @@
     <url>https://github.com/ddmarketinghub/infra-experimental</url>
     <modules>
         <module>argus</module>
+        <module>hermes</module>
         <module>demo</module>
     </modules>
     <artifactId>infra-experimental</artifactId>
@@ -39,7 +40,6 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
             <!-- Protocol Buffers -->
             <dependency>
                 <groupId>com.google.protobuf</groupId>
@@ -66,6 +66,18 @@
             <!-- Spring Boot gRPC -->
             <dependency>
                 <groupId>net.devh</groupId>
+                <artifactId>grpc-server-spring-boot-autoconfigure</artifactId>
+                <version>${grpc.spring.boot.version}</version>
+                <scope>compile</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.devh</groupId>
+                <artifactId>grpc-client-spring-boot-autoconfigure</artifactId>
+                <version>${grpc.spring.boot.version}</version>
+                <scope>compile</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.devh</groupId>
                 <artifactId>grpc-server-spring-boot-starter</artifactId>
                 <version>${grpc.spring.boot.version}</version>
             </dependency>
@@ -84,6 +96,16 @@
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-web</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-autoconfigure</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-configuration-processor</artifactId>
                 <version>${spring.boot.version}</version>
             </dependency>
 
@@ -176,9 +198,11 @@
                     <artifactId>protobuf-maven-plugin</artifactId>
                     <version>0.6.1</version>
                     <configuration>
-                        <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                        <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+                        </protocArtifact>
                         <pluginId>grpc-java</pluginId>
-                        <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                        <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}
+                        </pluginArtifact>
                     </configuration>
                     <executions>
                         <execution>

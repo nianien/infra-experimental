@@ -12,9 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.core.annotation.Order;
 import org.springframework.lang.NonNull;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -28,8 +26,6 @@ import java.util.Set;
  * - 同步 gRPC Context 与 MDC；响应头回写 traceparent / X-Trace-Id / X-Span-Id
  * - 跳过静态资源/健康检查
  */
-@Component
-@Order(1)
 public class TraceFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(TraceFilter.class);

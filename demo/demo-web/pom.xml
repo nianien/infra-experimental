@@ -22,7 +22,7 @@
         <!-- Core dependency for TraceInterceptor -->
         <dependency>
             <groupId>com.ddm</groupId>
-            <artifactId>argus</artifactId>
+            <artifactId>argus-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
 

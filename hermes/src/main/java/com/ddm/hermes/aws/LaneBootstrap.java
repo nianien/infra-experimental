@@ -1,4 +1,4 @@
-package com.ddm.argus.ecs;
+package com.ddm.hermes.aws;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

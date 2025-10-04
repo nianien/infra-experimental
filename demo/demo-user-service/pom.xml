@@ -12,45 +12,59 @@
     <artifactId>demo-user-service</artifactId>
 
     <dependencies>
-        <!-- Demo RPC dependency (contains protobuf definitions) -->
+        <!-- ==================== Internal Dependencies ==================== -->
+        
+        <!-- Demo Protocol Buffers definitions -->
         <dependency>
             <groupId>com.ddm</groupId>
             <artifactId>demo-proto</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Core dependency for TraceInterceptor -->
+        <!-- Argus distributed tracing starter -->
         <dependency>
             <groupId>com.ddm</groupId>
-            <artifactId>argus</artifactId>
+            <artifactId>argus-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Spring Context -->
+        <!-- ==================== Spring Boot Dependencies ==================== -->
+        
+        <!-- Spring Boot Starter (includes logging, auto-configuration, etc.) -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
         </dependency>
 
-        <!-- Spring Boot gRPC Server -->
+        <!-- ==================== gRPC Dependencies ==================== -->
+        
+        <!-- Spring Boot gRPC Server Starter -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-server-spring-boot-starter</artifactId>
         </dependency>
 
-        <!-- Jakarta Annotations -->
+        <!-- Spring Boot gRPC Client Starter (for potential future client calls) -->
         <dependency>
-            <groupId>jakarta.annotation</groupId>
-            <artifactId>jakarta.annotation-api</artifactId>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-client-spring-boot-starter</artifactId>
         </dependency>
 
-
-        <!-- SLF4J API -->
+        <!-- gRPC Netty Transport -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven Plugin for packaging and running -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

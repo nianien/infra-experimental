@@ -6,6 +6,8 @@ import io.grpc.*;
 import io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
 import io.grpc.ForwardingClientCallListener.SimpleForwardingClientCallListener;
 import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
+import net.devh.boot.grpc.client.interceptor.GrpcGlobalClientInterceptor;
+import net.devh.boot.grpc.server.interceptor.GrpcGlobalServerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -13,6 +15,8 @@ import org.slf4j.MDC;
 import java.util.HashMap;
 import java.util.Map;
 
+@GrpcGlobalServerInterceptor
+@GrpcGlobalClientInterceptor
 public class TraceInterceptor implements ClientInterceptor, ServerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(TraceInterceptor.class);

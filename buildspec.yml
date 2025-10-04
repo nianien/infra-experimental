@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     # 格式：<maven模块目录名>:<ECR 仓库路径>
-    SERVICES: "demo-user-server:demo/user-service demo-order-server:demo/order-service demo-web:demo/web-app"
+    SERVICES: "demo-user-service:demo/user-service demo-order-service:demo/order-service demo-web:demo/web-app"
 
 phases:
   install:
