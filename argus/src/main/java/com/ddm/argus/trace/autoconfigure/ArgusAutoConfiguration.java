@@ -1,4 +1,4 @@
-package com.ddm.argus;
+package com.ddm.argus.trace.autoconfigure;
 
 import com.ddm.argus.trace.grpc.TraceInterceptor;
 import com.ddm.argus.trace.http.TraceFilter;

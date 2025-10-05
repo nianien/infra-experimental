@@ -1,1 +1,1 @@
-com.ddm.argus.ArgusAutoConfiguration
+com.ddm.argus.trace.autoconfigure.ArgusAutoConfiguration

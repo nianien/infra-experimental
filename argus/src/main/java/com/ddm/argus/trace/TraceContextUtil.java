@@ -15,6 +15,11 @@ public final class TraceContextUtil {
     public static final String VERSION = "00";
     public static final String DEFAULT_FLAGS = "01"; // 最低位1=sampled
 
+    // === 字节长度常量 ===
+    private static final int TRACE_ID_BYTES = 16;
+    private static final int SPAN_ID_BYTES = 8;
+    private static final int FLAGS_HEX_LEN = 2;
+
     private static final SecureRandom RAND = new SecureRandom();
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 
@@ -23,11 +28,11 @@ public final class TraceContextUtil {
 
     /* ===== ID 生成 ===== */
     public static String generateTraceId() {
-        return toHex(randomBytes(16));
+        return toHex(randomBytes(TRACE_ID_BYTES));
     }
 
     public static String generateSpanId() {
-        return toHex(randomBytes(8));
+        return toHex(randomBytes(SPAN_ID_BYTES));
     }
 
     private static byte[] randomBytes(int len) {
@@ -37,13 +42,13 @@ public final class TraceContextUtil {
     }
 
     private static String toHex(byte[] b) {
-        char[] out = new char[b.length * 2];
-        for (int i = 0, j = 0; i < b.length; i++) {
-            int v = b[i] & 0xFF;
-            out[j++] = HEX[v >>> 4];
-            out[j++] = HEX[v & 0x0F];
+        StringBuilder sb = new StringBuilder(b.length * 2);
+        for (byte value : b) {
+            int v = value & 0xFF;
+            sb.append(HEX[v >>> 4]);
+            sb.append(HEX[v & 0x0F]);
         }
-        return new String(out);
+        return sb.toString();
     }
 
     /* ===== traceparent 格式化/解析 ===== */
@@ -67,7 +72,7 @@ public final class TraceContextUtil {
         if (!VERSION.equals(parts[0])) return null;
         if (!isValidHex(parts[1], TRACE_ID_HEX_LEN)) return null;
         if (!isValidHex(parts[2], SPAN_ID_HEX_LEN)) return null;
-        if (!isValidHex(parts[3], 2)) return null;
+        if (!isValidHex(parts[3], FLAGS_HEX_LEN)) return null;
 
         return Arrays.copyOf(parts, 4);
     }

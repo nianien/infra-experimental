@@ -172,6 +172,7 @@ public class TraceInterceptor implements ClientInterceptor, ServerInterceptor {
         });
     }
 
+    @SafeVarargs
     private static <T> T firstNonNull(T... values) {
         for (T v : values) if (v != null) return v;
         return null;

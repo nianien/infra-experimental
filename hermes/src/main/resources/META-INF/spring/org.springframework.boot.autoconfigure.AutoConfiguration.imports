@@ -1,1 +1,1 @@
-com.ddm.hermes.HermesAutoConfiguration
+com.ddm.hermes.aws.autoconfigure.LaneAutoConfiguration
