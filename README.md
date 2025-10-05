@@ -50,10 +50,42 @@ infra-experimental/
 - 基于 AWS ECS 的服务发现
 - 支持 AWS Service Discovery
 - 轻量级 HTTP 客户端
-- Spring 集成支持
+- Spring Boot 3.x 自动配置
+- 零侵入式集成
 
 **核心组件：**
 - `LaneBootstrap`: ECS 服务发现启动器
+- `HermesProperties`: 配置属性类
+- `HermesAutoConfiguration`: Spring Boot 自动配置
+
+**使用方式：**
+```xml
+<dependency>
+    <groupId>com.ddm</groupId>
+    <artifactId>hermes-spring-boot-starter</artifactId>
+    <version>1.0-SNAPSHOT</version>
+</dependency>
+```
+
+**配置示例：**
+```yaml
+hermes:
+  enabled: true
+  region: us-west-2
+  service-discovery:
+    timeout-seconds: 6
+    max-retry-attempts: 5
+    retry-delay-ms: 1000
+  ecs:
+    metadata-timeout-seconds: 2
+    max-retry-attempts: 20
+    retry-delay-ms: 800
+    lane-tag-key: lane
+```
+
+**环境条件：**
+- 仅在 `AWS_DEFAULT_REGION` 环境变量存在时自动启用
+- 在非 AWS 环境下自动跳过，不影响应用启动
 
 ### Demo 应用
 

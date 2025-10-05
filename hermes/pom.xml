@@ -9,7 +9,9 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>hermes</artifactId>
+    <artifactId>hermes-spring-boot-starter</artifactId>
+    <name>Hermes Spring Boot Starter</name>
+    <description>Spring Boot Starter for Hermes AWS service discovery</description>
 
     <dependencies>
         <!-- ==================== AWS SDK Dependencies ==================== -->
@@ -42,6 +44,22 @@
                     <artifactId>apache-client</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <!-- ==================== Spring Boot Dependencies ==================== -->
+        
+        <!-- Spring Boot Auto Configuration -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring Boot Configuration Processor (for IDE support) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- ==================== Spring Framework Dependencies ==================== -->
@@ -81,6 +99,14 @@
         <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
+        </dependency>
+
+        <!-- ==================== Logging Dependencies ==================== -->
+        
+        <!-- SLF4J API -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
         </dependency>
     </dependencies>
 </project>
