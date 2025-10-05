@@ -12,19 +12,40 @@
     <artifactId>hermes</artifactId>
 
     <dependencies>
-        <!-- Jakarta Servlet API (for TraceOncePerRequestFilter) -->
+        <!-- ==================== AWS SDK Dependencies ==================== -->
+        
+        <!-- AWS SDK v2: HTTP client (JDK URLConnection, no extra deps) -->
         <dependency>
-            <groupId>jakarta.annotation</groupId>
-            <artifactId>jakarta.annotation-api</artifactId>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
         </dependency>
 
-        <!-- Spring Web (for OncePerRequestFilter) -->
+        <!-- AWS SDK v2: ECS (Elastic Container Service) -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <scope>provided</scope>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ecs</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
+        <!-- AWS SDK v2: Service Discovery -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>servicediscovery</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- ==================== Spring Framework Dependencies ==================== -->
+        
         <!-- Spring Core (for @Order annotation) -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -38,38 +59,28 @@
             <artifactId>spring-context</artifactId>
             <scope>provided</scope>
         </dependency>
-        <!-- JSON 解析（可用 Jackson） -->
+
+        <!-- Spring Web (for web-related functionality) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ==================== JSON Processing Dependencies ==================== -->
+        
+        <!-- Jackson JSON processing -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
-        <!-- AWS SDK v2: HTTP client (JDK URLConnection, no extra deps) -->
+        <!-- ==================== Jakarta Dependencies ==================== -->
+        
+        <!-- Jakarta Annotations -->
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>url-connection-client</artifactId>
-        </dependency>
-
-        <!-- AWS SDK v2: ECS + ServiceDiscovery -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>ecs</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>apache-client</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>servicediscovery</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>apache-client</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
         </dependency>
     </dependencies>
 </project>
