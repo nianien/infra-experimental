@@ -1,4 +1,3 @@
-// src/main/java/com/ddm/hermes/aws/starter/LaneAutoConfiguration.java
 package com.ddm.hermes.aws.autoconfigure;
 
 import com.ddm.hermes.aws.EcsInstance;
@@ -12,7 +11,7 @@ import org.springframework.context.annotation.Bean;
 @AutoConfiguration
 @EnableConfigurationProperties(EcsInstanceProperties.class)
 @ConditionalOnEnvironmentVariable(name = "ECS_CONTAINER_METADATA_URI_V4")
-public class LaneAutoConfiguration {
+public class EcsAutoConfiguration {
 
     @Bean
     public EcsInstance ecsInstance(EcsInstanceProperties p) {

@@ -58,6 +58,6 @@ Argus: Auto-configuring TraceInterceptor
 
 ## 依赖要求
 
-- Spring Boot 3.2.0+
+- Spring Boot 3.3.4+
 - gRPC Spring Boot Starter 2.15.0+
 - Java 21+

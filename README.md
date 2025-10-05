@@ -102,7 +102,7 @@ demo-web (HTTP) → demo-order-service (gRPC) → demo-user-service (gRPC)
 ## 🛠️ 技术栈
 
 - **Java**: 21
-- **Spring Boot**: 3.2.0
+- **Spring Boot**: 3.3.4
 - **gRPC**: 1.64.0
 - **Protocol Buffers**: 3.25.3
 - **Maven**: 3.9.2

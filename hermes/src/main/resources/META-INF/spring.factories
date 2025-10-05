@@ -1,2 +1,2 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
-com.ddm.hermes.aws.starter.EcsInstanceEnvironmentPostProcessor
+com.ddm.hermes.aws.EcsEnvironmentPostProcessor
