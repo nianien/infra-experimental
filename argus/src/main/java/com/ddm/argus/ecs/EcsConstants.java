@@ -7,9 +7,6 @@ public final class EcsConstants {
     private EcsConstants() {
     }
 
-    // ===== Environment Variables =====
-    public static final String ENV_ECS_METADATA_V4 = "ECS_CONTAINER_METADATA_URI_V4";
-
     // ===== Metadata JSON fields =====
     public static final String META_FIELD_CLUSTER = "Cluster";
     public static final String META_FIELD_TASK_ARN = "TaskARN";
@@ -41,12 +38,7 @@ public final class EcsConstants {
     /**
      * 环境变量：ECS 元数据 URI (v4)
      */
-    public static final String META_ENV = "ECS_CONTAINER_METADATA_URI_V4";
-
-    /**
-     * 环境变量：是否将 Service 名后缀作为 lane
-     */
-    public static final String ECS_SERVICE_SUFFIX_AS_LANE = "ECS_SERVICE_SUFFIX_AS_LANE";
+    public static final String ENV_ECS_METADATA_V4 = "ECS_CONTAINER_METADATA_URI_V4";
 
     /**
      * Cloud Map 实例属性：IPv4 地址

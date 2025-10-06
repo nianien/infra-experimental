@@ -1,5 +1,6 @@
 package com.ddm.argus.grpc;
 
+import com.ddm.argus.ecs.EcsConstants;
 import com.ddm.argus.grpc.TraceContext.TraceInfo;
 import com.ddm.argus.utils.TraceparentUtils;
 import io.grpc.*;
@@ -24,13 +25,15 @@ public class TraceInterceptor implements ClientInterceptor, ServerInterceptor {
 
         // 1) 取当前 TraceInfo；若无则新建（root）
         TraceInfo current = TraceContext.CTX_TRACE_INFO.get();
-
         TraceInfo nextHop = (current != null) ? current.nextHop() : TraceInfo.root(null);
 
         // 2) 将新的 TraceInfo 写入 gRPC Context
         Context ctx = Context.current().withValue(TraceContext.CTX_TRACE_INFO, nextHop);
 
-        return new SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
+        // ⭐ 关键：把 TraceInfo 也塞进 CallOptions，供 LB 读取
+        CallOptions withTrace = callOptions.withOption(TraceContext.CALL_OPT_TRACE_INFO, nextHop);
+
+        return new SimpleForwardingClientCall<>(next.newCall(method, withTrace)) {
             @Override
             public void start(Listener<RespT> responseListener, Metadata headers) {
                 // 3) 写出站头：traceparent / tracestate
@@ -38,9 +41,12 @@ public class TraceInterceptor implements ClientInterceptor, ServerInterceptor {
                         TraceparentUtils.formatTraceparent(nextHop.traceId(), nextHop.spanId(), nextHop.flags()));
 
                 String tracestateIn = headers.get(MetadataKeys.TRACESTATE);
+
+                // 用空串表示“删除 lane”（upsertVendorKV 对空串/ null 都会删除该键）
                 String tracestateOut = (nextHop.lane() == null || nextHop.lane().isBlank())
-                        ? TraceparentUtils.upsertVendorKV(tracestateIn, "ctx", Map.of()) // 删除 lane
-                        : TraceparentUtils.upsertVendorKV(tracestateIn, "ctx", Map.of("lane", nextHop.lane()));
+                        ? TraceparentUtils.upsertVendorKV(tracestateIn, "ctx", Map.of(EcsConstants.TAG_LANE, ""))
+                        : TraceparentUtils.upsertVendorKV(tracestateIn, "ctx", Map.of(EcsConstants.TAG_LANE, nextHop.lane()));
+
                 if (tracestateOut != null && !tracestateOut.isBlank()) {
                     headers.put(MetadataKeys.TRACESTATE, tracestateOut);
                 }

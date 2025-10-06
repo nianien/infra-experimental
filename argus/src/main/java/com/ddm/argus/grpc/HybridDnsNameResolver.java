@@ -151,7 +151,7 @@ public final class HybridDnsNameResolver extends NameResolver {
 
         } catch (Exception e) {
             listener.onError(Status.UNAVAILABLE
-                    .withDescription("CloudMap discover failed: " + e.getMessage())
+                    .withDescription("CloudMap discover failed: " + service + "." + namespace + " - " + e.getMessage())
                     .withCause(e));
         }
     }

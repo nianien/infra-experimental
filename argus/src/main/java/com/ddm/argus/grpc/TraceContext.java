@@ -1,6 +1,7 @@
 package com.ddm.argus.grpc;
 
 import com.ddm.argus.utils.TraceparentUtils;
+import io.grpc.CallOptions;
 import io.grpc.Context;
 
 /**
@@ -51,4 +52,6 @@ public final class TraceContext {
 
     // 仅一个 Context Key
     public static final Context.Key<TraceInfo> CTX_TRACE_INFO = Context.key("trace.info");
+    public static final CallOptions.Key<TraceInfo> CALL_OPT_TRACE_INFO =
+            CallOptions.Key.createWithDefault("trace.info", null);
 }
