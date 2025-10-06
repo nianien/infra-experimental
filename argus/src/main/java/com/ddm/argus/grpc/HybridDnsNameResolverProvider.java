@@ -4,6 +4,8 @@ import com.ddm.argus.ecs.EcsInstanceProperties;
 import io.grpc.NameResolver;
 import io.grpc.NameResolver.Args;
 import io.grpc.NameResolverProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 
@@ -12,7 +14,7 @@ import java.net.URI;
  * 优先使用 Cloud Map 解析，失败时回退系统 DNS。
  */
 public class HybridDnsNameResolverProvider extends NameResolverProvider {
-
+    private static final Logger log = LoggerFactory.getLogger(HybridDnsNameResolverProvider.class);
     private final static String scheme = "cloud";
     private final GrpcProperties grpcProperties;
     private final EcsInstanceProperties ecsProps;
@@ -41,6 +43,7 @@ public class HybridDnsNameResolverProvider extends NameResolverProvider {
 
     @Override
     public NameResolver newNameResolver(URI targetUri, Args args) {
+        log.info("==>[argus] newNameResolver for uri: {}", targetUri);
         if (!scheme.equalsIgnoreCase(targetUri.getScheme())) {
             return null;
         }
