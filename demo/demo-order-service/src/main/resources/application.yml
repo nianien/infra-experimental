@@ -35,4 +35,4 @@ grpc:
   client:
     user-service:
       # 部署在 ECS/Cloud Map 的地址
-      address: "dns:///user.test.local:${GRPC_SERVER_PORT:9091}"
+      address: "cloud:///user.test.local:${GRPC_SERVER_PORT:9091}"

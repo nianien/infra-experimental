@@ -24,7 +24,7 @@ public class HybridDnsNameResolverProvider extends NameResolverProvider {
 
     @Override
     public String getDefaultScheme() {
-        return "dns";
+        return "cloud";
     }
 
     @Override
@@ -34,7 +34,8 @@ public class HybridDnsNameResolverProvider extends NameResolverProvider {
 
     @Override
     protected int priority() {
-        return 8; // 高于内置 dns(5)
+        // 高于内置 dns(5)
+        return 10;
     }
 
     @Override

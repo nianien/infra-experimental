@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * Down 模块独立服务器
  * <p>
- * 运行 down 模块相关的服务，监听端口 9092
+ * 运行 down 模块相关的服务，监听端口
  */
 @SpringBootApplication(scanBasePackages = {
         "com.ddm.demo.user",

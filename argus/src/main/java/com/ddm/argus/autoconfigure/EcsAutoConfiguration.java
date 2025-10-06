@@ -35,7 +35,7 @@ public class EcsAutoConfiguration {
             GrpcProperties resolverProps, EcsInstanceProperties ecsProps) {
         var p = new HybridDnsNameResolverProvider(resolverProps, ecsProps);
         NameResolverRegistry.getDefaultRegistry().register(p);
-        log.info("==>[Argus] Registered CloudMap NameResolverProvider (dns scheme)");
+        log.info("==>[Argus] Registered CloudMap NameResolverProvider: scheme=cloud");
         return p;
     }
 }

@@ -30,7 +30,7 @@ public class OrderServiceImpl extends OrderServiceImplBase {
     private static final Logger logger = LoggerFactory.getLogger(OrderServiceImpl.class);
 
     /**
-     * gRPC 客户端，调用下游的 UserService (端口 9092)
+     * gRPC 客户端，调用下游的 UserService
      * 使用 @Lazy 实现懒加载，避免启动时立即连接
      */
     @GrpcClient("user-service")
