@@ -1,6 +1,7 @@
 package com.ddm.argus.utils;
 
 
+import com.ddm.argus.ecs.EcsConstants;
 import com.ddm.argus.grpc.TraceContext.TraceInfo;
 
 import java.security.SecureRandom;
@@ -168,32 +169,45 @@ public final class TraceparentUtils {
      * @return 更新后的 tracestate
      */
     public static String upsertVendorKV(String tracestate, String vendor, Map<String, String> updates) {
+        // 1) 基本校验
         if (vendor == null || vendor.isBlank()) return tracestate;
+        if (updates == null || updates.isEmpty()) return tracestate;
+
+        // 2) 过滤出“有效更新项”（有 key，且 key 非空；值可为 null/空，代表删除）
+        boolean hasValidKey = false;
+        for (Map.Entry<String, String> e : updates.entrySet()) {
+            String k = e.getKey();
+            if (k != null && !k.isBlank()) {
+                hasValidKey = true;
+                break;
+            }
+        }
+        if (!hasValidKey) return tracestate; // 没有任何有效键，无操作
 
         String existingValue = null;
         List<String> others = new ArrayList<>();
 
-        // 解析 vendor 成员
+        // 3) 拆分出目标 vendor 与其它 vendor 成员
         if (tracestate != null && !tracestate.isBlank()) {
             for (String member : tracestate.split(",")) {
                 String m = member.trim();
                 if (m.isEmpty()) continue;
                 int eq = m.indexOf('=');
-                if (eq <= 0) {
+                if (eq <= 0) { // 非法成员，原样保留
                     others.add(m);
                     continue;
                 }
                 String v = m.substring(0, eq).trim();
                 String val = m.substring(eq + 1).trim();
                 if (vendor.equals(v)) {
-                    existingValue = val;
+                    existingValue = val;        // 只记第一个同名 vendor（规范上不应重复）
                 } else {
-                    others.add(m);
+                    others.add(m);              // 其它 vendor 原样放回
                 }
             }
         }
 
-        // 解析现有 vendor 的键值
+        // 4) 解析既有 vendor 的 key:value
         Map<String, String> map = new LinkedHashMap<>();
         if (existingValue != null && !existingValue.isBlank()) {
             for (String kv : existingValue.split(";")) {
@@ -209,23 +223,21 @@ public final class TraceparentUtils {
             }
         }
 
-        // 应用更新（空值 => 删除）
-        if (updates != null && !updates.isEmpty()) {
-            for (Map.Entry<String, String> e : updates.entrySet()) {
-                String key = e.getKey();
-                String val = e.getValue();
-                if (key == null || key.isBlank()) continue;
-                if (val == null || val.isBlank()) {
-                    map.remove(key);
-                } else {
-                    map.put(key.trim(), val.trim());
-                }
+        // 5) 应用更新：空值/空串 => 删除；否则 upsert
+        for (Map.Entry<String, String> e : updates.entrySet()) {
+            String k = e.getKey();
+            if (k == null || k.isBlank()) continue;
+            String v = e.getValue();
+            if (v == null || v.isBlank()) {
+                map.remove(k);
+            } else {
+                map.put(k.trim(), v.trim());
             }
         }
 
-        // 拼接结果
-        String vendorValue = CommonUtils.joinKv(map);
-        List<String> result = new ArrayList<>();
+        // 6) 组装：目标 vendor 放最前；若目标 vendor 为空则不写入
+        String vendorValue = CommonUtils.joinKv(map); // 形如 "lane:blue;env:prod"
+        List<String> result = new ArrayList<>(1 + others.size());
         if (!vendorValue.isBlank()) {
             result.add(vendor + "=" + vendorValue);
         }
@@ -238,7 +250,7 @@ public final class TraceparentUtils {
      */
     public static String upsertLane(String tracestate, String lane) {
         Map<String, String> updates = new LinkedHashMap<>();
-        updates.put("lane", lane); // null = 删除 lane
+        updates.put(EcsConstants.TAG_LANE, lane); // null = 删除 lane
         return upsertVendorKV(tracestate, "ctx", updates);
     }
     /* -------------------------------------------------------

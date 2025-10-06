@@ -38,12 +38,9 @@ public class TraceInterceptor implements ClientInterceptor, ServerInterceptor {
                         TraceparentUtils.formatTraceparent(nextHop.traceId(), nextHop.spanId(), nextHop.flags()));
 
                 String tracestateIn = headers.get(MetadataKeys.TRACESTATE);
-                String tracestateOut = TraceparentUtils.upsertVendorKV(
-                        tracestateIn, "ctx",
-                        (nextHop.lane() == null || nextHop.lane().isBlank())
-                                ? Map.of("lane", null)
-                                : Map.of("lane", nextHop.lane())
-                );
+                String tracestateOut = (nextHop.lane() == null || nextHop.lane().isBlank())
+                        ? TraceparentUtils.upsertVendorKV(tracestateIn, "ctx", Map.of()) // 删除 lane
+                        : TraceparentUtils.upsertVendorKV(tracestateIn, "ctx", Map.of("lane", nextHop.lane()));
                 if (tracestateOut != null && !tracestateOut.isBlank()) {
                     headers.put(MetadataKeys.TRACESTATE, tracestateOut);
                 }

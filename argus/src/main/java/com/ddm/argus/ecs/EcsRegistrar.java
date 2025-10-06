@@ -33,7 +33,7 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
                 ins.getServiceName() == null || ins.getContainerName() == null ||
                 ins.getContainerPort() == null || ins.getRegionId() == null ||
                 ins.getLane() == null || ins.getLane().isBlank()) {
-            log.info("LaneRegistrar: incomplete ecs.instance or missing lane, skip registration.");
+            log.info("==>[argus] LaneRegistrar: incomplete ecs.instance or missing lane, skip registration.");
             return;
         }
 
@@ -47,13 +47,13 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
                     30, 1000
             );
             if (ip == null) {
-                log.warn("LaneRegistrar: cannot get private IP. Skip.");
+                log.warn("==>[argus] LaneRegistrar: cannot get private IP. Skip.");
                 return;
             }
 
             Service svc = EcsUtils.getService(ecs, ins.getClusterArn(), ins.getServiceName()).orElse(null);
             if (svc == null) {
-                log.warn("LaneRegistrar: service not found. Skip.");
+                log.warn("==>[argus] LaneRegistrar: service not found. Skip.");
                 return;
             }
 
@@ -62,7 +62,7 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
                     .filter(a -> a != null && !a.isBlank())
                     .findFirst().orElse(null);
             if (registryArn == null) {
-                log.warn("LaneRegistrar: no CloudMap binding. Skip.");
+                log.warn("==>[argus] LaneRegistrar: no CloudMap binding. Skip.");
                 return;
             }
             String serviceId = registryArn.substring(registryArn.lastIndexOf('/') + 1);
@@ -83,14 +83,14 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
             );
 
             if (resp == null) {
-                log.warn("LaneRegistrar: registerInstance failed after retries. Skip.");
+                log.warn("==>[argus] LaneRegistrar: registerInstance failed after retries. Skip.");
                 return;
             }
 
-            log.info("LaneRegistrar OK. serviceId={}, instanceId={}, ip={}, port={}, lane={}, region={}",
+            log.info("==>[argus] LaneRegistrar OK. serviceId={}, instanceId={}, ip={}, port={}, lane={}, region={}",
                     serviceId, ins.getTaskId(), ip, ins.getContainerPort(), ins.getLane(), region.id());
         } catch (Exception e) {
-            log.warn("LaneRegistrar failed: {}", e.getMessage(), e);
+            log.warn("==>[argus] LaneRegistrar failed: {}", e.getMessage(), e);
         }
     }
 }
