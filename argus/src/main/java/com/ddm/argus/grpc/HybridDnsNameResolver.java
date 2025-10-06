@@ -20,6 +20,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.ddm.argus.ecs.EcsConstants.*;
+
 /**
  * 解析所有 Cloud Map 实例，并在 EAG Attributes 上标注 lane；
  * 不做 DNS 回退；lane 选择在自定义 LoadBalancer 中按请求头处理。
@@ -31,11 +33,11 @@ public final class HybridDnsNameResolver extends NameResolver {
     private final String namespace;
     private final String service;
     private final Integer targetPort;
-
-    private final String region;            // 必填
+    // 必填
+    private final String region;
     private final Duration refreshInterval;
-
-    private final ScheduledExecutorService scheduler; // 由 gRPC 管理
+    // 由 gRPC 管理
+    private final ScheduledExecutorService scheduler;
     private Listener2 listener;
     private volatile boolean shutdown;
 
@@ -110,7 +112,7 @@ public final class HybridDnsNameResolver extends NameResolver {
         try {
             ensureSd();
 
-            // 不带 lane 过滤，拿全量实例；lane 过滤交给 LB 按请求头做
+            // 拿全量实例；lane 过滤交给 LB 按请求头做
             DiscoverInstancesRequest req = DiscoverInstancesRequest.builder()
                     .namespaceName(namespace)
                     .serviceName(service)
@@ -122,18 +124,16 @@ public final class HybridDnsNameResolver extends NameResolver {
             List<EquivalentAddressGroup> eags = resp.instances().stream()
                     .map(i -> {
                         Map<String, String> a = i.attributes();
-                        String ip = a.getOrDefault("AWS_INSTANCE_IPV4", a.get("ipv4"));
+                        String ip = a.getOrDefault(CM_ATTR_IPV4, a.get(CM_ATTR_IPV4_FALLBACK));
                         if (ip == null || ip.isBlank()) return null;
-                        int port = choosePort(targetPort, a.get("grpcPort"), a.get("AWS_INSTANCE_PORT"));
-                        String lane = a.get("lane");
+                        int port = choosePort(targetPort, a.get(CM_ATTR_GRPC_PORT), a.get(CM_ATTR_PORT));
+                        String lane = a.get(CM_ATTR_LANE);
 
                         Attributes attrs = Attributes.newBuilder()
                                 .set(ChannelAttributes.LANE, lane) // 关键：把实例的 lane 标注到地址上
                                 .build();
 
-                        return new EquivalentAddressGroup(
-                                new InetSocketAddress(ip, port),
-                                attrs);
+                        return new EquivalentAddressGroup(new InetSocketAddress(ip, port), attrs);
                     })
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());

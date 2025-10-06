@@ -237,7 +237,9 @@ public final class TraceparentUtils {
      * 兼容旧调用：仅更新 lane。
      */
     public static String upsertLane(String tracestate, String lane) {
-        return upsertVendorKV(tracestate, "ctx", Map.of("lane", lane));
+        Map<String, String> updates = new LinkedHashMap<>();
+        updates.put("lane", lane); // null = 删除 lane
+        return upsertVendorKV(tracestate, "ctx", updates);
     }
     /* -------------------------------------------------------
      * Internals / validation

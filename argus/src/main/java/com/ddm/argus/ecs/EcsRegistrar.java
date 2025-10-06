@@ -20,9 +20,6 @@ import java.util.Map;
 public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> {
     private static final Logger log = LoggerFactory.getLogger(EcsRegistrar.class);
 
-    private static final String ATTR_IPV4 = "AWS_INSTANCE_IPV4";
-    private static final String ATTR_PORT = "AWS_INSTANCE_PORT";
-    private static final String ATTR_LANE = "lane";
 
     private final EcsInstanceProperties ins;
 
@@ -71,9 +68,9 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
             String serviceId = registryArn.substring(registryArn.lastIndexOf('/') + 1);
 
             Map<String, String> attrs = new LinkedHashMap<>();
-            attrs.put(ATTR_IPV4, ip);
-            attrs.put(ATTR_PORT, String.valueOf(ins.getContainerPort()));
-            attrs.put(ATTR_LANE, ins.getLane());
+            attrs.put(EcsConstants.CM_ATTR_IPV4, ip);
+            attrs.put(EcsConstants.CM_ATTR_PORT, String.valueOf(ins.getContainerPort()));
+            attrs.put(EcsConstants.CM_ATTR_LANE, ins.getLane());
 
             var resp = Retry.get(
                     () -> sd.registerInstance(RegisterInstanceRequest.builder()

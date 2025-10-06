@@ -48,10 +48,17 @@ public class CommonUtils {
         return sb.toString();
     }
 
-    /* ===== util ===== */
-    @SafeVarargs
-    public static <T> T firstNonNull(T... values) {
-        for (T v : values) if (v != null) return v;
-        return null;
+
+    public static boolean isTrue(String val) {
+        if (val == null) return false;
+        switch (val.trim().toLowerCase()) {
+            case "true":
+            case "1":
+            case "yes":
+            case "on":
+                return true;
+            default:
+                return false;
+        }
     }
 }

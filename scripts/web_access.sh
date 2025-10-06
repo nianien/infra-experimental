@@ -5,7 +5,7 @@ set -e
 AWS_PROFILE="nianien"
 AWS_REGION="us-east-1"
 CLUSTER="demo-cluster"
-SERVICE="demo-web-service-hk3yy278"
+SERVICE="demo-web-service-test"
 PORT=8080
 MY_IP="${MY_IP:-}"   # 留空则自动探测
 
