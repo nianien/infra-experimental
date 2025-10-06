@@ -164,19 +164,33 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
 
         @Override
         public PickResult pickSubchannel(PickSubchannelArgs args) {
-            TraceInfo info = TraceContext.CTX_TRACE_INFO.get();
-            String laneKey = toLaneKey(info != null ? info.lane() : null);
-            final List<Subchannel> candidates = readyByLane.getOrDefault(laneKey, Collections.emptyList());
+            final TraceInfo info = TraceContext.CTX_TRACE_INFO.get();
+            final String wanted = (info != null && info.lane() != null && !info.lane().isBlank())
+                    ? info.lane().trim() : null;                // 只判一次
+            final boolean hasLane = (wanted != null);
+
+            final String keyDefault = toLaneKey(null);          // “无 lane”桶
+            final String keyWanted = toLaneKey(wanted);        // 目标 lane 桶
+
+            final List<Subchannel> defaultList = readyByLane.getOrDefault(keyDefault, Collections.emptyList());
+            final List<Subchannel> laneList = hasLane
+                    ? readyByLane.getOrDefault(keyWanted, Collections.emptyList())
+                    : defaultList;
+
+            // 有 lane 且该桶非空 → 用 lane 桶；否则回退 default
+            final boolean useWanted = hasLane && !laneList.isEmpty();
+            final List<Subchannel> candidates = useWanted ? laneList : defaultList;
+
             if (candidates.isEmpty()) {
-                Status err = (errorIfAny != null) ? errorIfAny
+                final Status err = (errorIfAny != null) ? errorIfAny
                         : Status.UNAVAILABLE.withDescription(
-                        (info.lane() == null)
-                                ? "no READY subchannel for default lane"
-                                : "no READY subchannel for lane=" + info.lane());
+                        hasLane ? ("no READY subchannel for lane=" + wanted + " (and no fallback)")
+                                : "no READY subchannel for default (no-lane)");
                 return PickResult.withError(err);
             }
 
-            final AtomicInteger cursor = cursors.computeIfAbsent(laneKey, k -> new AtomicInteger(0));
+            final String keyUsed = useWanted ? keyWanted : keyDefault;
+            final AtomicInteger cursor = cursors.computeIfAbsent(keyUsed, k -> new AtomicInteger(0));
             final int idx = Math.floorMod(cursor.getAndIncrement(), candidates.size());
             return PickResult.withSubchannel(candidates.get(idx));
         }
