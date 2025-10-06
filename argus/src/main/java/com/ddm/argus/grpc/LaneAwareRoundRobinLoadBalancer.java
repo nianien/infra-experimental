@@ -85,7 +85,6 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
             String lane = eag.getAttributes().get(ChannelAttributes.LANE);
             String normLane = normalize(lane);
             ScKey key = new ScKey(eag.getAddresses(), normLane);
-
             Subchannel sc = subsByKey.get(key);
             if (sc == null) {
                 Attributes scAttrs = Attributes.newBuilder().set(ChannelAttributes.LANE, lane).build();
@@ -94,7 +93,7 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
                         .setAttributes(scAttrs)
                         .build());
                 subsByKey.put(key, sc);
-                laneOf.put(sc, lane);
+                laneOf.put(sc, normLane);
                 if (log.isDebugEnabled()) {
                     log.debug("==>[argus] create Subchannel {} lane={}", sc.getAllAddresses(), lane);
                 }
@@ -102,7 +101,7 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
                 sc.requestConnection();
             } else {
                 // lane变更后重建逻辑（理论上不会触发，因为key已包含lane）
-                laneOf.put(sc, lane);
+                laneOf.put(sc, normLane);
                 if (log.isDebugEnabled()) {
                     log.debug("==>[argus] reuse Subchannel {} lane={}", sc.getAllAddresses(), lane);
                 }
