@@ -26,11 +26,11 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
     private final Helper helper;
 
     /**
-     * key=地址+lane 的组合，避免 Attributes 抖动
+     * 用「地址列表 + lane」做 key，避免 Attributes 抖动带来的等价性问题
      */
     private final Map<ScKey, Subchannel> subsByKey = new LinkedHashMap<>();
     /**
-     * Subchannel -> lane
+     * Subchannel -> 规范化后的 lane（"" 表示无 lane）
      */
     private final Map<Subchannel, String> laneOf = new ConcurrentHashMap<>();
     /**
@@ -50,29 +50,26 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
     @Override
     public void handleResolvedAddresses(ResolvedAddresses resolved) {
         final List<EquivalentAddressGroup> incoming = resolved.getAddresses();
-        if (log.isDebugEnabled()) {
-            log.debug("==>[argus] handleResolvedAddresses: {} EAG(s)", incoming.size());
-        }
+//        if (log.isDebugEnabled()) {
+//            log.debug("==>[argus] handleResolvedAddresses: {} EAG(s)", incoming.size());
+//        }
 
-        // 去重+保序
+        // 去重 + 保序
         final List<EquivalentAddressGroup> target = new ArrayList<>(new LinkedHashSet<>(incoming));
 
-        // 1) 找出需要保留的 key
+        // 1) 需要保留的 key
         final Set<ScKey> wantedKeys = new HashSet<>();
         for (EquivalentAddressGroup eag : target) {
-            String lane = eag.getAttributes().get(ChannelAttributes.LANE);
+            final String lane = eag.getAttributes().get(ChannelAttributes.LANE);
             wantedKeys.add(new ScKey(eag.getAddresses(), normalize(lane)));
         }
 
         // 2) 移除过期 subchannel
-        Iterator<Map.Entry<ScKey, Subchannel>> it = subsByKey.entrySet().iterator();
+        final Iterator<Map.Entry<ScKey, Subchannel>> it = subsByKey.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<ScKey, Subchannel> e = it.next();
             if (!wantedKeys.contains(e.getKey())) {
                 Subchannel sc = e.getValue();
-                if (log.isDebugEnabled()) {
-                    log.debug("==>[argus] remove Subchannel {} lane={}", sc.getAllAddresses(), e.getKey().lane);
-                }
                 sc.shutdown();
                 laneOf.remove(sc);
                 removeFromAllReady(sc);
@@ -80,11 +77,12 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
             }
         }
 
-        // 3) 新增或复用
+        // 3) 新增或复用 subchannel，并标注 lane
         for (EquivalentAddressGroup eag : target) {
-            String lane = eag.getAttributes().get(ChannelAttributes.LANE);
-            String normLane = normalize(lane);
-            ScKey key = new ScKey(eag.getAddresses(), normLane);
+            final String lane = eag.getAttributes().get(ChannelAttributes.LANE);
+            final String normLane = normalize(lane);
+            final ScKey key = new ScKey(eag.getAddresses(), normLane);
+
             Subchannel sc = subsByKey.get(key);
             if (sc == null) {
                 Attributes scAttrs = Attributes.newBuilder().set(ChannelAttributes.LANE, lane).build();
@@ -94,20 +92,14 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
                         .build());
                 subsByKey.put(key, sc);
                 laneOf.put(sc, normLane);
-                if (log.isDebugEnabled()) {
-                    log.debug("==>[argus] create Subchannel {} lane={}", sc.getAllAddresses(), lane);
-                }
                 sc.start(new LaneSubChannelListener(this, sc));
                 sc.requestConnection();
             } else {
-                // lane变更后重建逻辑（理论上不会触发，因为key已包含lane）
+                // 理论上 key 已包含 lane，不会走到 lane 变化复用；这里做防御
                 laneOf.put(sc, normLane);
-                if (log.isDebugEnabled()) {
-                    log.debug("==>[argus] reuse Subchannel {} lane={}", sc.getAllAddresses(), lane);
-                }
             }
         }
-        // 4) 状态汇总
+        // 4) 汇总状态
         if (subsByKey.isEmpty()) {
             log.warn("==>[argus] no subchannels after resolution -> TRANSIENT_FAILURE");
             helper.updateBalancingState(ConnectivityState.TRANSIENT_FAILURE,
@@ -132,17 +124,19 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
         laneOf.clear();
         readyByLane.clear();
         cursors.clear();
+        log.info("==>[argus] LB shutdown");
     }
 
-    /* ==================== 状态监听 ==================== */
-
+    /**
+     * 状态监听
+     *
+     * @param sc
+     * @param stateInfo
+     */
     private void onStateChange(Subchannel sc, ConnectivityStateInfo stateInfo) {
-        String laneKey = normalize(laneOf.get(sc));
-        List<Subchannel> readyList = readyByLane.computeIfAbsent(laneKey, k -> new ArrayList<>());
-        if (log.isDebugEnabled()) {
-            log.debug("==>[argus] onStateChange {} -> {}, lane={}",
-                    sc.getAllAddresses(), stateInfo.getState(), laneOf.get(sc));
-        }
+        final String laneKey = normalize(laneOf.get(sc));
+        final List<Subchannel> readyList = readyByLane.computeIfAbsent(laneKey, k -> new ArrayList<>());
+
         switch (stateInfo.getState()) {
             case READY -> {
                 if (!readyList.contains(sc)) readyList.add(sc);
@@ -157,27 +151,41 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
                 readyList.remove(sc);
                 helper.updateBalancingState(ConnectivityState.TRANSIENT_FAILURE, new Picker(stateInfo.getStatus()));
             }
-            case SHUTDOWN -> readyList.remove(sc);
+            case SHUTDOWN -> {
+                readyList.remove(sc);
+            }
         }
         dumpReadyBuckets();
     }
 
     private void removeFromAllReady(Subchannel sc) {
-        for (List<Subchannel> lst : readyByLane.values()) lst.remove(sc);
-    }
-
-    private void dumpReadyBuckets() {
-        if (log.isDebugEnabled()) {
-            StringBuilder sb = new StringBuilder(128);
-            sb.append("==>[argus] READY buckets: ");
-            if (readyByLane.isEmpty()) sb.append("<empty>");
-            else readyByLane.forEach((k, v) -> sb.append(k).append('=').append(v.size()).append(' '));
-            log.debug(sb.toString());
+        for (List<Subchannel> lst : readyByLane.values()) {
+            lst.remove(sc);
         }
     }
 
-    /* ==================== 选路器 ==================== */
+    private void dumpReadyBuckets() {
+        if (!log.isDebugEnabled()) return;
+        StringBuilder sb = new StringBuilder(128);
+        sb.append("==>[argus] READY buckets: ");
+        if (readyByLane.isEmpty()) {
+            sb.append("<empty>");
+        } else {
+            boolean first = true;
+            for (Map.Entry<String, List<Subchannel>> e : readyByLane.entrySet()) {
+                if (!first) sb.append(" | ");
+                first = false;
+                String lane = e.getKey().isEmpty() ? "<default>" : e.getKey();
+                sb.append(lane).append('=').append(e.getValue().size());
+            }
+        }
+        log.debug(sb.toString());
+    }
 
+
+    /**
+     * 选路器
+     */
     private final class Picker extends SubchannelPicker {
         private final Status errorIfAny;
 
@@ -188,43 +196,58 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
         @Override
         public PickResult pickSubchannel(PickSubchannelArgs args) {
             TraceInfo info = args.getCallOptions().getOption(TraceContext.CALL_OPT_TRACE_INFO);
-            String wanted = (info != null && info.lane() != null && !info.lane().isBlank()) ? info.lane().trim() : "";
-            String keyWanted = normalize(wanted);
-            String keyDefault = normalize("");
+            final String wantedLane = (info != null && info.lane() != null && !info.lane().isBlank())
+                    ? info.lane().trim() : "";
+            final String keyWanted = normalize(wantedLane);
+            final String keyDefault = normalize("");
 
-            List<Subchannel> laneList = readyByLane.getOrDefault(keyWanted, Collections.emptyList());
-            List<Subchannel> defaultList = readyByLane.getOrDefault(keyDefault, Collections.emptyList());
+            final List<Subchannel> laneList = readyByLane.getOrDefault(keyWanted, Collections.emptyList());
+            final List<Subchannel> defaultList = readyByLane.getOrDefault(keyDefault, Collections.emptyList());
 
-            boolean useWanted = !keyWanted.isEmpty() && !laneList.isEmpty();
-            List<Subchannel> candidates = useWanted ? laneList : defaultList;
+            final boolean useWanted = !keyWanted.isEmpty() && !laneList.isEmpty();
+            final List<Subchannel> candidates = useWanted ? laneList : defaultList;
+
             if (log.isDebugEnabled()) {
                 log.debug("==>[argus] pick: wantedLane={} useWanted={} laneSize={} defaultSize={}",
-                        wanted, useWanted, laneList.size(), defaultList.size());
+                        keyWanted.isEmpty() ? "<default>" : keyWanted,
+                        useWanted, laneList.size(), defaultList.size());
             }
+
             if (candidates.isEmpty()) {
                 Status err = (errorIfAny != null) ? errorIfAny
-                        : Status.UNAVAILABLE.withDescription("no READY subchannel for lane=" + wanted);
+                        : Status.UNAVAILABLE.withDescription(
+                        keyWanted.isEmpty()
+                                ? "no READY subchannel for default (no-lane)"
+                                : "no READY subchannel for lane=" + wantedLane + " (and no fallback)");
                 log.warn("==>[argus] pick error: {}", err);
                 return PickResult.withError(err);
             }
 
-            String keyUsed = useWanted ? keyWanted : keyDefault;
-            AtomicInteger cursor = cursors.computeIfAbsent(keyUsed, k -> new AtomicInteger(0));
-            int idx = Math.floorMod(cursor.getAndIncrement(), candidates.size());
-            Subchannel chosen = candidates.get(idx);
-            if (log.isDebugEnabled()) {
-                log.debug("==>[argus] pick -> lane={} idx={}/{} sc={}",
-                        keyUsed, idx, candidates.size(), chosen.getAllAddresses());
-            }
+            final String keyUsed = useWanted ? keyWanted : keyDefault;
+            final AtomicInteger cursor = cursors.computeIfAbsent(keyUsed, k -> new AtomicInteger(0));
+            final int idx = Math.floorMod(cursor.getAndIncrement(), candidates.size());
+            final Subchannel chosen = candidates.get(idx);
             return PickResult.withSubchannel(chosen);
         }
     }
 
     /* ==================== 工具 & 内部类 ==================== */
 
+    /**
+     * 统一把可能为 null/blank 的 lane 变成非 null；空串表示“无 lane”
+     */
+    private static String normalize(String lane) {
+        return (lane == null || lane.isBlank()) ? "" : lane;
+    }
+
+    /**
+     * 组合键：地址列表（保序，不可变） + 规范化 lane
+     */
     static final class ScKey {
-        final List<SocketAddress> addrs; // 保序，不可变
-        final String lane;               // "" 表示默认泳道
+        // 保序，不可变
+        final List<SocketAddress> addrs;
+        // "" 表示默认泳道
+        final String lane;
 
         ScKey(List<SocketAddress> addrs, String lane) {
             this.addrs = List.copyOf(addrs);
@@ -249,12 +272,6 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
         }
     }
 
-    // 将可能为 null 的 lane 归一化为非 null
-    private static String normalize(String lane) {
-        return (lane == null || lane.isBlank()) ? "" : lane;
-    }
-
-
     /**
      * 独立监听器，避免闭包捕获
      */
@@ -270,7 +287,9 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
         @Override
         public void onSubchannelState(ConnectivityStateInfo stateInfo) {
             LaneAwareRoundRobinLoadBalancer lb = ref.get();
-            if (lb != null) lb.onStateChange(sc, stateInfo);
+            if (lb != null) {
+                lb.onStateChange(sc, stateInfo);
+            }
         }
     }
 }
