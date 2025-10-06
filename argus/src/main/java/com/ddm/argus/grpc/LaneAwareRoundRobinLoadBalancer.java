@@ -206,7 +206,7 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
             int idx = Math.floorMod(cursor.getAndIncrement(), candidates.size());
             Subchannel chosen = candidates.get(idx);
 
-            log.debug("==>[argus] pick -> lane={} idx={}/{} sc={}",
+            log.info("==>[argus] pick -> lane={} idx={}/{} sc={}",
                     keyUsed, idx, candidates.size(), chosen.getAllAddresses());
             return PickResult.withSubchannel(chosen);
         }
