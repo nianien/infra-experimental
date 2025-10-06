@@ -8,11 +8,12 @@ import io.grpc.NameResolverProvider;
 import java.net.URI;
 
 /**
- * 名称解析器提供者：支持 "dns://service.namespace[:port]" 形式，
+ * 名称解析器提供者：支持 "cloud:///service.namespace[:port]" 形式，
  * 优先使用 Cloud Map 解析，失败时回退系统 DNS。
  */
 public class HybridDnsNameResolverProvider extends NameResolverProvider {
 
+    private final static String scheme = "cloud";
     private final GrpcProperties grpcProperties;
     private final EcsInstanceProperties ecsProps;
 
@@ -24,7 +25,7 @@ public class HybridDnsNameResolverProvider extends NameResolverProvider {
 
     @Override
     public String getDefaultScheme() {
-        return "cloud";
+        return scheme;
     }
 
     @Override
@@ -40,7 +41,7 @@ public class HybridDnsNameResolverProvider extends NameResolverProvider {
 
     @Override
     public NameResolver newNameResolver(URI targetUri, Args args) {
-        if (!"dns".equalsIgnoreCase(targetUri.getScheme())) {
+        if (!scheme.equalsIgnoreCase(targetUri.getScheme())) {
             return null;
         }
         String path = targetUri.getPath();
