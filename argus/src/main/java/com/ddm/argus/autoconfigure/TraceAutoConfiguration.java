@@ -1,7 +1,7 @@
-package com.ddm.argus.trace.autoconfigure;
+package com.ddm.argus.autoconfigure;
 
-import com.ddm.argus.trace.grpc.TraceInterceptor;
-import com.ddm.argus.trace.http.TraceFilter;
+import com.ddm.argus.grpc.TraceFilter;
+import com.ddm.argus.grpc.TraceInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -18,12 +18,12 @@ import org.springframework.context.annotation.Configuration;
  * - TraceInterceptor: 在所有环境下加载
  */
 @Configuration
-public class ArgusAutoConfiguration {
+public class TraceAutoConfiguration {
 
-    private static final Logger log = LoggerFactory.getLogger(ArgusAutoConfiguration.class);
+    private static final Logger log = LoggerFactory.getLogger(TraceAutoConfiguration.class);
 
-    public ArgusAutoConfiguration() {
-        log.info("==>[Argus]: ArgusAutoConfiguration constructor called");
+    public TraceAutoConfiguration() {
+        log.info("==>[Argus]ArgusAutoConfiguration constructor called");
     }
 
     /**
@@ -37,7 +37,7 @@ public class ArgusAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         public TraceFilter traceFilter() {
-            log.info("==>[Argus]: Auto-configuring TraceFilter for web environment");
+            log.info("==>[Argus]Auto-configuring TraceFilter for web environment");
             return new TraceFilter();
         }
     }
@@ -48,7 +48,7 @@ public class ArgusAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public TraceInterceptor traceInterceptor() {
-        log.info("==>[Argus]: Auto-configuring TraceInterceptor");
+        log.info("==>[Argus]Auto-configuring TraceInterceptor");
         return new TraceInterceptor();
     }
 }

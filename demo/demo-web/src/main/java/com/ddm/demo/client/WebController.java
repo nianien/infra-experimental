@@ -1,13 +1,11 @@
 package com.ddm.demo.client;
 
-import com.ddm.argus.trace.TraceContext;
 import com.ddm.demo.proto.order.*;
 import com.ddm.demo.proto.user.*;
 import io.grpc.StatusRuntimeException;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -86,12 +84,7 @@ public class WebController {
     @GetMapping("/users/{userId}")
     public ResponseEntity<Map<String, Object>> getUser(@PathVariable String userId) {
         try {
-            // 调试：检查当前的 trace context
-            String currentTraceId = TraceContext.CTX_TRACE_ID.get();
-            String currentSpanId = TraceContext.CTX_SPAN_ID.get();
-            String mdcTraceId = MDC.get(TraceContext.MDC_TRACE_ID);
-            logger.info("HTTP API: Getting user {} - Context traceId={}, spanId={}, MDC traceId={}", 
-                       userId, currentTraceId, currentSpanId, mdcTraceId);
+            logger.info("HTTP API: Getting user {} ", userId);
 
             GetUserRequest request = GetUserRequest.newBuilder()
                     .setUserId(userId)

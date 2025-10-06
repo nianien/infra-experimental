@@ -13,108 +13,99 @@
     <name>Argus Spring Boot Starter</name>
     <description>Spring Boot Starter for Argus distributed tracing</description>
 
-
     <dependencies>
-        <!-- ==================== gRPC Dependencies ==================== -->
-        
-        <!-- gRPC Core APIs -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- gRPC：最小必要集合（Starter 不绑定传输/编解码实现） -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-api</artifactId>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
-            <artifactId>grpc-stub</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
             <artifactId>grpc-context</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf</artifactId>
-        </dependency>
 
-        <!-- Protocol Buffers -->
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-        </dependency>
-
-        <!-- Spring Boot gRPC Auto Configuration -->
-        <dependency>
-            <groupId>net.devh</groupId>
-            <artifactId>grpc-server-spring-boot-autoconfigure</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.devh</groupId>
-            <artifactId>grpc-client-spring-boot-autoconfigure</artifactId>
-            <scope>compile</scope>
-        </dependency>
-
-        <!-- ==================== Spring Boot Dependencies ==================== -->
-        
-        <!-- Spring Boot Auto Configuration -->
+        <!-- Spring Boot/Framework（作为 Starter，均标记 provided） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!-- Spring Boot Configuration Processor (for IDE support) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!-- ==================== Spring Framework Dependencies ==================== -->
-        
-        <!-- Spring Core (for @Order annotation) -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!-- Spring Context (for @Component annotation) -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!-- Spring Web (for OncePerRequestFilter) -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
             <scope>provided</scope>
         </dependency>
 
-        <!-- ==================== Jakarta Dependencies ==================== -->
-        
-        <!-- Jakarta Servlet API (for TraceFilter) -->
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!-- Jakarta Annotations -->
         <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
+            <scope>provided</scope>
         </dependency>
 
-        <!-- ==================== Logging Dependencies ==================== -->
-        
-        <!-- SLF4J API -->
+
+        <!-- ==================== gRPC Spring Boot ==================== -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-client-spring-boot-autoconfigure</artifactId>
+        </dependency>
+
+        <!-- ==================== AWS SDK（ECS/Cloud Map 工具类用） ==================== -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ecs</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>servicediscovery</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
-
 
 </project>

@@ -1,1 +1,2 @@
-com.ddm.argus.trace.autoconfigure.ArgusAutoConfiguration
+com.ddm.argus.autoconfigure.TraceAutoConfiguration
+com.ddm.argus.autoconfigure.EcsAutoConfiguration

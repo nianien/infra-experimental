@@ -1,325 +1,136 @@
-# Infrastructure Experimental
+# Infra Experimental
 
-一个基于 Spring Boot 3.x 和 gRPC 的微服务基础设施实验项目，包含分布式链路追踪、服务发现和演示应用。
+基于 Spring Boot 3 与 gRPC 的基础设施实验项目。当前仅提供一个统一的 Starter：
+- Argus（包含分布式链路追踪 + 基于 AWS ECS/Cloud Map 的服务发现与 gRPC 解析/负载均衡）
+- Demo 模块（web/order/user）与 proto 定义
 
-## 🏗️ 项目架构
-
+## 目录结构
 ```
 infra-experimental/
-├── argus/                    # 分布式链路追踪框架
-│   ├── src/main/java/        # 核心追踪组件
-│   └── src/main/resources/   # 自动配置文件
-├── hermes/                   # AWS 服务发现组件
-│   └── src/main/java/        # ECS 服务发现实现
-├── demo/                     # 演示应用集合
-│   ├── demo-proto/          # Protocol Buffers 定义
-│   ├── demo-user-service/   # 用户服务 (gRPC)
-│   ├── demo-order-service/  # 订单服务 (gRPC)
-│   └── demo-web/            # Web 前端应用
-└── scripts/                  # 部署和运维脚本
+├── argus/                  # 统一 Starter（Tracing + ECS/Cloud Map）
+├── demo/
+│   ├── demo-proto/         # protobuf 与 gRPC 代码生成
+│   ├── demo-user-service/  # 用户服务（gRPC）
+│   ├── demo-order-service/ # 订单服务（gRPC）
+│   └── demo-web/           # Web 应用（调用下游 gRPC）
+└── scripts/                # 构建与运行脚本
 ```
 
-## 🚀 核心组件
+## 版本与技术栈
+- Java 21
+- Spring Boot 3.3.4
+- gRPC 1.64.0（由父 POM 统一 BOM 管理）
+- Protobuf 3.25.3
+- AWS SDK v2（Hermes 仅在 ECS 环境下生效）
 
-### Argus - 分布式链路追踪
+## Argus（统一 Starter）
+能力概览：
+- 分布式链路追踪：遵循 W3C Trace Context（traceparent），提供 gRPC 拦截器与 Servlet Filter，自动透传并写入 MDC
+- ECS/Cloud Map：在 ECS 环境下（检测 `ECS_CONTAINER_METADATA_URI_V4`）注入实例元数据、可选激活 profiles（来自 Service Tag），并注册自定义 gRPC NameResolver（Cloud Map 优先、DNS 回退）及可配置的客户端负载均衡策略
+- Spring Boot 3 自动装配（基于 `AutoConfiguration.imports`）
 
-**功能特性：**
-- 基于 W3C Trace Context 标准的链路追踪
-- 支持 gRPC 和 HTTP 协议的自动追踪
-- Spring Boot 3.x 自动配置
-- 零侵入式集成
-
-**核心组件：**
-- `TraceInterceptor`: gRPC 拦截器，自动处理链路上下文传播
-- `TraceFilter`: HTTP 过滤器，处理 Web 请求的链路追踪
-- `TraceContext`: 链路上下文管理
-- `ArgusAutoConfiguration`: Spring Boot 自动配置
-
-**使用方式：**
+引入：
 ```xml
 <dependency>
-    <groupId>com.ddm</groupId>
-    <artifactId>argus-spring-boot-starter</artifactId>
-    <version>1.0-SNAPSHOT</version>
+  <groupId>com.ddm</groupId>
+  <artifactId>argus-spring-boot-starter</artifactId>
+  <version>1.0-SNAPSHOT</version>
 </dependency>
 ```
 
-### Hermes - AWS 服务发现
+链路日志（可选，包含 traceId/spanId）：
+```yaml
+logging:
+  level.com.ddm.argus: DEBUG
+  pattern.console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
+```
 
-**功能特性：**
-- 基于 AWS ECS 的服务发现
-- 支持 AWS Service Discovery
-- 轻量级 HTTP 客户端
-- Spring Boot 3.x 自动配置
-- 零侵入式集成
+ECS/Cloud Map 启用条件：
+- 环境变量 `ECS_CONTAINER_METADATA_URI_V4` 存在时自动生效；否则自动跳过（对本地/非 ECS 环境零侵入）
 
-**核心组件：**
-- `LaneBootstrap`: ECS 服务发现启动器
-- `HermesProperties`: 配置属性类
-- `HermesAutoConfiguration`: Spring Boot 自动配置
+gRPC 解析与负载均衡（示例，按需启用与调整）：
+```yaml
+# 仅示例，实际前缀与键名以代码实现为准（保持向后兼容）
+argus:
+  cloudmap:
+    resolver:
+      enabled: true        # 启用 Cloud Map + DNS 混合解析
+      refreshInterval: 10s # 解析刷新间隔
+      logDnsFallback: true # Cloud Map 失败时是否记录 DNS 回退
+  grpc:
+    loadbalancer:
+      enabled: true
+      policy: round_robin
+      clientPolicy:
+        user-service: pick_first
+```
 
-**使用方式：**
+## Hermes（ECS/Cloud Map Starter）
+功能：
+- 从 ECS Metadata v4 读取任务/服务信息
+- 可选激活 Spring Profiles（来自 Service Tag: profile）
+- 为 gRPC 注册自定义 NameResolver（Cloud Map 优先，DNS 回退）
+
+激活条件：
+- 环境变量 `ECS_CONTAINER_METADATA_URI_V4` 存在时自动生效（非 ECS 环境自动跳过）
+
+引入：
 ```xml
 <dependency>
-    <groupId>com.ddm</groupId>
-    <artifactId>hermes-spring-boot-starter</artifactId>
-    <version>1.0-SNAPSHOT</version>
+  <groupId>com.ddm</groupId>
+  <artifactId>hermes-spring-boot-starter</artifactId>
+  <version>1.0-SNAPSHOT</version>
 </dependency>
 ```
 
-**配置示例：**
+主要配置（可选）：
 ```yaml
 hermes:
-  enabled: true
-  region: us-west-2
-  service-discovery:
-    timeout-seconds: 6
-    max-retry-attempts: 5
-    retry-delay-ms: 1000
-  ecs:
-    metadata-timeout-seconds: 2
-    max-retry-attempts: 20
-    retry-delay-ms: 800
-    lane-tag-key: lane
+  cloudmap:
+    resolver:
+      enabled: true
+      refreshInterval: 10s
+      logDnsFallback: true
+  grpc:
+    loadbalancer:
+      enabled: true
+      policy: round_robin
+      clientPolicy:
+        user-service: pick_first
 ```
 
-**环境条件：**
-- 仅在 `AWS_DEFAULT_REGION` 环境变量存在时自动启用
-- 在非 AWS 环境下自动跳过，不影响应用启动
-
-### Demo 应用
-
-**服务架构：**
-```
-demo-web (HTTP) → demo-order-service (gRPC) → demo-user-service (gRPC)
-```
-
-**服务说明：**
-- **demo-web**: Spring Boot Web 应用，提供 HTTP API 和前端界面
-- **demo-order-service**: 订单服务，处理订单相关业务逻辑
-- **demo-user-service**: 用户服务，管理用户信息和认证
-
-## 🛠️ 技术栈
-
-- **Java**: 21
-- **Spring Boot**: 3.3.4
-- **gRPC**: 1.64.0
-- **Protocol Buffers**: 3.25.3
-- **Maven**: 3.9.2
-- **AWS SDK**: v2 (ECS, Service Discovery)
-
-## 📋 环境要求
-
-- Java 21+
-- Maven 3.6+
-- Docker (可选，用于容器化部署)
-
-## 🚀 快速开始
-
-### 1. 构建项目
-
+## 快速开始
+构建：
 ```bash
-# 克隆项目
-git clone <repository-url>
-cd infra-experimental
-
-# 构建所有模块
 mvn clean install -DskipTests
 ```
 
-### 2. 运行演示应用
-
-#### 启动用户服务
+运行 demo：
 ```bash
-cd demo/demo-user-service
-mvn spring-boot:run
-# 服务将在端口 9091 启动
+# 用户服务（9091）
+cd demo/demo-user-service && mvn spring-boot:run
+
+# 订单服务（9092）
+cd demo/demo-order-service && mvn spring-boot:run
+
+# Web（8080）
+cd demo/demo-web && mvn spring-boot:run
 ```
 
-#### 启动订单服务
-```bash
-cd demo/demo-order-service
-mvn spring-boot:run
-# 服务将在端口 9092 启动
-```
+访问：
+- Web: http://localhost:8080
+- gRPC: localhost:9091（user）、localhost:9092（order）
 
-#### 启动 Web 应用
-```bash
-cd demo/demo-web
-mvn spring-boot:run
-# 应用将在端口 8080 启动
-```
+## 模块依赖建议
+- 应用层选择 gRPC 运行时（如 grpc-netty-shaded）与 `net.devh` 的 gRPC Spring Boot Starters
+- Argus 作为 Starter 仅暴露最小 API 依赖，Spring/Servlet 标注 provided，避免与应用实现绑定
 
-### 3. 访问应用
+## 许可证
+MIT（见 LICENSE）
 
-- **Web 界面**: http://localhost:8080
-- **用户服务**: localhost:9091 (gRPC)
-- **订单服务**: localhost:9092 (gRPC)
+## 致谢
+- Spring Boot / Spring Framework
+- gRPC / Protocol Buffers
+- AWS SDK v2
 
-## 🔧 配置说明
-
-### 链路追踪配置
-
-Argus 支持以下配置选项：
-
-```yaml
-# application.yml
-logging:
-  level:
-    com.ddm.argus: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:--}] %logger{36} - %msg%n"
-```
-
-### gRPC 服务配置
-
-```yaml
-# application.yml
-grpc:
-  server:
-    port: 9091
-  client:
-    user-service:
-      address: 'static://localhost:9091'
-```
-
-## 📊 链路追踪
-
-### 追踪格式
-
-项目使用 W3C Trace Context 标准：
-
-```
-traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
-```
-
-### 日志格式
-
-所有日志都包含链路追踪信息：
-
-```
-2025-10-05 04:39:04.870 [main] INFO [4bf92f3577b34da6a3ce929d0e0e4736] c.d.d.user.service.UserServiceImpl - User Service initialized
-```
-
-### 追踪流程
-
-1. **HTTP 请求**: `TraceFilter` 解析 `traceparent` 头，创建或继承链路上下文
-2. **gRPC 调用**: `TraceInterceptor` 自动传播链路上下文到下游服务
-3. **日志记录**: 所有日志自动包含 `traceId` 和 `spanId`
-
-## 🐳 Docker 部署
-
-### 构建镜像
-
-```bash
-# 构建用户服务镜像
-cd demo/demo-user-service
-docker build -t demo-user-service:latest .
-
-# 构建订单服务镜像
-cd ../demo-order-service
-docker build -t demo-order-service:latest .
-
-# 构建 Web 应用镜像
-cd ../demo-web
-docker build -t demo-web:latest .
-```
-
-### 运行容器
-
-```bash
-# 启动用户服务
-docker run -d -p 9091:9091 --name user-service demo-user-service:latest
-
-# 启动订单服务
-docker run -d -p 9092:9092 --name order-service demo-order-service:latest
-
-# 启动 Web 应用
-docker run -d -p 8080:8080 --name web-app demo-web:latest
-```
-
-## 🧪 测试
-
-### 单元测试
-
-```bash
-# 运行所有测试
-mvn test
-
-# 运行特定模块测试
-mvn test -pl argus
-```
-
-### 集成测试
-
-```bash
-# 启动所有服务进行集成测试
-./scripts/build.sh
-```
-
-## 📈 监控和运维
-
-### 健康检查
-
-所有服务都提供健康检查端点：
-
-- **gRPC 服务**: 使用 gRPC Health Checking Protocol
-- **Web 应用**: Spring Boot Actuator 健康检查
-
-### 日志监控
-
-建议使用以下工具进行日志聚合和监控：
-
-- **ELK Stack**: Elasticsearch + Logstash + Kibana
-- **Prometheus + Grafana**: 指标监控
-- **Jaeger**: 分布式追踪可视化
-
-## 🤝 贡献指南
-
-### 开发流程
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
-
-### 代码规范
-
-- 使用 Java 21 特性
-- 遵循 Spring Boot 最佳实践
-- 添加适当的单元测试
-- 更新相关文档
-
-## 📝 更新日志
-
-### v1.0.0 (2025-10-05)
-
-- ✨ 初始版本发布
-- 🚀 支持 Spring Boot 3.x
-- 🔍 实现分布式链路追踪
-- 🌐 支持 gRPC 和 HTTP 协议
-- 📦 提供完整的演示应用
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 📞 联系方式
-
-- 项目维护者: [nianien]
-- 邮箱: [nianien@gmail.com]
-- 项目地址: [https://github.com/nianien/infra-experimental]
-
-## 🙏 致谢
-
-感谢以下开源项目的支持：
-
-- [Spring Boot](https://spring.io/projects/spring-boot)
-- [gRPC](https://grpc.io/)
-- [Protocol Buffers](https://developers.google.com/protocol-buffers)
-- [AWS SDK](https://aws.amazon.com/sdk-for-java/)
-
----
-
-**注意**: 这是一个实验性项目，用于学习和研究微服务架构和分布式系统。在生产环境中使用前，请进行充分的测试和评估。
+—— 本项目仅用于学习与实验，请在生产环境前充分评估与测试 ——

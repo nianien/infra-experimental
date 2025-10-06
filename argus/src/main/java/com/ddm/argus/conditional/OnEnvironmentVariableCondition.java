@@ -1,4 +1,4 @@
-package com.ddm.hermes.aws.conditional;
+package com.ddm.argus.conditional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +10,10 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 
 import java.util.Arrays;
 
+/**
+ * 条件实现：判断指定环境变量是否存在、是否允许为空，
+ * 以及是否命中 includes 白名单（忽略大小写与空白）。
+ */
 public class OnEnvironmentVariableCondition implements Condition {
     private static final Logger log = LoggerFactory.getLogger(OnEnvironmentVariableCondition.class);
 

@@ -1,16 +1,15 @@
-package com.ddm.hermes.aws.conditional;
+package com.ddm.argus.conditional;
 
 import org.springframework.context.annotation.Conditional;
 
 import java.lang.annotation.*;
 
 /**
- * 条件：系统环境变量满足时启用。
+ * 条件注解：当系统环境变量满足要求时启用对应的配置/Bean。
  * <p>
- * 使用方式：
- *
- * @ConditionalOnEnvironmentVariable(name = "ECS_CONTAINER_METADATA_URI_V4")
- * @ConditionalOnEnvironmentVariable(name = "DEPLOY_ENV", includes = {"ecs","prod"})
+ * 示例：
+ * {@code @ConditionalOnEnvironmentVariable(name = "ECS_CONTAINER_METADATA_URI_V4")}
+ * {@code @ConditionalOnEnvironmentVariable(name = "DEPLOY_ENV", includes = {"ecs","prod"})}
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

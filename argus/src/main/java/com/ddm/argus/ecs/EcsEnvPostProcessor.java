@@ -1,4 +1,4 @@
-package com.ddm.hermes.aws;
+package com.ddm.argus.ecs;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,7 +22,13 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
 
-public class EcsEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
+/**
+ * 在应用早期启动阶段（EnvironmentPostProcessor）注入 ECS 任务元数据。
+ * <p>
+ * 当检测到 AWS ECS 元数据端点（v4）时，写入前缀 {@code ecs.instance.*}
+ * 的属性，并可基于 ECS Service 的标签来激活 Spring Profile。
+ */
+public class EcsEnvPostProcessor implements EnvironmentPostProcessor, Ordered {
 
     public static final String META_ENV = "ECS_CONTAINER_METADATA_URI_V4";
     private static final String PS_NAME = "ecs-instance";
@@ -32,15 +38,15 @@ public class EcsEnvironmentPostProcessor implements EnvironmentPostProcessor, Or
 
     private final Log log;
 
-    public EcsEnvironmentPostProcessor(DeferredLogFactory logFactory) {
-        this.log = logFactory.getLog(EcsEnvironmentPostProcessor.class);
+    public EcsEnvPostProcessor(DeferredLogFactory logFactory) {
+        this.log = logFactory.getLog(EcsEnvPostProcessor.class);
     }
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment env, SpringApplication app) {
         final String metaBase = System.getenv(META_ENV);
         if (metaBase == null || metaBase.isBlank()) {
-            log.info(String.format("==>[hermes] env:%s not found; skip.", META_ENV));
+            log.info(String.format("==>[argus] env:%s not found; skip.", META_ENV));
             return;
         }
 
@@ -51,7 +57,7 @@ public class EcsEnvironmentPostProcessor implements EnvironmentPostProcessor, Or
             final String clusterArn = text(taskMeta, "Cluster");
             final String taskArn = text(taskMeta, "TaskARN");
             if (isBlank(clusterArn) || isBlank(taskArn)) {
-                log.warn("==>[hermes] metadata missing Cluster/TaskARN; skip.");
+                log.warn("==>[argus] metadata missing Cluster/TaskARN; skip.");
                 return;
             }
             final String taskId = taskArn.substring(taskArn.lastIndexOf('/') + 1);
@@ -61,7 +67,7 @@ public class EcsEnvironmentPostProcessor implements EnvironmentPostProcessor, Or
             Integer containerPort = null;
             List<Tag> tags = List.of();
 
-            // 2) ECS SDK
+            // 2) ECS SDK via EcsMetadataService
             final ClientOverrideConfiguration cfg = ClientOverrideConfiguration.builder()
                     .apiCallTimeout(SDK_TIMEOUT).build();
 
@@ -71,51 +77,39 @@ public class EcsEnvironmentPostProcessor implements EnvironmentPostProcessor, Or
                     .overrideConfiguration(cfg)
                     .build()) {
 
-                final Task task = ecs.describeTasks(DescribeTasksRequest.builder()
-                                .cluster(clusterArn).tasks(taskArn).build())
-                        .tasks().stream().findFirst().orElse(null);
+                final Task task = EcsUtils.getTask(ecs, clusterArn, taskArn).orElse(null);
 
                 if (task != null && notBlank(task.group()) && task.group().startsWith("service:")) {
                     serviceName = task.group().substring("service:".length());
                     taskDefArn = task.taskDefinitionArn();
 
-                    final Service svc = ecs.describeServices(DescribeServicesRequest.builder()
-                                    .cluster(clusterArn).services(serviceName).build())
-                            .services().stream().findFirst().orElse(null);
+                    final Service svc = EcsUtils.getService(ecs, clusterArn, serviceName).orElse(null);
 
                     if (svc != null) {
                         serviceArn = svc.serviceArn();
                         try {
-                            tags = ecs.listTagsForResource(
-                                    ListTagsForResourceRequest.builder().resourceArn(serviceArn).build()
-                            ).tags();
+                            tags = EcsUtils.listTagsForResource(ecs, serviceArn);
                         } catch (Exception ignore) {
                             // ignore tag fetch failure
                         }
                     }
 
                     if (notBlank(taskDefArn)) {
-                        final TaskDefinition td = ecs.describeTaskDefinition(
-                                DescribeTaskDefinitionRequest.builder().taskDefinition(taskDefArn).build()
-                        ).taskDefinition();
-
-                        final ContainerDefinition appC = td.containerDefinitions().stream()
-                                .filter(cd -> cd.portMappings() != null && !cd.portMappings().isEmpty())
-                                .findFirst().orElse(null);
-
+                        final TaskDefinition td = EcsUtils.getTaskDefinition(ecs, taskDefArn).orElse(null);
+                        final ContainerDefinition appC = td == null ? null :
+                                EcsUtils.getFirstPortContainer(td).orElse(null);
                         if (appC != null) {
                             containerName = appC.name();
                             containerPort = appC.portMappings().get(0).containerPort();
                         }
                     }
-
                     lane = firstTagIgnoreCase(tags, "lane").orElse("");
                     if (lane.isBlank()) lane = suffixAfterDash(serviceName);
                 } else {
-                    log.warn("==>[hermes] not a service task. group=" + (task == null ? null : task.group()));
+                    log.warn("==>[argus] not a service task. group=" + (task == null ? null : task.group()));
                 }
             } catch (Exception e1) {
-                log.warn("==>[hermes] ECS SDK prefetch failed (ignored): " + e1);
+                log.warn("==>[argus] ECS SDK prefetch failed (ignored): " + e1);
             }
 
             // 3) 注入 ecs.instance.* 属性（仅放非空值）
@@ -142,11 +136,11 @@ public class EcsEnvironmentPostProcessor implements EnvironmentPostProcessor, Or
             }
 
             log.info(String.format(
-                    "==>[hermes] ecs.instance injected: region=%s, service=%s, container=%s:%s, lane='%s', profiles=%s",
+                    "==>[argus] ecs.instance injected: region=%s, service=%s, container=%s:%s, lane='%s', profiles=%s",
                     region.id(), serviceName, containerName, containerPort, lane, profiles));
 
         } catch (Exception e) {
-            log.warn("==>[hermes] ecs.instance inject failed: " + e.getMessage(), e);
+            log.warn("==>[argus] ecs.instance inject failed: " + e.getMessage(), e);
         }
     }
 
@@ -201,7 +195,7 @@ public class EcsEnvironmentPostProcessor implements EnvironmentPostProcessor, Or
         if (isBlank(raw)) return List.of();
         return Arrays.stream(raw.split(","))
                 .map(String::trim)
-                .filter(EcsEnvironmentPostProcessor::notBlank)
+                .filter(EcsEnvPostProcessor::notBlank)
                 .distinct()
                 .toList();
     }
@@ -211,7 +205,7 @@ public class EcsEnvironmentPostProcessor implements EnvironmentPostProcessor, Or
         for (String p : profiles) {
             if (existing.add(p)) env.addActiveProfile(p);
         }
-        log.info("==>[hermes] Activated profiles from ECS tags: " + profiles);
+        log.info("==>[argus] Activated profiles from ECS tags: " + profiles);
     }
 
     private static boolean isBlank(String s) {

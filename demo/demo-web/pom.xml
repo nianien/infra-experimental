@@ -13,7 +13,7 @@
 
     <dependencies>
         <!-- ==================== Internal Dependencies ==================== -->
-        
+
         <!-- Demo Protocol Buffers definitions -->
         <dependency>
             <groupId>com.ddm</groupId>
@@ -28,15 +28,8 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Hermes AWS service discovery starter (only when ECS_CONTAINER_METADATA_URI_V4 is set) -->
-        <dependency>
-            <groupId>com.ddm</groupId>
-            <artifactId>hermes-spring-boot-starter</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
         <!-- ==================== Spring Boot Dependencies ==================== -->
-        
+
         <!-- Spring Boot Web Starter (includes web, tomcat, jackson, etc.) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -44,7 +37,7 @@
         </dependency>
 
         <!-- ==================== gRPC Dependencies ==================== -->
-        
+
         <!-- gRPC Netty Transport -->
         <dependency>
             <groupId>io.grpc</groupId>

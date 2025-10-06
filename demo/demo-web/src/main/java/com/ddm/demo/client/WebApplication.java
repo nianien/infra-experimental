@@ -1,7 +1,7 @@
 package com.ddm.demo.client;
 
-import com.ddm.argus.trace.TraceContext;
-import com.ddm.argus.trace.TraceContextUtil;
+import com.ddm.argus.grpc.TraceContext;
+import com.ddm.argus.grpc.TraceContext.TraceInfo;
 import com.ddm.demo.proto.order.*;
 import com.ddm.demo.proto.user.*;
 import io.grpc.Context;
@@ -21,8 +21,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 集成了 gRPC 客户端测试功能
  */
 @SpringBootApplication(scanBasePackages = {
-        "com.ddm.demo.client",
-        "com.ddm.argus.trace.http"
+        "com.ddm.demo.client"
 })
 public class WebApplication implements CommandLineRunner {
     private static final Logger logger = LoggerFactory.getLogger(WebApplication.class);
@@ -39,18 +38,12 @@ public class WebApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // 生成客户端TraceId
-        String clientTraceId = TraceContextUtil.generateTraceId();
-        String clientSpanId = TraceContextUtil.generateSpanId();
-        logger.info("Atlas Demo Web Application starting with TraceId: {}, SpanId: {}", clientTraceId, clientSpanId);
+        TraceInfo nextHop = TraceInfo.root("test");
 
         // 设置TraceId到Context和MDC
         Context contextWithTraceId = Context.current()
-                .withValue(TraceContext.CTX_TRACE_ID, clientTraceId)
-                .withValue(TraceContext.CTX_SPAN_ID, clientSpanId)
-                .withValue(TraceContext.CTX_FLAGS, TraceContextUtil.DEFAULT_FLAGS);
-        MDC.put(TraceContext.MDC_TRACE_ID, clientTraceId);
-
+                .withValue(TraceContext.CTX_TRACE_INFO, nextHop);
+        MDC.put(TraceContext.MDC_TRACE_ID, nextHop.traceId());
         try {
             // 在TraceId Context中执行所有调用
             contextWithTraceId.run(() -> {

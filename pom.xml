@@ -10,7 +10,6 @@
     <url>https://github.com/ddmarketinghub/infra-experimental</url>
     <modules>
         <module>argus</module>
-        <module>hermes</module>
         <module>demo</module>
     </modules>
     <artifactId>infra-experimental</artifactId>
