@@ -99,7 +99,7 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
                 subsByAddr.put(key, sc);
                 laneOf.put(sc, lane);
                 if (log.isDebugEnabled()) {
-                    log.debug("[LB] create Subchannel {} lane={}", sc.getAllAddresses(), laneLog(lane));
+                    log.debug("[LB] create Subchannel {} lane={}", sc.getAllAddresses(), toLaneKey(lane));
                 }
                 sc.start(new LaneSubChannelListener(this, sc)); // 独立类，避免闭包 final 限制
                 sc.requestConnection();
@@ -107,7 +107,7 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
                 // 防御：刷新 lane 标签（Resolver 侧 lane 变化时）
                 laneOf.put(sc, lane);
                 if (log.isDebugEnabled()) {
-                    log.debug("[LB] reuse Subchannel {} lane={}", sc.getAllAddresses(), laneLog(lane));
+                    log.debug("[LB] reuse Subchannel {} lane={}", sc.getAllAddresses(), toLaneKey(lane));
                 }
             }
         }
@@ -152,7 +152,7 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
 
         if (log.isDebugEnabled()) {
             log.debug("[LB] onStateChange {} -> {} lane={}",
-                    sc.getAllAddresses(), stateInfo.getState(), laneLog(laneOf.get(sc)));
+                    sc.getAllAddresses(), stateInfo.getState(), toLaneKey(laneOf.get(sc)));
         }
 
         switch (stateInfo.getState()) {
@@ -185,10 +185,6 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
     }
 
     private static String toLaneKey(String lane) {
-        return (lane == null || lane.isBlank()) ? "<default>" : lane;
-    }
-
-    private static String laneLog(String lane) {
         return (lane == null || lane.isBlank()) ? "<default>" : lane;
     }
 
@@ -236,10 +232,8 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
             final boolean useWanted = (wanted != null) && !laneList.isEmpty();
             final List<Subchannel> candidates = useWanted ? laneList : defaultList;
 
-            if (log.isDebugEnabled()) {
-                log.debug("[LB] pick: wantedLane={} useWanted={} laneSize={} defaultSize={}",
-                        laneLog(wanted), useWanted, laneList.size(), defaultList.size());
-            }
+            log.info("==>[argus] pick: wantedLane={} useWanted={} laneSize={} defaultSize={}",
+                    toLaneKey(wanted), useWanted, laneList.size(), defaultList.size());
 
             if (candidates.isEmpty()) {
                 final Status err = (errorIfAny != null) ? errorIfAny
@@ -247,7 +241,7 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
                         (wanted != null)
                                 ? "no READY subchannel for lane=" + wanted + " (and no fallback)"
                                 : "no READY subchannel for default (no-lane)");
-                if (log.isInfoEnabled()) log.info("[LB] pick error: {}", err);
+                log.warn("==>[argus] pick error: {}", err);
                 return PickResult.withError(err);
             }
 

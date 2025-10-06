@@ -12,8 +12,6 @@ import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
-import java.util.Map;
-
 @AutoConfiguration
 @AutoConfigureBefore(GrpcClientAutoConfiguration.class) // 确保在创建 Channel 前注册
 @EnableConfigurationProperties(GrpcProperties.class)
@@ -33,21 +31,32 @@ public class GrpcLbAutoConfiguration {
         return p;
     }
 
-    /**
-     * 全局负载均衡策略（默认 lane_round_robin）。
-     * 若策略未被注册（极端情况下），安全回退到 round_robin，避免启动失败。
-     */
     @Bean
     public GrpcChannelConfigurer globalLoadBalancerConfigurer(GrpcProperties props) {
         return (builder, clientName) -> {
+            // 只允许 lane_round_robin
             String policy = props.getLoadbalance().getPolicy();
             if (policy == null || policy.isBlank()) {
                 policy = LaneAwareLoadBalancerProvider.POLICY; // "lane_round_robin"
             }
-            if (LoadBalancerRegistry.getDefaultRegistry().getProvider(policy) == null) {
-                throw new IllegalStateException("gRPC LB policy '" + policy + "' is not registered. Refuse to fallback to 'round_robin' to protect lane isolation.");
+            if (!LaneAwareLoadBalancerProvider.POLICY.equals(policy)) {
+                throw new IllegalArgumentException(
+                        "Only '" + LaneAwareLoadBalancerProvider.POLICY + "' is allowed (no fallback). Got: " + policy);
             }
-            builder.defaultServiceConfig(Map.of("loadBalancingPolicy", policy));
+            // 必须已注册，否则直接失败，避免静默回退打乱泳道
+            if (io.grpc.LoadBalancerRegistry.getDefaultRegistry().getProvider(policy) == null) {
+                throw new IllegalStateException(
+                        "LB policy '" + policy + "' is not registered. Refusing to fallback.");
+            }
+
+            // 禁用 NameResolver/DNS TXT 下发的 service config，避免被覆盖
+            builder.disableServiceConfigLookUp();
+
+            // 只配置 lane_round_robin（没有任何回退项）
+            builder.defaultServiceConfig(java.util.Map.of(
+                    "loadBalancingConfig",
+                    java.util.List.of(java.util.Map.of(LaneAwareLoadBalancerProvider.POLICY, java.util.Map.of()))
+            ));
         };
     }
 }
