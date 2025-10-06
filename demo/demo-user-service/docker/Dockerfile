@@ -1,8 +1,5 @@
 #FROM amazoncorretto:21-alpine3.19
-# 官方镜像在 ECR Public 的镜像加速
-#FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine3.19
-# Amazon Corretto 官方命名空间
-FROM public.ecr.aws/amazoncorretto/amazoncorretto:21-alpine3.19
+FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine3.19
 
 WORKDIR /app
 
