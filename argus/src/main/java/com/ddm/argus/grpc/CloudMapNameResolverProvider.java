@@ -13,14 +13,14 @@ import java.net.URI;
  * 名称解析器提供者：支持 "cloud:///service.namespace[:port]" 形式，
  * 优先使用 Cloud Map 解析，失败时回退系统 DNS。
  */
-public class HybridDnsNameResolverProvider extends NameResolverProvider {
-    private static final Logger log = LoggerFactory.getLogger(HybridDnsNameResolverProvider.class);
+public class CloudMapNameResolverProvider extends NameResolverProvider {
+    private static final Logger log = LoggerFactory.getLogger(CloudMapNameResolverProvider.class);
     private final static String scheme = "cloud";
     private final GrpcProperties grpcProperties;
     private final EcsInstanceProperties ecsProps;
 
-    public HybridDnsNameResolverProvider(GrpcProperties grpcProperties,
-                                         EcsInstanceProperties ecsProps) {
+    public CloudMapNameResolverProvider(GrpcProperties grpcProperties,
+                                        EcsInstanceProperties ecsProps) {
         this.grpcProperties = grpcProperties;
         this.ecsProps = ecsProps;
     }
@@ -43,15 +43,26 @@ public class HybridDnsNameResolverProvider extends NameResolverProvider {
 
     @Override
     public NameResolver newNameResolver(URI targetUri, Args args) {
-        log.info("==>[argus] newNameResolver for uri: {}", targetUri);
+        log.info("==>[argus] CloudMapNameResolverProvider.newNameResolver targetUri={} scheme={} authority={} path={}",
+                targetUri, targetUri.getScheme(), targetUri.getAuthority(), targetUri.getPath());
+        // 1. scheme 必须匹配 cloud
         if (!scheme.equalsIgnoreCase(targetUri.getScheme())) {
+            log.warn("==>[argus] skip: scheme mismatch (expected={}, actual={})", scheme, targetUri.getScheme());
             return null;
         }
-        String path = targetUri.getPath();
+
+        // 2. path 校验
+        final String path = targetUri.getPath();
         if (path == null || path.isBlank() || "/".equals(path)) {
+            log.warn("==>[argus] skip: invalid path in URI: {}", targetUri);
             return null;
         }
-        String hostPort = path.startsWith("/") ? path.substring(1) : path;
-        return new HybridDnsNameResolver(hostPort, grpcProperties, ecsProps, args);
+
+        // 3. 去掉前导斜杠
+        final String hostPort = path.startsWith("/") ? path.substring(1) : path;
+
+        CloudMapNameResolver resolver = new CloudMapNameResolver(hostPort, grpcProperties, ecsProps, args);
+        log.info("==>[argus] HybridDnsNameResolver created successfully for {}", hostPort);
+        return resolver;
     }
 }

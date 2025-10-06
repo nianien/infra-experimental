@@ -26,7 +26,7 @@ import static com.ddm.argus.ecs.EcsConstants.*;
  * 解析所有 Cloud Map 实例，并在 EAG Attributes 上标注 lane；
  * 不做 DNS 回退；lane 选择在自定义 LoadBalancer 中按请求头处理。
  */
-public final class HybridDnsNameResolver extends NameResolver {
+public final class CloudMapNameResolver extends NameResolver {
 
     private final String hostPortRaw;
 
@@ -43,10 +43,10 @@ public final class HybridDnsNameResolver extends NameResolver {
 
     private volatile ServiceDiscoveryClient sd;
 
-    public HybridDnsNameResolver(String hostPort,
-                                 GrpcProperties grpcProperties,
-                                 EcsInstanceProperties ecsProps,
-                                 Args args) {
+    public CloudMapNameResolver(String hostPort,
+                                GrpcProperties grpcProperties,
+                                EcsInstanceProperties ecsProps,
+                                Args args) {
         this.hostPortRaw = hostPort;
 
         this.region = ecsProps.getRegionId();
