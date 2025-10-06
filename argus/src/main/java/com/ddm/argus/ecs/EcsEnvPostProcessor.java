@@ -115,13 +115,14 @@ public class EcsEnvPostProcessor implements EnvironmentPostProcessor, Ordered {
             env.getPropertySources().addFirst(new MapPropertySource(EcsConstants.PS_ECS_INSTANCE, kv));
 
             // 4) 仅使用 tag "profile" 激活 profiles
-            final String profilesRaw = firstTagIgnoreCase(tags, EcsConstants.TAG_PROFILE).orElse(null);
-            final List<String> profiles = parseProfiles(profilesRaw);
+            String activeFromEnv = env.getProperty("spring.profiles.active");
+            List<String> profiles = new ArrayList<>(parseProfiles(activeFromEnv));
+            String profilesRaw = firstTagIgnoreCase(tags, EcsConstants.TAG_PROFILE).orElse(null);
+            profiles.addAll(parseProfiles(profilesRaw));
             if (!profiles.isEmpty()) {
                 activateProfiles(env, profiles);
                 kv.put(EcsConstants.PROP_PROFILES, String.join(",", profiles));
             }
-
             log.info(String.format("==>[argus] ecs.instance injected: region=%s, service=%s, container=%s:%s, lane='%s', profiles=%s", region.id(), serviceName, containerName, containerPort, lane, profiles));
 
         } catch (Exception e) {
