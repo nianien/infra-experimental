@@ -46,7 +46,6 @@ out/
 # --- Logs & runtime files ---
 logs/
 **/*.log
-*.log
 *.pid
 
 # --- Protobuf / gRPC generated sources (build dir already ignored, but be explicit) ---
@@ -86,3 +85,6 @@ Icon?
 
 # --- Local build outputs copied alongside jars ---
 **/*.original
+
+# --- Project scripts (do not version control local helper scripts) ---
+/scripts/
