@@ -27,7 +27,9 @@ import static com.ddm.argus.ecs.EcsConstants.*;
  * 不做 DNS 回退；lane 选择在自定义 LoadBalancer 中按请求头处理。
  */
 public final class CloudMapNameResolver extends NameResolver {
-
+    // 策略名必须与 LaneAwareLoadBalancerProvider 的 policyName 一致
+    private static final Map<String, ?> LANE_SERVICE_CONFIG =
+            Map.of("loadBalancingConfig", List.of(Map.of(LaneLoadBalancerProvider.POLICY, Map.of())));
     private final String hostPortRaw;
 
     private final String namespace;
@@ -144,11 +146,12 @@ public final class CloudMapNameResolver extends NameResolver {
                 return;
             }
 
+            // 关键：只在 cloud 解析器里下发 lane_round_robin 策略
             listener.onResult(NameResolver.ResolutionResult.newBuilder()
                     .setAddresses(eags)
                     .setAttributes(Attributes.EMPTY)
+                    .setServiceConfig(ConfigOrError.fromConfig(LANE_SERVICE_CONFIG))
                     .build());
-
         } catch (Exception e) {
             listener.onError(Status.UNAVAILABLE
                     .withDescription("CloudMap discover failed: " + service + "." + namespace + " - " + e.getMessage())

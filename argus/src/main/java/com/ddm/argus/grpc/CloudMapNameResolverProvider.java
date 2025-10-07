@@ -43,26 +43,28 @@ public class CloudMapNameResolverProvider extends NameResolverProvider {
 
     @Override
     public NameResolver newNameResolver(URI targetUri, Args args) {
-        log.info("==>[argus] CloudMapNameResolverProvider.newNameResolver targetUri={} scheme={} authority={} path={}",
-                targetUri, targetUri.getScheme(), targetUri.getAuthority(), targetUri.getPath());
+        log.info("==>[argus] CloudMapNameResolverProvider.newNameResolver targetUri={}", targetUri);
         // 1. scheme 必须匹配 cloud
         if (!scheme.equalsIgnoreCase(targetUri.getScheme())) {
             log.warn("==>[argus] skip: scheme mismatch (expected={}, actual={})", scheme, targetUri.getScheme());
             return null;
         }
-
         // 2. path 校验
-        final String path = targetUri.getPath();
-        if (path == null || path.isBlank() || "/".equals(path)) {
-            log.warn("==>[argus] skip: invalid path in URI: {}", targetUri);
+        String authority = targetUri.getAuthority();
+        String path = targetUri.getPath();
+        // 支持 cloud://host:port 和 cloud:///host:port 两种写法
+        String hostPort = null;
+        if (authority != null && !authority.isBlank()) {
+            hostPort = authority;
+        } else if (path != null && path.length() > 1) {
+            hostPort = path.startsWith("/") ? path.substring(1) : path;
+        }
+        if (hostPort == null || hostPort.isBlank()) {
+            log.warn("==>[argus] skip: invalid URI: {}", targetUri);
             return null;
         }
-
-        // 3. 去掉前导斜杠
-        final String hostPort = path.startsWith("/") ? path.substring(1) : path;
-
         CloudMapNameResolver resolver = new CloudMapNameResolver(hostPort, grpcProperties, ecsProps, args);
-        log.info("==>[argus] HybridDnsNameResolver created successfully for {}", hostPort);
+        log.info("==>[argus] CloudMapNameResolver created successfully for {}", hostPort);
         return resolver;
     }
 }

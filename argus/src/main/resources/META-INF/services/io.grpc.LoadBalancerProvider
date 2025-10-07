@@ -1,1 +1,1 @@
-com.ddm.argus.grpc.LaneAwareLoadBalancerProvider
+com.ddm.argus.grpc.LaneLoadBalancerProvider

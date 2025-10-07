@@ -1,7 +1,7 @@
 package com.ddm.argus.autoconfigure;
 
 import com.ddm.argus.grpc.GrpcProperties;
-import com.ddm.argus.grpc.LaneAwareLoadBalancerProvider;
+import com.ddm.argus.grpc.LaneLoadBalancerProvider;
 import io.grpc.LoadBalancerRegistry;
 import net.devh.boot.grpc.client.autoconfigure.GrpcClientAutoConfiguration;
 import net.devh.boot.grpc.client.channelfactory.GrpcChannelConfigurer;
@@ -24,8 +24,8 @@ public class GrpcLbAutoConfiguration {
      * 建议配合 SPI 同时存在，双保险
      */
     @Bean
-    public LaneAwareLoadBalancerProvider laneAwareLoadBalancerProvider() {
-        var p = new LaneAwareLoadBalancerProvider();
+    public LaneLoadBalancerProvider laneAwareLoadBalancerProvider() {
+        var p = new LaneLoadBalancerProvider();
         LoadBalancerRegistry.getDefaultRegistry().register(p);
         log.info("==>[Argus] Registered gRPC LoadBalancerProvider: {}", p.getPolicyName());
         return p;
@@ -37,11 +37,11 @@ public class GrpcLbAutoConfiguration {
             // 只允许 lane_round_robin
             String policy = props.getLoadbalance().getPolicy();
             if (policy == null || policy.isBlank()) {
-                policy = LaneAwareLoadBalancerProvider.POLICY; // "lane_round_robin"
+                policy = LaneLoadBalancerProvider.POLICY; // "lane_round_robin"
             }
-            if (!LaneAwareLoadBalancerProvider.POLICY.equals(policy)) {
+            if (!LaneLoadBalancerProvider.POLICY.equals(policy)) {
                 throw new IllegalArgumentException(
-                        "Only '" + LaneAwareLoadBalancerProvider.POLICY + "' is allowed (no fallback). Got: " + policy);
+                        "Only '" + LaneLoadBalancerProvider.POLICY + "' is allowed (no fallback). Got: " + policy);
             }
             // 必须已注册，否则直接失败，避免静默回退打乱泳道
             if (io.grpc.LoadBalancerRegistry.getDefaultRegistry().getProvider(policy) == null) {
@@ -55,7 +55,7 @@ public class GrpcLbAutoConfiguration {
             // 只配置 lane_round_robin（没有任何回退项）
             builder.defaultServiceConfig(java.util.Map.of(
                     "loadBalancingConfig",
-                    java.util.List.of(java.util.Map.of(LaneAwareLoadBalancerProvider.POLICY, java.util.Map.of()))
+                    java.util.List.of(java.util.Map.of(LaneLoadBalancerProvider.POLICY, java.util.Map.of()))
             ));
         };
     }

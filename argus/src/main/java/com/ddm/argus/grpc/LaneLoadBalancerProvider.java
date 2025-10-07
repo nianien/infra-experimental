@@ -5,8 +5,8 @@ import io.grpc.LoadBalancerProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class LaneAwareLoadBalancerProvider extends LoadBalancerProvider {
-    private static final Logger log = LoggerFactory.getLogger(LaneAwareLoadBalancerProvider.class);
+public final class LaneLoadBalancerProvider extends LoadBalancerProvider {
+    private static final Logger log = LoggerFactory.getLogger(LaneLoadBalancerProvider.class);
 
     /**
      * 策略名，用于 service config: {"loadBalancingPolicy":"lane_round_robin"}
@@ -30,7 +30,7 @@ public final class LaneAwareLoadBalancerProvider extends LoadBalancerProvider {
 
     @Override
     public LoadBalancer newLoadBalancer(LoadBalancer.Helper helper) {
-        log.info("==>[argus] provider engaged: {}", getPolicyName()); // 看到这句说明策略被选中
-        return new LaneAwareRoundRobinLoadBalancer(helper);
+        log.info("==>[argus] provider engaged: {}", getPolicyName());
+        return new LaneLoadBalancer(helper);
     }
 }

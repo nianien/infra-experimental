@@ -12,15 +12,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * LaneAwareRoundRobinLoadBalancer
- * <p>
  * - 若 TraceInfo 无 lane → 只在“无 lane”的 READY 子通道中轮询；
  * - 若有 lane → 优先同 lane，若无 READY 则回退 default；
  * - 两个桶都空 → UNAVAILABLE。
  */
-final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
+final class LaneLoadBalancer extends LoadBalancer {
 
-    private static final Logger log = LoggerFactory.getLogger(LaneAwareRoundRobinLoadBalancer.class);
+    private static final Logger log = LoggerFactory.getLogger(LaneLoadBalancer.class);
 
     private final Helper helper;
 
@@ -41,7 +39,7 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
      */
     private final Map<String, AtomicInteger> cursors = new ConcurrentHashMap<>();
 
-    LaneAwareRoundRobinLoadBalancer(Helper helper) {
+    LaneLoadBalancer(Helper helper) {
         this.helper = Objects.requireNonNull(helper, "helper");
     }
 
@@ -273,17 +271,17 @@ final class LaneAwareRoundRobinLoadBalancer extends LoadBalancer {
      * 独立监听器，避免闭包捕获
      */
     private static final class LaneSubChannelListener implements LoadBalancer.SubchannelStateListener {
-        private final WeakReference<LaneAwareRoundRobinLoadBalancer> ref;
+        private final WeakReference<LaneLoadBalancer> ref;
         private final Subchannel sc;
 
-        LaneSubChannelListener(LaneAwareRoundRobinLoadBalancer owner, Subchannel sc) {
+        LaneSubChannelListener(LaneLoadBalancer owner, Subchannel sc) {
             this.ref = new WeakReference<>(owner);
             this.sc = sc;
         }
 
         @Override
         public void onSubchannelState(ConnectivityStateInfo stateInfo) {
-            LaneAwareRoundRobinLoadBalancer lb = ref.get();
+            LaneLoadBalancer lb = ref.get();
             if (lb != null) {
                 lb.onStateChange(sc, stateInfo);
             }
