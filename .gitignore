@@ -86,5 +86,7 @@ Icon?
 # --- Local build outputs copied alongside jars ---
 **/*.original
 
-# --- Project scripts (do not version control local helper scripts) ---
-/scripts/
+# --- Project scripts ---
+# allow tracking scripts, but ignore local overrides
+/scripts/env.local.sh
+/scripts/env.sh
