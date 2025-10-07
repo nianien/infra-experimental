@@ -16,7 +16,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -27,36 +26,29 @@ import static com.ddm.argus.ecs.EcsConstants.*;
  * 不做 DNS 回退；lane 选择在自定义 LoadBalancer 中按请求头处理。
  */
 public final class CloudMapNameResolver extends NameResolver {
-    // 策略名必须与 LaneAwareLoadBalancerProvider 的 policyName 一致
-    private static final Map<String, ?> LANE_SERVICE_CONFIG =
-            Map.of("loadBalancingConfig", List.of(Map.of(LaneLoadBalancerProvider.POLICY, Map.of())));
     private final String hostPortRaw;
-
     private final String namespace;
     private final String service;
     private final Integer targetPort;
     // 必填
     private final String region;
     private final Duration refreshInterval;
-    // 由 gRPC 管理
-    private final ScheduledExecutorService scheduler;
     private Listener2 listener;
     private volatile boolean shutdown;
-
     private volatile ServiceDiscoveryClient sd;
+    private final NameResolver.Args args;
 
     public CloudMapNameResolver(String hostPort,
                                 GrpcProperties grpcProperties,
                                 EcsInstanceProperties ecsProps,
                                 Args args) {
         this.hostPortRaw = hostPort;
-
         this.region = ecsProps.getRegionId();
         if (region == null || region.isBlank()) {
             throw new IllegalStateException("ecs.instance.region-id is required");
         }
         this.refreshInterval = parseDuration(grpcProperties.getResolver().getRefreshInterval(), Duration.ofSeconds(10));
-        this.scheduler = args.getScheduledExecutorService();
+        this.args = args;
 
         String host = hostPort;
         Integer p = null;
@@ -87,7 +79,7 @@ public final class CloudMapNameResolver extends NameResolver {
     public void start(Listener2 listener) {
         this.listener = listener;
         resolveOnce();
-        scheduler.scheduleAtFixedRate(() -> {
+        args.getScheduledExecutorService().scheduleAtFixedRate(() -> {
             try {
                 resolveOnce();
             } catch (Throwable ignore) {
@@ -146,11 +138,9 @@ public final class CloudMapNameResolver extends NameResolver {
                 return;
             }
 
-            // 关键：只在 cloud 解析器里下发 lane_round_robin 策略
             listener.onResult(NameResolver.ResolutionResult.newBuilder()
                     .setAddresses(eags)
                     .setAttributes(Attributes.EMPTY)
-                    .setServiceConfig(ConfigOrError.fromConfig(LANE_SERVICE_CONFIG))
                     .build());
         } catch (Exception e) {
             listener.onError(Status.UNAVAILABLE

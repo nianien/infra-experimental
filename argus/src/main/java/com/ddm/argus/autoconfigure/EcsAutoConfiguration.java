@@ -3,8 +3,8 @@ package com.ddm.argus.autoconfigure;
 import com.ddm.argus.conditional.ConditionalOnEnvironmentVariable;
 import com.ddm.argus.ecs.EcsInstanceProperties;
 import com.ddm.argus.ecs.EcsRegistrar;
-import com.ddm.argus.grpc.GrpcProperties;
 import com.ddm.argus.grpc.CloudMapNameResolverProvider;
+import com.ddm.argus.grpc.GrpcProperties;
 import io.grpc.NameResolverRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,14 +28,14 @@ public class EcsAutoConfiguration {
     }
 
     /**
-     * 注册 Cloud Map NameResolverProvider（需要 ECS/Spring 属性）
+     * 注册 CloudMapNameResolverProvider(支持 cloud:///协议)
      */
     @Bean
     public CloudMapNameResolverProvider hybridDnsNameResolverProvider(
             GrpcProperties resolverProps, EcsInstanceProperties ecsProps) {
-        var p = new CloudMapNameResolverProvider(resolverProps, ecsProps);
-        NameResolverRegistry.getDefaultRegistry().register(p);
+        var nrp = new CloudMapNameResolverProvider(resolverProps, ecsProps);
+        NameResolverRegistry.getDefaultRegistry().register(nrp);
         log.info("==>[Argus] Registered CloudMap NameResolverProvider: scheme=cloud");
-        return p;
+        return nrp;
     }
 }
