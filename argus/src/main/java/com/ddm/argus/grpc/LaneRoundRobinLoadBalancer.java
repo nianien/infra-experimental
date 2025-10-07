@@ -41,6 +41,7 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
 
     LaneRoundRobinLoadBalancer(Helper helper) {
         this.helper = Objects.requireNonNull(helper, "helper");
+        log.info("==>[argus] LaneRoundRobinLoadBalancer created");
     }
 
     /**

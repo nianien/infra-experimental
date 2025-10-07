@@ -5,6 +5,8 @@ import com.ddm.argus.grpc.LaneLoadBalancerProvider;
 import io.grpc.LoadBalancerRegistry;
 import net.devh.boot.grpc.client.autoconfigure.GrpcClientAutoConfiguration;
 import net.devh.boot.grpc.client.channelfactory.GrpcChannelConfigurer;
+import net.devh.boot.grpc.client.config.GrpcChannelProperties;
+import net.devh.boot.grpc.client.config.GrpcChannelsProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -12,8 +14,7 @@ import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
-import java.util.List;
-import java.util.Map;
+import java.net.URI;
 
 @AutoConfiguration
 @AutoConfigureBefore(GrpcClientAutoConfiguration.class) // 确保在创建 Channel 前注册
@@ -34,18 +35,19 @@ public class GrpcLbAutoConfiguration {
     }
 
     @Bean
-    public GrpcChannelConfigurer globalLoadBalancerConfigurer() {
+    public GrpcChannelConfigurer globalLoadBalancerConfigurer(GrpcChannelsProperties props) {
         return (builder, clientName) -> {
-            // gRPC会自动设置 target（dns:/// 或 cloud:///）
-            String target = builder.toString().toLowerCase();
-            //当地址为"cloud:///"协议时,采取lane_round_robin策略, 其他情况使用框架默认策略
-            if (target.contains("cloud://")) {
-                // cloud:/// → lane_round_robin
-                builder.disableServiceConfigLookUp();
-                builder.defaultServiceConfig(Map.of(
-                        "loadBalancingConfig",
-                        List.of(Map.of("lane_round_robin", Map.of()))
-                ));
+            GrpcChannelProperties ch = (clientName != null) ? props.getChannel(clientName) : null;
+            URI uri = (ch != null) ? ch.getAddress() : null;
+            String scheme = (uri != null) ? uri.getScheme() : null;
+            log.info("==>[argus] client={} target={} scheme={}", clientName, uri, scheme);
+            if ("cloud".equalsIgnoreCase(scheme)) {
+                // cloud:/// → 只用 lane_round_robin
+                builder.disableServiceConfigLookUp();  // 防止 TXT/serviceConfig 覆盖
+                builder.defaultLoadBalancingPolicy("lane_round_robin");
+            } else {
+                // dns:/// 或直连，走默认（不强塞，保持最简单）
+                // 如需明确：builder.defaultLoadBalancingPolicy("round_robin");
             }
         };
     }
