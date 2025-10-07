@@ -39,7 +39,7 @@ public class GrpcLbAutoConfiguration {
             // gRPC会自动设置 target（dns:/// 或 cloud:///）
             String target = builder.toString().toLowerCase();
             //当地址为"cloud:///"协议时,采取lane_round_robin策略, 其他情况使用框架默认策略
-            if (target.contains("cloud:///")) {
+            if (target.contains("cloud://")) {
                 // cloud:/// → lane_round_robin
                 builder.disableServiceConfigLookUp();
                 builder.defaultServiceConfig(Map.of(

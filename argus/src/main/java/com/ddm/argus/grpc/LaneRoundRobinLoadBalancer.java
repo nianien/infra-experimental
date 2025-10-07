@@ -16,9 +16,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - 若有 lane → 优先同 lane，若无 READY 则回退 default；
  * - 两个桶都空 → UNAVAILABLE。
  */
-final class LaneLoadBalancer extends LoadBalancer {
+final class LaneRoundRobinLoadBalancer extends LoadBalancer {
 
-    private static final Logger log = LoggerFactory.getLogger(LaneLoadBalancer.class);
+    private static final Logger log = LoggerFactory.getLogger(LaneRoundRobinLoadBalancer.class);
 
     private final Helper helper;
 
@@ -39,7 +39,7 @@ final class LaneLoadBalancer extends LoadBalancer {
      */
     private final Map<String, AtomicInteger> cursors = new ConcurrentHashMap<>();
 
-    LaneLoadBalancer(Helper helper) {
+    LaneRoundRobinLoadBalancer(Helper helper) {
         this.helper = Objects.requireNonNull(helper, "helper");
     }
 
@@ -271,17 +271,17 @@ final class LaneLoadBalancer extends LoadBalancer {
      * 独立监听器，避免闭包捕获
      */
     private static final class LaneSubChannelListener implements LoadBalancer.SubchannelStateListener {
-        private final WeakReference<LaneLoadBalancer> ref;
+        private final WeakReference<LaneRoundRobinLoadBalancer> ref;
         private final Subchannel sc;
 
-        LaneSubChannelListener(LaneLoadBalancer owner, Subchannel sc) {
+        LaneSubChannelListener(LaneRoundRobinLoadBalancer owner, Subchannel sc) {
             this.ref = new WeakReference<>(owner);
             this.sc = sc;
         }
 
         @Override
         public void onSubchannelState(ConnectivityStateInfo stateInfo) {
-            LaneLoadBalancer lb = ref.get();
+            LaneRoundRobinLoadBalancer lb = ref.get();
             if (lb != null) {
                 lb.onStateChange(sc, stateInfo);
             }

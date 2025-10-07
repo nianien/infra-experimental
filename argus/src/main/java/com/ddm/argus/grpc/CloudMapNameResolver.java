@@ -1,6 +1,5 @@
 package com.ddm.argus.grpc;
 
-import com.ddm.argus.ecs.EcsInstanceProperties;
 import io.grpc.Attributes;
 import io.grpc.EquivalentAddressGroup;
 import io.grpc.NameResolver;
@@ -22,8 +21,8 @@ import java.util.stream.Collectors;
 import static com.ddm.argus.ecs.EcsConstants.*;
 
 /**
- * 解析所有 Cloud Map 实例，并在 EAG Attributes 上标注 lane；
- * 不做 DNS 回退；lane 选择在自定义 LoadBalancer 中按请求头处理。
+ * 解析所有 CloudMap 实例，并在 EAG Attributes 上标注 lane<p/>
+ * 地址协议支持 "cloud:///service.namespace[:port]" 形式
  */
 public final class CloudMapNameResolver extends NameResolver {
     private final String hostPortRaw;
@@ -39,15 +38,15 @@ public final class CloudMapNameResolver extends NameResolver {
     private final NameResolver.Args args;
 
     public CloudMapNameResolver(String hostPort,
-                                GrpcProperties grpcProperties,
-                                EcsInstanceProperties ecsProps,
+                                String region,
+                                Duration refreshInterval,
                                 Args args) {
         this.hostPortRaw = hostPort;
-        this.region = ecsProps.getRegionId();
+        this.region = region;
         if (region == null || region.isBlank()) {
             throw new IllegalStateException("ecs.instance.region-id is required");
         }
-        this.refreshInterval = parseDuration(grpcProperties.getResolver().getRefreshInterval(), Duration.ofSeconds(10));
+        this.refreshInterval = refreshInterval;
         this.args = args;
 
         String host = hostPort;
@@ -173,16 +172,5 @@ public final class CloudMapNameResolver extends NameResolver {
         }
     }
 
-    private static Duration parseDuration(String s, Duration dflt) {
-        if (s == null || s.isBlank()) return dflt;
-        try {
-            String t = s.trim().toLowerCase();
-            if (t.endsWith("ms")) return Duration.ofMillis(Long.parseLong(t.substring(0, t.length() - 2)));
-            if (t.endsWith("s")) return Duration.ofSeconds(Long.parseLong(t.substring(0, t.length() - 1)));
-            if (t.endsWith("m")) return Duration.ofMinutes(Long.parseLong(t.substring(0, t.length() - 1)));
-            return Duration.parse(s);
-        } catch (Exception e) {
-            return dflt;
-        }
-    }
+
 }

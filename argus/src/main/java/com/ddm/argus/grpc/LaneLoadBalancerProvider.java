@@ -31,6 +31,6 @@ public final class LaneLoadBalancerProvider extends LoadBalancerProvider {
     @Override
     public LoadBalancer newLoadBalancer(LoadBalancer.Helper helper) {
         log.info("==>[argus] provider engaged: {}", getPolicyName());
-        return new LaneLoadBalancer(helper);
+        return new LaneRoundRobinLoadBalancer(helper);
     }
 }

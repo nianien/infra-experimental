@@ -31,9 +31,9 @@ public class EcsAutoConfiguration {
      * 注册 CloudMapNameResolverProvider(支持 cloud:///协议)
      */
     @Bean
-    public CloudMapNameResolverProvider hybridDnsNameResolverProvider(
+    public CloudMapNameResolverProvider cloudMapNameResolverProvider(
             GrpcProperties resolverProps, EcsInstanceProperties ecsProps) {
-        var nrp = new CloudMapNameResolverProvider(resolverProps, ecsProps);
+        var nrp = new CloudMapNameResolverProvider(ecsProps.getRegionId(), resolverProps.getResolver().getRefreshInterval());
         NameResolverRegistry.getDefaultRegistry().register(nrp);
         log.info("==>[Argus] Registered CloudMap NameResolverProvider: scheme=cloud");
         return nrp;

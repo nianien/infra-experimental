@@ -1,6 +1,5 @@
 package com.ddm.argus.grpc;
 
-import com.ddm.argus.ecs.EcsInstanceProperties;
 import io.grpc.NameResolver;
 import io.grpc.NameResolver.Args;
 import io.grpc.NameResolverProvider;
@@ -8,21 +7,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.time.Duration;
 
 /**
- * 名称解析器提供者：支持 "cloud:///service.namespace[:port]" 形式，
- * 优先使用 Cloud Map 解析，失败时回退系统 DNS。
+ * 地址协议解析器提供者：支持 "cloud:///service.namespace[:port]" 形式
  */
 public class CloudMapNameResolverProvider extends NameResolverProvider {
     private static final Logger log = LoggerFactory.getLogger(CloudMapNameResolverProvider.class);
-    private final static String scheme = "cloud";
-    private final GrpcProperties grpcProperties;
-    private final EcsInstanceProperties ecsProps;
+    public final static String scheme = "cloud";
+    // 必填
+    private final String region;
+    private final Duration refreshInterval;
 
-    public CloudMapNameResolverProvider(GrpcProperties grpcProperties,
-                                        EcsInstanceProperties ecsProps) {
-        this.grpcProperties = grpcProperties;
-        this.ecsProps = ecsProps;
+    public CloudMapNameResolverProvider(String region, Duration refreshInterval) {
+        this.region = region;
+        this.refreshInterval = refreshInterval;
     }
 
     @Override
@@ -63,7 +62,7 @@ public class CloudMapNameResolverProvider extends NameResolverProvider {
             log.warn("==>[argus] skip: invalid URI: {}", targetUri);
             return null;
         }
-        CloudMapNameResolver resolver = new CloudMapNameResolver(hostPort, grpcProperties, ecsProps, args);
+        CloudMapNameResolver resolver = new CloudMapNameResolver(hostPort, region, refreshInterval, args);
         log.info("==>[argus] CloudMapNameResolver created successfully for {}", hostPort);
         return resolver;
     }
