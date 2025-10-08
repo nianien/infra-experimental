@@ -2,8 +2,8 @@ version: 0.2
 
 env:
   variables:
-    # 格式：<maven模块目录名>:<ECR 仓库路径>
-    SERVICES: "demo-user-service:demo/user-service demo-order-service:demo/order-service demo-web:demo/web-app"
+    # <maven模块目录名>（仅包含模块路径；repo 名取路径最后一层）
+    MODULES: "test/demo-user-rpc test/test-demo-order-rpc test/demo-web-api"
 
 phases:
   install:
@@ -12,49 +12,64 @@ phases:
 
   pre_build:
     commands:
-      - 'echo "Resolve build version"'
-      - 'COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)'
-      - 'export BUILD_VERSION=${BUILD_VERSION:-$COMMIT_HASH}'
-      - '[ -z "$BUILD_VERSION" ] && export BUILD_VERSION=latest || true'
-      - 'echo "BUILD_VERSION=$BUILD_VERSION"'
-      - 'echo "Compose REPO_PREFIX and login to ECR"'
-      - 'export REPO_PREFIX="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"'
-      - 'echo "REPO_PREFIX=$REPO_PREFIX"'
-      - 'aws sts get-caller-identity'
-      - 'aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REPO_PREFIX"'
+      - echo "Resolve build version"
+      - COMMIT_HASH=$(echo "$CODEBUILD_RESOLVED_SOURCE_VERSION" | cut -c1-8)
+      - export BUILD_VERSION=${BUILD_VERSION:-$COMMIT_HASH}
+      - if [ -z "$BUILD_VERSION" ]; then export BUILD_VERSION=latest; fi
+      - echo "BUILD_VERSION=$BUILD_VERSION"
+
+      - echo "Compose REPO_PREFIX and login to ECR"
+      # Region 兜底，部分环境只提供 AWS_DEFAULT_REGION
+      - export AWS_REGION="${AWS_REGION:-$AWS_DEFAULT_REGION}"
+      # 若未显式注入 AWS_ACCOUNT_ID，则动态获取
+      - export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
+      - export REPO_PREFIX="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      - echo "REPO_PREFIX=$REPO_PREFIX"
+
+      - aws sts get-caller-identity
+      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REPO_PREFIX"
 
   build:
     commands:
-      - 'echo "Maven build all modules"'
-      - 'mvn -B -DskipTests clean package'
-      - 'echo "Build & push Docker images"'
-      - 'set -e'
-      - 'echo "SERVICES=$SERVICES"'
+      - echo "Maven build all modules"
+      - mvn -B -DskipTests clean package
+
+      - echo "Build & push Docker images"
+      - set -e
+      - echo "MODULES=$MODULES"
       - |
-        for ITEM in $SERVICES; do
-          echo "ITEM=$ITEM"
-
-          MODULE="${ITEM%%:*}"
-          REPO_PATH="${ITEM#*:}"
-
-          MODULE_DIR="./demo/$MODULE"
-          DF="$MODULE_DIR/docker/Dockerfile"
+        for MODULE in $MODULES; do
+          MODULE="${MODULE%/}"                       # 容错：去掉末尾 /
+          REPO_PATH="${MODULE##*/}"                 # 取路径最后一层作为 repo 名
+          MODULE_DIR="./$MODULE"
+          DF="$MODULE_DIR/docker/Dockerfile"        # 优先使用 docker/Dockerfile
           CTX="$MODULE_DIR"
+
+          # 如果 docker/Dockerfile 不存在，回退到模块根目录的 Dockerfile
+          if [ ! -f "$DF" ] && [ -f "$MODULE_DIR/Dockerfile" ]; then
+            DF="$MODULE_DIR/Dockerfile"
+          fi
+
+          echo "MODULE=$MODULE"
+          echo "REPO_PATH=$REPO_PATH"
+          echo "DF=$DF"
+          echo "CTX=$CTX"
 
           IMAGE_BASE="$REPO_PREFIX/$REPO_PATH"
           IMAGE_TAG="$IMAGE_BASE:$BUILD_VERSION"
 
-          # 确保 ECR 仓库存在（无权限创建则忽略，不影响已有仓库）
+          # 确保 ECR 仓库存在（已有则忽略错误）
           aws ecr describe-repositories --repository-names "$REPO_PATH" --region "$AWS_REGION" >/dev/null 2>&1 || \
-          aws ecr create-repository --repository-name "$REPO_PATH" --region "$AWS_REGION" >/dev/null 2>&1 || true
+          aws ecr create-repository   --repository-name   "$REPO_PATH" --region "$AWS_REGION" >/dev/null 2>&1 || true
 
           # 1) 路径/文件存在性检查
-          [ -d "$MODULE_DIR" ] || { echo "ERROR: MODULE_DIR not found: $MODULE_DIR"; exit 2; }
-          [ -f "$DF" ] || { echo "ERROR: Dockerfile not found: $DF"; exit 3; }
+          if [ ! -d "$MODULE_DIR" ]; then echo "ERROR: MODULE_DIR not found: $MODULE_DIR"; exit 2; fi
+          if [ ! -f "$DF" ]; then echo "ERROR: Dockerfile not found: $DF"; exit 3; fi
 
-          # 2) 至少有一个可运行 jar（避免只剩 *-sources.jar）
-          ls -1 "$MODULE_DIR"/target/*.jar 2>/dev/null | head -n1 > /dev/null || {
-            echo "ERROR: No jar under $MODULE_DIR/target"; exit 4; }
+          # 2) 至少存在一个可运行 JAR（排除 sources/javadoc/tests）
+          find "$MODULE_DIR/target" -maxdepth 1 -type f -name '*.jar' \
+            ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-tests.jar' \
+            | head -n1 | grep -q . || { echo "ERROR: No runnable jar under $MODULE_DIR/target"; exit 4; }
 
           echo "==> BUILD $MODULE -> $IMAGE_TAG (DF=$DF, CTX=$CTX)"
           docker build -t "$IMAGE_TAG" -f "$DF" "$CTX" || { echo "ERROR: docker build failed for $MODULE"; exit 5; }
@@ -63,10 +78,10 @@ phases:
           docker push "$IMAGE_TAG" || { echo "ERROR: push failed for $IMAGE_TAG"; exit 6; }
 
           echo "==> TAG & PUSH latest"
-          docker tag "$IMAGE_TAG" "$IMAGE_BASE:latest" || { echo "ERROR: tag latest failed"; exit 7; }
-          docker push "$IMAGE_BASE:latest" || { echo "ERROR: push latest failed"; exit 8; }
+          docker tag  "$IMAGE_TAG" "$IMAGE_BASE:latest" || { echo "ERROR: tag latest failed"; exit 7; }
+          docker push "$IMAGE_BASE:latest"              || { echo "ERROR: push latest failed"; exit 8; }
         done
 
   post_build:
     commands:
-      - 'echo "DONE: Build version $BUILD_VERSION pushed to ECR"'
+      - echo "DONE: Build version $BUILD_VERSION pushed to ECR"

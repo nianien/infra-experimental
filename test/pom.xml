@@ -9,13 +9,13 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>demo</artifactId>
+    <artifactId>test</artifactId>
     <packaging>pom</packaging>
     <modules>
         <module>demo-proto</module>
-        <module>demo-user-service</module>
-        <module>demo-order-service</module>
-        <module>demo-web</module>
+        <module>demo-user-rpc</module>
+        <module>demo-order-rpc</module>
+        <module>demo-web-api</module>
     </modules>
 
 
