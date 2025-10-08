@@ -3,7 +3,7 @@ version: 0.2
 env:
   variables:
     # <maven模块目录名>（仅包含模块路径；repo 名取路径最后一层）
-    MODULES: "test/demo-user-rpc test/test-demo-order-rpc test/demo-web-api"
+    MODULES: "test/demo-user-rpc test/demo-order-rpc test/demo-web-api"
 
 phases:
   install:
