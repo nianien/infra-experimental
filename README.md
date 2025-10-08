@@ -149,19 +149,19 @@ grpc:
 mvn -q -T1C -DskipTests package
 ```
 
-- 启动 demo-user-service（gRPC: 9091）
+- 启动 demo-user-rpc（gRPC: 9091）
 ```bash
-mvn -q -f demo/demo-user-service/pom.xml spring-boot:run
+mvn -q -f test/demo-user-rpc/pom.xml spring-boot:run
 ```
 
-- 启动 demo-order-service（gRPC: 9092，作为客户端调用 user-service）
+- 启动 demo-order-rpc（gRPC: 9092，作为客户端调用 user-service）
 ```bash
-mvn -q -f demo/demo-order-service/pom.xml spring-boot:run
+mvn -q -f test/demo-order-rpc/pom.xml spring-boot:run
 ```
 
-- 启动 demo-web（HTTP: 8080，作为 web 入口与 gRPC 客户端）
+- 启动 demo-web-api（HTTP: 8080，作为 web 入口与 gRPC 客户端）
 ```bash
-mvn -q -f demo/demo-web/pom.xml spring-boot:run
+mvn -q -f test/demo-web-api/pom.xml spring-boot:run
 ```
 
 - 切换到 ECS 配置（启用 `cloud:///`）：
