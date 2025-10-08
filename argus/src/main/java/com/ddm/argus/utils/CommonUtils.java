@@ -49,6 +49,33 @@ public class CommonUtils {
     }
 
 
+    public static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+
+    public static String firstNonBlank(String... vals) {
+        if (vals == null) return null;
+        for (String v : vals) if (!isBlank(v)) return v;
+        return null;
+    }
+
+
+    public static String trimToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    public static Integer toInt(String s) {
+        try {
+            return (s == null || s.isBlank()) ? null : Integer.valueOf(s);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+
     public static boolean isTrue(String val) {
         if (val == null) return false;
         switch (val.trim().toLowerCase()) {

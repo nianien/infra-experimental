@@ -5,10 +5,12 @@ set -euo pipefail
 . "$(dirname "$0")/env.sh"
 
 # ===== 触发构建 =====
+PROJECT_NAME="${PROJECT_NAME:-infra-experimental}"
+BUILD_VERSION="${BUILD_VERSION:-}"
 echo ">> Start CodeBuild: $PROJECT_NAME (profile=$AWS_PROFILE, region=$AWS_REGION)"
-START_ARGS=( --project-name "$PROJECT_NAME" --profile "$AWS_PROFILE" --region "$AWS_REGION" )
+START_ARGS=(--project-name "$PROJECT_NAME" --profile "$AWS_PROFILE" --region "$AWS_REGION")
 if [[ -n "$BUILD_VERSION" ]]; then
-  START_ARGS+=( --environment-variables-override "name=BUILD_VERSION,value=$BUILD_VERSION" )
+  START_ARGS+=(--environment-variables-override "name=BUILD_VERSION,value=$BUILD_VERSION")
 fi
 
 BUILD_ID=$(aws codebuild start-build "${START_ARGS[@]}" --query 'build.id' --output text)
@@ -30,7 +32,10 @@ done
 # ===== 最终结果 & 退出码 =====
 echo ">> Final: $STATUS"
 case "$STATUS" in
-  SUCCEEDED) exit 0 ;;
-  FAILED|FAULT|TIMED_OUT|CANCELED|STOPPED) exit 1 ;;
-  *) echo "Unknown status: $STATUS" ; exit 2 ;;
+SUCCEEDED) exit 0 ;;
+FAILED | FAULT | TIMED_OUT | CANCELED | STOPPED) exit 1 ;;
+*)
+  echo "Unknown status: $STATUS"
+  exit 2
+  ;;
 esac

@@ -5,8 +5,8 @@ set -e
 . "$(dirname "$0")/env.sh"
 
 # Defaults from env.sh; service can be overridden here or via env
-SERVICE="${SERVICE:-$SERVICE_DEMO_WEB}"
-PORT="${PORT:-$WEB_PORT}"
+SERVICE="${SERVICE:-demo-web-api-test}"
+PORT="${PORT:-8080}"
 
 echo ">>> 查 RUNNING 任务 ARN ..."
 TASK_ARN=$(aws ecs list-tasks \
@@ -74,12 +74,11 @@ if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
 fi
 
 # 来源 IP
-if [[ -z "$MY_IP" ]]; then
-  echo ">>> 自动探测你的公网 IP ..."
-  MY_IP=$(curl -s https://checkip.amazonaws.com || true)
-  MY_IP=${MY_IP//$'\r'/}
-  MY_IP=${MY_IP//$'\n'/}
-fi
+echo ">>> 自动探测你的公网 IP ..."
+MY_IP=$(curl -s https://checkip.amazonaws.com || true)
+MY_IP=${MY_IP//$'\r'/}
+MY_IP=${MY_IP//$'\n'/}
+
 if [[ -z "$MY_IP" ]]; then
   echo "❌ 无法确定你的公网 IP；可先 export MY_IP=1.2.3.4 再跑"
   exit 5
