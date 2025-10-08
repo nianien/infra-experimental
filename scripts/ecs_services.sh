@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# ecs-services.sh
+# ecs_services.sh
 # 用法:
-#   ./ecs-services.sh start [count] [--no-force]
-#   ./ecs-services.sh stop
-#   ./ecs-services.sh status
+#   ./ecs_services.sh start [count] [--no-force]
+#   ./ecs_services.sh stop
+#   ./ecs_services.sh status
 
 # shellcheck source=/dev/null
 . "$(dirname "$0")/env.sh"
