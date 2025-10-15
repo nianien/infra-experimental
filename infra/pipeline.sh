@@ -15,7 +15,6 @@ set -euo pipefail
 AUTO_DELETE="${AUTO_DELETE:-1}"     # 1=回滚栈自动删除；0=保留
 PIPELINE_TEMPLATE="${PIPELINE_TEMPLATE:-$(dirname "$0")/pipeline.yaml}"
 DEBUG="${DEBUG:-0}"
-
 [[ "$DEBUG" == "1" ]] && set -x
 
 # =========== 参数定义 ===========
@@ -42,6 +41,10 @@ SUBNETS=""
 SECURITY_GROUPS=""
 ASSIGN_PUBLIC_IP=""
 LOG_STREAM_PREFIX=""
+
+# Pipeline 默认环境变量
+LANE_DEFAULT=""
+CONT_PORT_DEFAULT=""
 
 DO_VALIDATE=0
 
@@ -71,6 +74,8 @@ while [[ $# -gt 0 ]]; do
     --security-groups)                  SECURITY_GROUPS="$2"; shift 2 ;;
     --assign-public-ip)                 ASSIGN_PUBLIC_IP="$2"; shift 2 ;;
     --log-stream-prefix)                LOG_STREAM_PREFIX="$2"; shift 2 ;;
+    --lane)                             LANE_DEFAULT="$2"; shift 2 ;;
+    --cont-port)                        CONT_PORT_DEFAULT="$2"; shift 2 ;;
     --validate) DO_VALIDATE=1; shift ;;
     -h|--help)
       echo "Usage: $0 --repo <org/repo> --service <name> --sd-id <srv-xxx> [options]"
@@ -87,13 +92,17 @@ done
 if [[ -z "$PIPELINE_NAME" ]]; then
   PIPELINE_NAME="deploy-${SERVICE_NAME}"
 fi
-
 STACK_NAME="${PIPELINE_NAME}-pipeline"
+
+# 自动生成 ECS 日志组名
+ECS_LOG_GROUP_NAME="/ecs/${SERVICE_NAME}"
+LG_RETENTION_DAYS=30
 
 echo "==> profile=$AWS_PROFILE region=$AWS_REGION"
 echo "==> pipeline=$PIPELINE_NAME stack=$STACK_NAME"
 echo "==> repo=$REPO_NAME branch=${BRANCH_NAME:-<template-default>} service=$SERVICE_NAME"
-echo "==> template=$PIPELINE_TEMPLATE"
+echo "==> template=$PIPELINE_TEMPLATE lane_default=${LANE_DEFAULT:-<template-default>} cont_port_default=${CONT_PORT_DEFAULT:-<template-default>}"
+echo "==> ecs_log_group_name=$ECS_LOG_GROUP_NAME retention_days=$LG_RETENTION_DAYS"
 
 # ---------------- 仅模板校验 ----------------
 if [[ $DO_VALIDATE -eq 1 ]]; then
@@ -103,6 +112,33 @@ if [[ $DO_VALIDATE -eq 1 ]]; then
   echo "✅ Template valid"
   exit 0
 fi
+
+# ---------------- 工具函数：仅当不存在时创建日志组 ----------------
+ensure_log_group() {
+  local name="$1"
+  local retention="${2:-30}"
+  local q="logGroups[?logGroupName==\`$name\`]|length(@)"
+  local exists
+  exists="$(aws logs describe-log-groups \
+              --log-group-name-prefix "$name" \
+              --query "$q" --output text \
+              --region "$AWS_REGION" --profile "$AWS_PROFILE" 2>/dev/null || echo 0)"
+  if [[ "$exists" != "0" ]]; then
+    echo "==> Log group exists: $name"
+    return 0
+  fi
+  echo "==> Creating log group: $name (retention=$retention)"
+  aws logs create-log-group \
+    --log-group-name "$name" \
+    --region "$AWS_REGION" --profile "$AWS_PROFILE" || true
+  aws logs put-retention-policy \
+    --log-group-name "$name" \
+    --retention-in-days "$retention" \
+    --region "$AWS_REGION" --profile "$AWS_PROFILE" || true
+}
+
+# ---------------- 在部署前确保日志组存在（自动判断，无需参数） ----------------
+ensure_log_group "$ECS_LOG_GROUP_NAME" "$LG_RETENTION_DAYS"
 
 # ---------------- 栈状态预处理 ----------------
 STACK_STATUS=$(aws cloudformation describe-stacks \
@@ -156,6 +192,10 @@ append_param SecurityGroups               "$SECURITY_GROUPS"
 append_param AssignPublicIp               "$ASSIGN_PUBLIC_IP"
 append_param LogStreamPrefix              "$LOG_STREAM_PREFIX"
 
+append_param LaneDefault                  "$LANE_DEFAULT"
+append_param ContPortDefault              "$CONT_PORT_DEFAULT"
+append_param EcsLogGroupName              "$ECS_LOG_GROUP_NAME"
+
 # ---------------- 部署 ----------------
 set -x
 aws cloudformation deploy \
@@ -169,4 +209,4 @@ set +x
 echo "✅ Pipeline 就绪：$PIPELINE_NAME"
 echo "👉 触发示例（镜像由 CodeBuild 产出；只需传 lane/desired/port）："
 echo "aws codepipeline start-pipeline-execution --name $PIPELINE_NAME --region $AWS_REGION --profile $AWS_PROFILE \\"
-echo "  --variables name=LANE,value=gray name=DESIRED,value=1 name=CONT_PORT,value=8081"
+echo "  --variables name=LANE,value=default name=DESIRED,value=1 name=CONT_PORT,value=8081"

@@ -27,9 +27,8 @@ Metadata:
           - Subnets
           - SecurityGroups
           - AssignPublicIp
-          - LogStreamPrefix
-          - LaneDefault          # <— 新增：作为 Pipeline 变量 LANE 的默认值
-          - ContPortDefault      # <— 新增：作为 Pipeline 变量 CONT_PORT 的默认值
+          - LaneDefault
+          - ContPortDefault
     ParameterLabels:
       PipelineName: { default: "Pipeline 名称" }
       ServiceName: { default: "服务名（ServiceBase）" }
@@ -78,7 +77,7 @@ Parameters:
     Default: 'codepipeline-us-east-1-3622cd43956e-4d23-9284-a18746ff6c07'
     Description: '存放Pipeline Artifacts的S3桶名'
 
-  # --- 固定共享角色（三个都为固定共享） ---
+  # --- 固定角色 ---
   CloudFormationDeployRoleArn:
     Type: String
     Default: 'arn:aws:iam::297997107448:role/CloudFormationDeployRole'
@@ -149,10 +148,6 @@ Parameters:
     Default: 'ENABLED'
     Description: '是否分配公有 IP（默认 ENABLED）'
 
-  LogStreamPrefix:
-    Type: String
-    Default: 'ecs'
-    Description: 'CloudWatch Logs 前缀'
 
   # ---------- 新增：用于为 Pipeline 变量提供默认值 ----------
   LaneDefault:
@@ -209,11 +204,11 @@ Resources:
 
       Variables:
         - Name: LANE
-          DefaultValue: !Ref LaneDefault        # <— 改为引用参数
+          DefaultValue: !Ref LaneDefault
         - Name: DESIRED
           DefaultValue: '0'
         - Name: CONT_PORT
-          DefaultValue: !Ref ContPortDefault    # <— 改为引用参数
+          DefaultValue: !Ref ContPortDefault
 
       Stages:
         - Name: Source
@@ -278,7 +273,6 @@ Resources:
                       "Subnets": "${Subnets}",
                       "SecurityGroups": "${SecurityGroups}",
                       "AssignPublicIp": "${AssignPublicIp}",
-                      "LogStreamPrefix": "${LogStreamPrefix}",
                       "ContainerPort": "#{variables.CONT_PORT}",
                       "DesiredCount": "#{variables.DESIRED}",
                       "SdRegistryArn": "${SdArnResolved}"

@@ -44,9 +44,6 @@ Parameters:
       - ENABLED
       - DISABLED
     Default: ENABLED
-  LogStreamPrefix:
-    Type: String
-    Default: 'ecs'
   SdRegistryArn:
     Type: String
     Description: 'Cloud Map Service ARN（所有泳道可共用）'
@@ -79,7 +76,7 @@ Resources:
             Options:
               awslogs-group: !Sub '/ecs/${ServiceBase}'
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !Ref LogStreamPrefix
+              awslogs-stream-prefix: !Sub '${Lane}'
       Tags:
         - Key: Lane
           Value: !Ref Lane
