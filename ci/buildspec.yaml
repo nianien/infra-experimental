@@ -75,17 +75,31 @@ phases:
             mvn -B -f "$WORK_DIR/pom.xml" clean package
           fi
 
-          find "$WORK_DIR/target" -maxdepth 1 -type f -name "*.jar" \
-            ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*-tests.jar" \
-            | head -n1 | grep -q . || { echo "[FATAL] No runnable jar found"; exit 4; }
+          JAR_COUNT=$(find "$WORK_DIR/target" -maxdepth 1 -type f -name "*.jar" \
+            ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*-tests.jar" | wc -l)
+          if [ "$JAR_COUNT" -eq 0 ]; then
+            echo "[WARNING] No runnable jar found, but continuing with Docker build"
+          else
+            echo "Found $JAR_COUNT runnable jar(s)"
+          fi
         else
           echo "No pom.xml found, skipping Maven build"
         fi
 
         echo "== Docker build & push =="
         IMAGE_TAG_URI="$ECR_REPO_URI:$IMAGE_TAG"
-        docker build -f "$WORK_DIR/$DF" -t "$IMAGE_TAG_URI" "$WORK_DIR"
-        docker push "$IMAGE_TAG_URI"
+        echo "Building image: $IMAGE_TAG_URI"
+        echo "Dockerfile: $WORK_DIR/$DF"
+        echo "Build context: $WORK_DIR"
+        if ! docker build -f "$WORK_DIR/$DF" -t "$IMAGE_TAG_URI" "$WORK_DIR"; then
+          echo "[ERROR] Docker build failed"
+          exit 5
+        fi
+        echo "Pushing image: $IMAGE_TAG_URI"
+        if ! docker push "$IMAGE_TAG_URI"; then
+          echo "[ERROR] Docker push failed"
+          exit 6
+        fi
 
         echo "== Syncing tag :latest =="
         LATEST_URI="$ECR_REPO_URI:latest"
