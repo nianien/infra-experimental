@@ -27,7 +27,7 @@ phases:
 
   pre_build:
     commands:
-      - |
+      - |-
         set -euo pipefail
         echo "== 环境变量检查 =="
         echo "ECR_REPO_URI=${ECR_REPO_URI:-<empty>}"
@@ -59,7 +59,7 @@ phases:
 
   build:
     commands:
-      - |
+      - |-
         echo "== 检查构建目录与 Dockerfile =="
         WORK_DIR="${MODULE_PATH:-.}"
         DF="${DOCKERFILE_PATH:-Dockerfile}"
@@ -91,10 +91,9 @@ phases:
         LATEST_URI="$ECR_REPO_URI:latest"
         docker tag "$IMAGE_TAG_URI" "$LATEST_URI"
         docker push "$LATEST_URI"
-
   post_build:
     commands:
-      - |
+      - |-
         echo "== 输出 CloudFormation 参数文件 =="
         echo '{"Parameters":{"ImageUri":"'$IMAGE_TAG_URI'"}}' > cfn-params.json
         echo "生成 cfn-params.json: ImageUri=$IMAGE_TAG_URI"
