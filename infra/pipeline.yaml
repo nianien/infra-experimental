@@ -27,17 +27,17 @@ Metadata:
           - Subnets
           - SecurityGroups
           - AssignPublicIp
-          - LaneDefault
-          - ContPortDefault
+          - LaneName
+          - ContainerPort
     ParameterLabels:
       PipelineName: { default: "Pipeline 名称" }
       ServiceName: { default: "服务名（ServiceBase）" }
       SdServiceId: { default: "Cloud Map Service ID" }
       RepoName: { default: "GitHub 仓库（org/repo）" }
       ConnectionArn: { default: "CodeStar Connections ARN" }
-      ArtifactBucketName: { default: "Artifacts 桶" }
-      LaneDefault: { default: "默认 LANE（可在执行时覆盖）" }
-      ContPortDefault: { default: "默认容器端口（CONT_PORT，可在执行时覆盖）" }
+      ArtifactBucketName: { default: "存储Artifacts的 S3 桶" }
+      LaneName: { default: "泳道环境标签" }
+      ContainerPort: { default: "默认容器端口" }
 
 Parameters:
 
@@ -149,16 +149,15 @@ Parameters:
     Description: '是否分配公有 IP（默认 ENABLED）'
 
 
-  # ---------- 新增：用于为 Pipeline 变量提供默认值 ----------
-  LaneDefault:
+  LaneName:
     Type: String
     Default: 'default'
-    Description: 'Pipeline 环境变量 LANE 的默认值'
+    Description: 'Pipeline 指定服务泳道标签'
 
-  ContPortDefault:
-    Type: String
-    Default: '8080'
-    Description: 'Pipeline 环境变量 CONT_PORT 的默认值'
+  ContainerPort:
+    Type: Number
+    Default: 8080
+    Description: 'Pipeline 指定容器默认端口'
 
 Conditions:
   UseProvidedRepo: !Not [ !Equals [ !Ref EcrRepositoryUri, '' ] ]
@@ -204,11 +203,11 @@ Resources:
 
       Variables:
         - Name: LANE
-          DefaultValue: !Ref LaneDefault
-        - Name: DESIRED
+          DefaultValue: !Ref LaneName
+        - Name: DESIRED_COUNT
           DefaultValue: '0'
-        - Name: CONT_PORT
-          DefaultValue: !Ref ContPortDefault
+        - Name: CONTAINER_PORT
+          DefaultValue: !Ref ContainerPort
 
       Stages:
         - Name: Source
@@ -273,8 +272,8 @@ Resources:
                       "Subnets": "${Subnets}",
                       "SecurityGroups": "${SecurityGroups}",
                       "AssignPublicIp": "${AssignPublicIp}",
-                      "ContainerPort": "#{variables.CONT_PORT}",
-                      "DesiredCount": "#{variables.DESIRED}",
+                      "ContainerPort": "#{variables.CONTAINER_PORT}",
+                      "DesiredCount": "#{variables.DESIRED_COUNT}",
                       "SdRegistryArn": "${SdArnResolved}"
                     }
                   - { SdArnResolved: !Sub 'arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdServiceId}' }

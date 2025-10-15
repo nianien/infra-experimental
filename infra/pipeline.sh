@@ -41,9 +41,9 @@ SUBNETS=""
 SECURITY_GROUPS=""
 ASSIGN_PUBLIC_IP=""
 
-# Pipeline 默认环境变量
-LANE_DEFAULT=""
-CONT_PORT_DEFAULT=""
+# Pipeline 环境变量
+LANE_NAME=""
+CONTAINER_PORT=""
 
 DO_VALIDATE=0
 
@@ -58,22 +58,22 @@ while [[ $# -gt 0 ]]; do
 
     # 可选（与模板参数名一一对应）
     --connection-arn)                   CONNECTION_ARN="$2"; shift 2 ;;
-    --artifact-bucket|--artifact-bucket-name) ARTIFACT_BUCKET_NAME="$2"; shift 2 ;;
+    --artifact-bucket)                  ARTIFACT_BUCKET_NAME="$2"; shift 2 ;;
     --cloudformation-deploy-role-arn)   CLOUDFORMATION_DEPLOY_ROLE_ARN="$2"; shift 2 ;;
     --codepipeline-role-arn)            CODEPIPELINE_ROLE_ARN="$2"; shift 2 ;;
     --codebuild-role-arn)               CODEBUILD_ROLE_ARN="$2"; shift 2 ;;
     --branch|--branch-name)             BRANCH_NAME="$2"; shift 2 ;;
     --template-path)                    TEMPLATE_PATH="$2"; shift 2 ;;
     --image-tag-format)                 IMAGE_TAG_FORMAT="$2"; shift 2 ;;
-    --ecr-repo-uri|--ecr-repository-uri)ECR_REPOSITORY_URI="$2"; shift 2 ;;
+    --ecr-repo-uri)                     ECR_REPOSITORY_URI="$2"; shift 2 ;;
     --cluster-name)                     CLUSTER_NAME="$2"; shift 2 ;;
     --execution-role-arn)               EXECUTION_ROLE_ARN="$2"; shift 2 ;;
     --task-role-arn)                    TASK_ROLE_ARN="$2"; shift 2 ;;
     --subnets)                          SUBNETS="$2"; shift 2 ;;
     --security-groups)                  SECURITY_GROUPS="$2"; shift 2 ;;
     --assign-public-ip)                 ASSIGN_PUBLIC_IP="$2"; shift 2 ;;
-    --lane)                             LANE_DEFAULT="$2"; shift 2 ;;
-    --cont-port)                        CONT_PORT_DEFAULT="$2"; shift 2 ;;
+    --lane)                             LANE_NAME="$2"; shift 2 ;;
+    --port)                             CONTAINER_PORT="$2"; shift 2 ;;
     --validate) DO_VALIDATE=1; shift ;;
     -h|--help)
       echo "Usage: $0 --repo <org/repo> --service <name> --sd-id <srv-xxx> [options]"
@@ -99,7 +99,7 @@ LG_RETENTION_DAYS=30
 echo "==> profile=$AWS_PROFILE region=$AWS_REGION"
 echo "==> pipeline=$PIPELINE_NAME stack=$STACK_NAME"
 echo "==> repo=$REPO_NAME branch=${BRANCH_NAME:-<template-default>} service=$SERVICE_NAME"
-echo "==> template=$PIPELINE_TEMPLATE lane_default=${LANE_DEFAULT:-<template-default>} cont_port_default=${CONT_PORT_DEFAULT:-<template-default>}"
+echo "==> template=$PIPELINE_TEMPLATE lane=${LANE_NAME:-<template-default>} container_port=${CONTAINER_PORT:-<template-default>}"
 echo "==> ecs_log_group_name=$ECS_LOG_GROUP_NAME retention_days=$LG_RETENTION_DAYS"
 
 # ---------------- 仅模板校验 ----------------
@@ -144,9 +144,9 @@ STACK_STATUS=$(aws cloudformation describe-stacks \
   --region "$AWS_REGION" --profile "$AWS_PROFILE" \
   --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo NOT_FOUND)
 echo "STACK_STATUS=$STACK_STATUS"
-if [[ "$STACK_STATUS" =~ ^(COMPLETE|FAILED)$ ]]; then
+if [[ "$STACK_STATUS" =~ ^[A-Z_]*(COMPLETE|FAILED)$ ]]; then
   if [[ "$AUTO_DELETE" == "1" ]]; then
-    echo "==> $STACK_NAME is ROLLBACK_COMPLETE. Deleting..."
+    echo "==> $STACK_NAME in final state ($STACK_STATUS). Deleting..."
     aws cloudformation delete-stack --stack-name "$STACK_NAME" \
       --region "$AWS_REGION" --profile "$AWS_PROFILE"
     aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" \
@@ -189,9 +189,8 @@ append_param Subnets                      "$SUBNETS"
 append_param SecurityGroups               "$SECURITY_GROUPS"
 append_param AssignPublicIp               "$ASSIGN_PUBLIC_IP"
 
-append_param LaneDefault                  "$LANE_DEFAULT"
-append_param ContPortDefault              "$CONT_PORT_DEFAULT"
-append_param EcsLogGroupName              "$ECS_LOG_GROUP_NAME"
+append_param LaneName                     "$LANE_NAME"
+append_param ContainerPort                "$CONTAINER_PORT"
 
 # ---------------- 部署 ----------------
 set -x
@@ -206,4 +205,4 @@ set +x
 echo "✅ Pipeline 就绪：$PIPELINE_NAME"
 echo "👉 触发示例（镜像由 CodeBuild 产出；只需传 lane/desired/port）："
 echo "aws codepipeline start-pipeline-execution --name $PIPELINE_NAME --region $AWS_REGION --profile $AWS_PROFILE \\"
-echo "  --variables name=LANE,value=default name=DESIRED,value=1 name=CONT_PORT,value=8081"
+echo "  --variables name=LANE,value=default name=DESIRED,value=1 name=CONTAINER_PORT,value=8081"
