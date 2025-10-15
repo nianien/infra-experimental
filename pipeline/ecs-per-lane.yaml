@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Generic ECS Service + TaskDefinition (by-lane; shared Cloud Map ARN)'
+
+Parameters:
+  ServiceBase:
+    Type: String
+    Description: '服务基名，例如 order-api 或 user-api'
+  Lane:
+    Type: String
+    Description: '泳道，例如 default/gray/blue'
+  ClusterName:
+    Type: String
+    Description: 'ECS Cluster 名称'
+  ImageUri:
+    Type: String
+    Description: '容器镜像 URI（运行时传入）'
+  DesiredCount:
+    Type: Number
+    Default: 1
+  Cpu:
+    Type: String
+    Default: '512'
+  Memory:
+    Type: String
+    Default: '1024'
+  ContainerPort:
+    Type: Number
+    Default: 8080
+  ExecutionRoleArn:
+    Type: String
+    Description: 'ecsTaskExecutionRole ARN'
+  TaskRoleArn:
+    Type: String
+    Description: 'ecsTaskRole ARN'
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: '逗号分隔子网 ID 列表'
+  SecurityGroups:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: '逗号分隔安全组 ID 列表'
+  AssignPublicIp:
+    Type: String
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+    Default: ENABLED
+  LogStreamPrefix:
+    Type: String
+    Default: 'ecs'
+  SdRegistryArn:
+    Type: String
+    Description: 'Cloud Map Service ARN（所有泳道可共用）'
+
+Resources:
+  TaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${ServiceBase}-task'
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: !Ref Cpu
+      Memory: !Ref Memory
+      ExecutionRoleArn: !Ref ExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ContainerDefinitions:
+        - Name: !Ref ServiceBase            # 容器名 = 服务名（避免额外变量）
+          Image: !Ref ImageUri
+          Essential: true
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              HostPort: !Ref ContainerPort
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Sub '/ecs/${ServiceBase}'
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref LogStreamPrefix
+      Tags:
+        - Key: Lane
+          Value: !Ref Lane
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub '${ServiceBase}-${Lane}'
+      Cluster: !Ref ClusterName
+      LaunchType: FARGATE
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref TaskDef
+      DeploymentConfiguration:
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Ref Subnets
+          SecurityGroups: !Ref SecurityGroups
+          AssignPublicIp: !Ref AssignPublicIp
+      ServiceRegistries:
+        - RegistryArn: !Ref SdRegistryArn   # 仅 ARN（A 记录场景）
+      EnableECSManagedTags: true
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      DeploymentController:
+        Type: ECS
+      Tags:
+        - Key: Lane
+          Value: !Ref Lane
+
+Outputs:
+  ServiceArn:
+    Description: 'ECS Service ARN'
+    Value: !Ref Service
+  TaskDefinitionArn:
+    Description: 'ECS TaskDefinition ARN'
+    Value: !Ref TaskDef
