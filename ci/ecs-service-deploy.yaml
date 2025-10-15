@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Generic ECS Service + TaskDefinition (by-lane; shared Cloud Map ARN)'
+Description: 'Generic ECS Service + TaskDefinition'
 
 Parameters:
   ServiceBase:
@@ -7,7 +7,7 @@ Parameters:
     Description: '服务基名，例如 order-api 或 user-api'
   Lane:
     Type: String
-    Description: '泳道，例如 default/gray/blue'
+    Description: '泳道，例如 test/prod/dev'
   ClusterName:
     Type: String
     Description: 'ECS Cluster 名称'

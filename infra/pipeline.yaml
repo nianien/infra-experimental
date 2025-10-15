@@ -151,7 +151,7 @@ Parameters:
 
   LaneName:
     Type: String
-    Default: 'default'
+    Default: 'test'
     Description: 'Pipeline 指定服务泳道标签'
 
   ContainerPort:
