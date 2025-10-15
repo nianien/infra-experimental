@@ -1,34 +1,52 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CodePipeline (by-lane): Source -> CodeBuild (maven + docker) -> CloudFormation deploy to ECS. ImageUri from CodeBuild; Cloud Map uses SdServiceId (srv-xxxx) -> ARN.'
+Description: 'CodePipeline: per-service ECS deploy (GitHub via CodeStar, CodeBuild builds image, CFN deploys ECS stack)'
 
 Parameters:
   ArtifactBucketName:
     Type: String
-    Description: 'Existing S3 bucket for CodePipeline artifacts'
+    Description: '已存在的 S3 桶名（Pipeline Artifacts 存放处）'
+  PipelineName:
+    Type: String
+    Description: 'Pipeline 名称（例如 deploy-<service>）'
+  CFNDeployRoleArn:
+    Type: String
+    Description: 'CloudFormation 执行角色 ARN（被 Pipeline 假设）'
+
+  # GitHub via CodeStar Connections
   ConnectionArn:
     Type: String
-    Description: 'CodeStar Connections ARN for GitHub'
+    Description: 'CodeStar Connections ARN'
   FullRepo:
     Type: String
-    Description: 'GitHub repository in owner/repo format'
+    Description: 'GitHub 仓库（org/repo）'
   BranchName:
     Type: String
     Default: 'main'
-  PipelineName:
-    Type: String
-    Default: 'ecs-by-lane-deploy'
 
+  # 服务参数（与创建脚本保持一致）
   ServiceName:
     Type: String
-    Description: 'Service name bound to this pipeline (e.g., demo-user-rpc)'
+    Description: '服务名（= ServiceBase，例如 demo-user-rpc）'
   SdServiceId:
     Type: String
-    Description: 'Cloud Map Service ID (e.g., srv-abc123)'
+    Description: 'Cloud Map Service ID（如 srv-xxxxxx）'
 
-  CFNDeployRoleArn:
+  # 源码中的 ECS 模板路径
+  TemplatePath:
     Type: String
-    Description: 'CloudFormation execution role ARN (assumed by CFN Action)'
+    Default: 'ci/ecs-service-deploy.yaml'
 
+  # 可选 ECR Repo URI
+  EcrRepositoryUri:
+    Type: String
+    Default: ""
+
+  ImageTagFormat:
+    Type: String
+    AllowedValues: ['commit7','timestamp','latest']
+    Default: 'commit7'
+
+  # ==== 全局默认参数 ====
   ClusterName:
     Type: String
     Default: 'demo-cluster'
@@ -46,27 +64,17 @@ Parameters:
     Default: 'sg-00a34a14c1889ddfc'
   AssignPublicIp:
     Type: String
-    AllowedValues: [ENABLED, DISABLED]
-    Default: ENABLED
+    AllowedValues: ['ENABLED','DISABLED']
+    Default: 'ENABLED'
   LogStreamPrefix:
     Type: String
     Default: 'ecs'
 
-  TemplatePath:
-    Type: String
-    Default: 'pipeline/ecs-by-lane.yaml'
-
-  ImageTagFormat:
-    Type: String
-    Default: 'commit7'  # commit7 | timestamp | latest
-  CodeBuildComputeType:
-    Type: String
-    Default: 'BUILD_GENERAL1_SMALL'
-  CodeBuildImage:
-    Type: String
-    Default: 'aws/codebuild/standard:7.0'
+Conditions:
+  UseProvidedRepo: !Not [ !Equals [ !Ref EcrRepositoryUri, "" ] ]
 
 Resources:
+  # ---------------- CodePipeline Role ----------------
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -84,17 +92,17 @@ Resources:
             Statement:
               - Sid: S3Artifacts
                 Effect: Allow
-                Action: [s3:GetObject, s3:GetObjectVersion, s3:PutObject, s3:ListBucket]
+                Action: [ s3:GetObject, s3:GetObjectVersion, s3:PutObject, s3:ListBucket ]
                 Resource:
                   - !Sub 'arn:aws:s3:::${ArtifactBucketName}'
                   - !Sub 'arn:aws:s3:::${ArtifactBucketName}/*'
-              - Sid: UseConnection
+              - Sid: CodeStarConn
                 Effect: Allow
-                Action: codestar-connections:UseConnection
+                Action: [ codestar-connections:UseConnection ]
                 Resource: !Ref ConnectionArn
-              - Sid: StartCodeBuild
+              - Sid: CodeBuildStart
                 Effect: Allow
-                Action: [codebuild:StartBuild, codebuild:BatchGetBuilds]
+                Action: [ codebuild:BatchGetBuilds, codebuild:StartBuild ]
                 Resource: '*'
               - Sid: CloudFormationCtl
                 Effect: Allow
@@ -105,7 +113,7 @@ Resources:
                   - cloudformation:ExecuteChangeSet
                   - cloudformation:DeleteChangeSet
                   - cloudformation:Describe*
-                  - cloudformation:List*
+                  - cloudformation:GetTemplate*
                 Resource: '*'
               - Sid: AssumeCFNDeployRole
                 Effect: Allow
@@ -118,10 +126,11 @@ Resources:
                   - !Ref ExecutionRoleArn
                   - !Ref TaskRoleArn
 
+  # ---------------- CodeBuild Role ----------------
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${PipelineName}-codebuild-role'
+      RoleName: !Sub '${PipelineName}-build-role'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -135,89 +144,64 @@ Resources:
             Statement:
               - Sid: Logs
                 Effect: Allow
-                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
                 Resource: '*'
               - Sid: S3Artifacts
                 Effect: Allow
-                Action: [s3:GetObject, s3:GetObjectVersion, s3:PutObject, s3:ListBucket]
+                Action: [ s3:GetObject, s3:PutObject, s3:GetObjectVersion, s3:GetBucketLocation, s3:List* ]
                 Resource:
                   - !Sub 'arn:aws:s3:::${ArtifactBucketName}'
                   - !Sub 'arn:aws:s3:::${ArtifactBucketName}/*'
-              - Sid: ECRPushPull
+              - Sid: ECRReadWrite
                 Effect: Allow
                 Action:
                   - ecr:GetAuthorizationToken
                   - ecr:BatchCheckLayerAvailability
                   - ecr:GetDownloadUrlForLayer
                   - ecr:BatchGetImage
+                  - ecr:DescribeRepositories
+                  - ecr:DescribeImages
+                  - ecr:CreateRepository
                   - ecr:PutImage
                   - ecr:InitiateLayerUpload
                   - ecr:UploadLayerPart
                   - ecr:CompleteLayerUpload
-                  - ecr:DescribeRepositories
-                  - ecr:DescribeImages
-                  - ecr:CreateRepository
                 Resource: '*'
 
+  # ---------------- CodeBuild Project ----------------
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
       Name: !Sub '${PipelineName}-build'
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      Artifacts: { Type: CODEPIPELINE }
+      Artifacts:
+        Type: CODEPIPELINE
       Environment:
         Type: LINUX_CONTAINER
-        Image: !Ref CodeBuildImage
-        ComputeType: !Ref CodeBuildComputeType
+        Image: 'aws/codebuild/standard:7.0'
+        ComputeType: BUILD_GENERAL1_SMALL
         PrivilegedMode: true
         EnvironmentVariables:
           - Name: ECR_REPO_URI
             Type: PLAINTEXT
-            Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ServiceName}'
+            Value: !If
+              - UseProvidedRepo
+              - !Ref EcrRepositoryUri
+              - !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ServiceName}'
           - Name: IMAGE_TAG_FORMAT
             Type: PLAINTEXT
             Value: !Ref ImageTagFormat
       Source:
         Type: CODEPIPELINE
-        # 重要：不要用 !Sub；并把 ${VAR} 换成 $VAR，避免 CFN 误替换
-        BuildSpec: |
-          version: 0.2
-          phases:
-            pre_build:
-              commands:
-                - aws --version
-                - echo "Ensuring ECR repo exists: $ECR_REPO_URI"
-                - |
-                  REPONAME=$(echo $ECR_REPO_URI | awk -F/ '{print $2}')
-                  aws ecr describe-repositories --repository-names "$REPONAME" >/dev/null 2>&1 || \
-                    aws ecr create-repository --repository-name "$REPONAME" >/dev/null
-                - echo "Logging in to Amazon ECR..."
-                - aws ecr get-login-password | docker login --username AWS --password-stdin $(echo $ECR_REPO_URI | awk -F/ '{print $1}')
-                - |
-                  if [ "$IMAGE_TAG_FORMAT" = "commit7" ]; then
-                    IMAGE_TAG=$(echo "$CODEBUILD_RESOLVED_SOURCE_VERSION" | cut -c 1-7)
-                  elif [ "$IMAGE_TAG_FORMAT" = "timestamp" ]; then
-                    IMAGE_TAG=$(date +%Y%m%d%H%M%S)
-                  else
-                    IMAGE_TAG="latest"
-                  fi
-                - echo "Using tag: $IMAGE_TAG"
-            build:
-              commands:
-                - echo "==== BUILD JAVA ARTIFACT (Maven) ===="
-                - mvn -B -q -DskipTests clean package
-                - echo "==== BUILD DOCKER IMAGE ===="
-                - docker build -t $ECR_REPO_URI:$IMAGE_TAG .
-                - docker push $ECR_REPO_URI:$IMAGE_TAG
-            post_build:
-              commands:
-                - IMAGE_URI="$ECR_REPO_URI:$IMAGE_TAG"
-                - echo "{\"Parameters\":{\"ImageUri\":\"$IMAGE_URI\"}}" > cfn-params.json
-                - cat cfn-params.json
-          artifacts:
-            files:
-              - cfn-params.json
+        BuildSpec: 'ci/buildspec.yml'
+      TimeoutInMinutes: 60
 
+  # ---------------- Pipeline ----------------
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -252,23 +236,21 @@ Resources:
                 DetectChanges: true
               OutputArtifacts:
                 - Name: SourceOut
-              RunOrder: 1
 
         - Name: Build
           Actions:
-            - Name: BuildAndPushImage
+            - Name: DockerBuild
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
                 Version: '1'
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
               InputArtifacts:
                 - Name: SourceOut
               OutputArtifacts:
                 - Name: BuildOut
-              Configuration:
-                ProjectName: !Ref CodeBuildProject
-              RunOrder: 1
 
         - Name: Deploy
           Actions:
@@ -301,11 +283,16 @@ Resources:
                       "SecurityGroups": "${SecurityGroups}",
                       "AssignPublicIp": "${AssignPublicIp}",
                       "LogStreamPrefix": "${LogStreamPrefix}",
-                      "SdRegistryArn": "${SdArnResolved}",
                       "ContainerPort": "#{variables.CONT_PORT}",
-                      "DesiredCount": "#{variables.DESIRED}"
+                      "DesiredCount": "#{variables.DESIRED}",
+                      "SdRegistryArn": "${SdArnResolved}"
                     }
                   - { SdArnResolved: !Sub 'arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdServiceId}' }
-              RunOrder: 1
 
       RestartExecutionOnUpdate: true
+
+Outputs:
+  PipelineNameOut:
+    Value: !Ref PipelineName
+  CodeBuildProjectOut:
+    Value: !Ref CodeBuildProject

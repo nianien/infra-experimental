@@ -15,7 +15,7 @@ COPY --chown=app:app ${JAR_FILE} /app/app.jar
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 
 # 核对端口
-EXPOSE 9091
+EXPOSE 8081
 
 USER app
 ENTRYPOINT ["java","-jar","/app/app.jar"]

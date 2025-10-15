@@ -40,7 +40,7 @@ logging:
 grpc:
   client:
     order-service:
-      address: static://localhost:9092
+      address: static://localhost:8082
       negotiationType: plaintext
 ```
 - 使用 Cloud Map（ECS，下述为 `test` profile）：
@@ -53,7 +53,7 @@ spring:
 grpc:
   client:
     order-service:
-      address: "cloud:///order.test.local:${GRPC_SERVER_PORT:9091}"
+      address: "cloud:///order.test.local:${GRPC_SERVER_PORT:8081}"
 ```
 
 ---
@@ -83,10 +83,10 @@ grpc:
 grpc:
   client:
     user-service:
-      address: static://localhost:9091
+      address: static://localhost:8081
       negotiationType: plaintext
     order-service:
-      address: static://localhost:9092
+      address: static://localhost:8082
       negotiationType: plaintext
 ```
 
@@ -95,7 +95,7 @@ grpc:
 grpc:
   client:
     user-service:
-      address: "cloud:///user.test.local:${GRPC_SERVER_PORT:9091}"
+      address: "cloud:///user.test.local:${GRPC_SERVER_PORT:8081}"
 ```
 
 ---

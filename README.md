@@ -111,10 +111,10 @@ logging:
 grpc:
   client:
     user-service:
-      address: static://localhost:9091
+      address: static://localhost:8081
       negotiationType: plaintext
     order-service:
-      address: static://localhost:9092
+      address: static://localhost:8082
       negotiationType: plaintext
 ```
 
@@ -123,9 +123,9 @@ grpc:
 grpc:
   client:
     user-service:
-      address: "cloud:///user.test.local:${GRPC_SERVER_PORT:9091}"
+      address: "cloud:///user.test.local:${GRPC_SERVER_PORT:8081}"
     order-service:
-      address: "cloud:///order.test.local:${GRPC_SERVER_PORT:9091}"
+      address: "cloud:///order.test.local:${GRPC_SERVER_PORT:8081}"
 ```
 
 - 下游服务在 ECS 的客户端配置：
@@ -133,7 +133,7 @@ grpc:
 grpc:
   client:
     user-service:
-      address: "cloud:///user.test.local:${GRPC_SERVER_PORT:9091}"
+      address: "cloud:///user.test.local:${GRPC_SERVER_PORT:8081}"
 ```
 
 说明：当入口请求（HTTP/gRPC）携带 `tracestate: ctx=lane:<laneName>` 时，同一条链路内的 gRPC 调用会优先路由到 lane 匹配的实例；若该泳道无 READY 实例，则回退到默认桶。
@@ -142,19 +142,19 @@ grpc:
 
 ## Demo 运行指南
 
-前置：JDK 21，Maven；本地演示默认直连端口 9091/9092。
+前置：JDK 21，Maven；本地演示默认直连端口 8081/8082。
 
 - 编译
 ```bash
 mvn -q -T1C -DskipTests package
 ```
 
-- 启动 demo-user-rpc（gRPC: 9091）
+- 启动 demo-user-rpc（gRPC: 8081）
 ```bash
 mvn -q -f test/demo-user-rpc/pom.xml spring-boot:run
 ```
 
-- 启动 demo-order-rpc（gRPC: 9092，作为客户端调用 user-service）
+- 启动 demo-order-rpc（gRPC: 8082，作为客户端调用 user-service）
 ```bash
 mvn -q -f test/demo-order-rpc/pom.xml spring-boot:run
 ```

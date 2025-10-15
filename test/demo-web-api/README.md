@@ -42,11 +42,11 @@ mvn clean compile
 首先需要启动独立的服务器：
 
 ```bash
-# 启动 UserService (up-server) - 端口 9091
+# 启动 UserService (up-server) - 端口 8081
 cd ../atlas-demo-up-server
 mvn spring-boot:run
 
-# 启动 OrderService (down-server) - 端口 9092  
+# 启动 OrderService (down-server) - 端口 8082  
 cd ../atlas-demo-down-server
 mvn spring-boot:run
 ```
@@ -77,12 +77,12 @@ grpc:
   client:
     # UserService 客户端配置 - 连接 up-server
     user-service:
-      address: 'static://localhost:9091'
+      address: 'static://localhost:8081'
       negotiationType: plaintext
     
     # OrderService 客户端配置 - 连接 down-server
     order-service:
-      address: 'static://localhost:9092'
+      address: 'static://localhost:8082'
       negotiationType: plaintext
 ```
 
@@ -90,11 +90,11 @@ grpc:
 
 Web 客户端会自动执行以下测试：
 
-### UserService 测试 (连接 up-server:9091)
+### UserService 测试 (连接 up-server:8081)
 - `GetUser` - 获取用户信息
 - `CreateUser` - 创建新用户
 
-### OrderService 测试 (连接 down-server:9092)
+### OrderService 测试 (连接 down-server:8082)
 - `CreateOrder` - 创建订单（会调用 UserService 验证用户）
 - `GetOrder` - 获取订单信息
 - `GetUserOrders` - 获取用户订单列表（流式响应）
@@ -103,9 +103,9 @@ Web 客户端会自动执行以下测试：
 
 ```
 atlas-demo-web (端口随机)
-    ├── gRPC Client → up-server:9091 (UserService)
-    └── gRPC Client → down-server:9092 (OrderService)
-                          └── gRPC Client → up-server:9091 (用户验证)
+    ├── gRPC Client → up-server:8081 (UserService)
+    └── gRPC Client → down-server:8082 (OrderService)
+                          └── gRPC Client → up-server:8081 (用户验证)
 ```
 
 ## 生成的文件
