@@ -109,7 +109,7 @@ Resources:
       DeploymentController:
         Type: ECS
       Tags: !If
-        - LaneIsDash
+        - LaneIsDefault
         - !Ref 'AWS::NoValue'
         - - Key: Lane
             Value: !Ref Lane
