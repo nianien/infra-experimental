@@ -8,7 +8,7 @@ demo-user-rpc)
   ;;
 demo-order-rpc)
   SD_ID="srv-ws7zs275lhin423j"
-  CONT_PORT_DEFAULT="8081"
+  CONT_PORT="8081"
   ;;
 demo-web-api)
   SD_ID="srv-no4yq2jsnaitk7x2"
@@ -21,4 +21,4 @@ sh ./pipeline.sh \
   --branch master \
   --service "$1" \
   --sd-id "$SD_ID" \
-  --cont-port "$CONT_PORT"
+  --port "$CONT_PORT"

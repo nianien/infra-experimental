@@ -203,6 +203,6 @@ aws cloudformation deploy \
 set +x
 
 echo "✅ Pipeline 就绪：$PIPELINE_NAME"
-echo "👉 触发示例（镜像由 CodeBuild 产出；只需传 lane/desired/port）："
+echo "👉 触发示例（镜像由 CodeBuild 产出；只需传 lane/desired_count/port）："
 echo "aws codepipeline start-pipeline-execution --name $PIPELINE_NAME --region $AWS_REGION --profile $AWS_PROFILE \\"
-echo "  --variables name=LANE,value=default name=DESIRED,value=1 name=CONTAINER_PORT,value=8081"
+echo "  --variables name=LANE,value=default name=DESIRED_COUNT,value=1 name=CONTAINER_PORT,value=8081"
