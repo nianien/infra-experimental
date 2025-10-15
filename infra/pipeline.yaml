@@ -197,7 +197,7 @@ Resources:
         - Name: LANE
           DefaultValue: 'default'
         - Name: DESIRED
-          DefaultValue: '1'
+          DefaultValue: '0'
         - Name: CONT_PORT
           DefaultValue: '8080'
 
