@@ -70,9 +70,9 @@ phases:
         if [ -f "$WORK_DIR/pom.xml" ]; then
           echo "Found pom.xml, starting build..."
           if [ "${SKIP_TESTS:-1}" = "1" ]; then
-            mvn -B -q -DskipTests -f "$WORK_DIR/pom.xml" clean package
+            mvn -B -q -DskipTests -f "$WORK_DIR/pom.xml" -am clean package
           else
-            mvn -B -f "$WORK_DIR/pom.xml" clean package
+            mvn -B -f "$WORK_DIR/pom.xml" -am  clean package
           fi
 
           JAR_COUNT=$(find "$WORK_DIR/target" -maxdepth 1 -type f -name "*.jar" \
