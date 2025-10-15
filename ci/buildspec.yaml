@@ -96,7 +96,8 @@ phases:
   post_build:
     commands:
       - echo "== 输出 CloudFormation 参数文件 =="
-      - printf '{"Parameters":{"ImageUri":"%s"}}\n' "$IMAGE_TAG_URI" > cfn-params.json
+      - |
+        printf '{"Parameters":{"ImageUri":"%s"}}\n' "$IMAGE_TAG_URI" > cfn-params.json
       - echo "生成 cfn-params.json: ImageUri=$IMAGE_TAG_URI"
 
 artifacts:
