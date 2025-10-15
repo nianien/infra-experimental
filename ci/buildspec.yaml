@@ -27,28 +27,27 @@ phases:
 
   pre_build:
     commands:
-      - set -euo pipefail
-      - echo "== 环境变量检查 =="
-      - echo "ECR_REPO_URI=${ECR_REPO_URI:-<empty>}"
-      - echo "IMAGE_TAG_FORMAT=${IMAGE_TAG_FORMAT:-commit8}"
-      - echo "MODULE_PATH=${MODULE_PATH:-.}"
-      - echo "DOCKERFILE_PATH=${DOCKERFILE_PATH:-Dockerfile}"
-      - echo "SKIP_TESTS=${SKIP_TESTS:-1}"
-      - echo "BUILD_VERSION=${BUILD_VERSION:-}"
-      - test -n "${ECR_REPO_URI:-}" || { echo "[FATAL] 缺少 ECR_REPO_URI（来自 pipeline.yaml）"; exit 1; }
-
-      - echo "== 登录 ECR 并确保仓库存在 =="
-      - export AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
-      - export REGISTRY_HOST="$(echo "$ECR_REPO_URI" | awk -F/ '{print $1}')"
-      - export REPO_NAME="$(echo "$ECR_REPO_URI" | awk -F/ '{print $2}')"
       - |
+        set -euo pipefail
+        echo "== 环境变量检查 =="
+        echo "ECR_REPO_URI=${ECR_REPO_URI:-<empty>}"
+        echo "IMAGE_TAG_FORMAT=${IMAGE_TAG_FORMAT:-commit8}"
+        echo "MODULE_PATH=${MODULE_PATH:-.}"
+        echo "DOCKERFILE_PATH=${DOCKERFILE_PATH:-Dockerfile}"
+        echo "SKIP_TESTS=${SKIP_TESTS:-1}"
+        echo "BUILD_VERSION=${BUILD_VERSION:-}"
+        test -n "${ECR_REPO_URI:-}" || { echo "[FATAL] 缺少 ECR_REPO_URI（来自 pipeline.yaml）"; exit 1; }
+
+        echo "== 登录 ECR 并确保仓库存在 =="
+        export AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
+        export REGISTRY_HOST="$(echo "$ECR_REPO_URI" | awk -F/ '{print $1}')"
+        export REPO_NAME="$(echo "$ECR_REPO_URI" | awk -F/ '{print $2}')"
         aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$AWS_REGION" >/dev/null 2>&1 \
           || aws ecr create-repository --repository-name "$REPO_NAME" --region "$AWS_REGION" >/dev/null
-      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY_HOST"
+        aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY_HOST"
 
-      - echo "== 生成镜像 tag =="
-      - COMMIT8="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-8 || true)"
-      - |
+        echo "== 生成镜像 tag =="
+        COMMIT8="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-8 || true)"
         case "${IMAGE_TAG_FORMAT:-commit8}" in
           commit8)   IMAGE_TAG="${COMMIT8:-latest}" ;;
           timestamp) IMAGE_TAG="$(date +%Y%m%d%H%M%S)" ;;
@@ -56,18 +55,18 @@ phases:
           latest|"") IMAGE_TAG="latest" ;;
           *)         IMAGE_TAG="${COMMIT8:-latest}" ;;
         esac
-      - echo "IMAGE_TAG=$IMAGE_TAG"
+        echo "IMAGE_TAG=$IMAGE_TAG"
 
   build:
     commands:
-      - echo "== 检查构建目录与 Dockerfile =="
-      - WORK_DIR="${MODULE_PATH:-.}"
-      - DF="${DOCKERFILE_PATH:-Dockerfile}"
-      - 'test -d "$WORK_DIR" || { echo "[FATAL] MODULE_PATH 不存在: $WORK_DIR"; exit 2; }'
-      - 'test -f "$WORK_DIR/$DF" || { echo "[FATAL] Dockerfile 不存在: $WORK_DIR/$DF"; exit 3; }'
-
-      - echo "== 检测 pom.xml 进行 Maven 构建 =="
       - |
+        echo "== 检查构建目录与 Dockerfile =="
+        WORK_DIR="${MODULE_PATH:-.}"
+        DF="${DOCKERFILE_PATH:-Dockerfile}"
+        test -d "$WORK_DIR" || { echo "[FATAL] MODULE_PATH 不存在: $WORK_DIR"; exit 2; }
+        test -f "$WORK_DIR/$DF" || { echo "[FATAL] Dockerfile 不存在: $WORK_DIR/$DF"; exit 3; }
+
+        echo "== 检测 pom.xml 进行 Maven 构建 =="
         if [ -f "$WORK_DIR/pom.xml" ]; then
           echo "检测到 pom.xml，开始构建..."
           if [ "${SKIP_TESTS:-1}" = "1" ]; then
@@ -83,21 +82,22 @@ phases:
           echo "未检测到 pom.xml，跳过 Maven 构建"
         fi
 
-      - echo "== Docker build & push =="
-      - IMAGE_TAG_URI="$ECR_REPO_URI:$IMAGE_TAG"
-      - docker build -f "$WORK_DIR/$DF" -t "$IMAGE_TAG_URI" "$WORK_DIR"
-      - docker push "$IMAGE_TAG_URI"
+        echo "== Docker build & push =="
+        IMAGE_TAG_URI="$ECR_REPO_URI:$IMAGE_TAG"
+        docker build -f "$WORK_DIR/$DF" -t "$IMAGE_TAG_URI" "$WORK_DIR"
+        docker push "$IMAGE_TAG_URI"
 
-      - echo "== 同步 tag :latest =="
-      - LATEST_URI="$ECR_REPO_URI:latest"
-      - docker tag "$IMAGE_TAG_URI" "$LATEST_URI"
-      - docker push "$LATEST_URI"
+        echo "== 同步 tag :latest =="
+        LATEST_URI="$ECR_REPO_URI:latest"
+        docker tag "$IMAGE_TAG_URI" "$LATEST_URI"
+        docker push "$LATEST_URI"
 
   post_build:
     commands:
-      - echo "== 输出 CloudFormation 参数文件 =="
-      - echo '{"Parameters":{"ImageUri":"'$IMAGE_TAG_URI'"}}' > cfn-params.json
-      - echo "生成 cfn-params.json: ImageUri=$IMAGE_TAG_URI"
+      - |
+        echo "== 输出 CloudFormation 参数文件 =="
+        echo '{"Parameters":{"ImageUri":"'$IMAGE_TAG_URI'"}}' > cfn-params.json
+        echo "生成 cfn-params.json: ImageUri=$IMAGE_TAG_URI"
 
 artifacts:
   files:
