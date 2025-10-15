@@ -40,7 +40,6 @@ TASK_ROLE_ARN=""
 SUBNETS=""
 SECURITY_GROUPS=""
 ASSIGN_PUBLIC_IP=""
-LOG_STREAM_PREFIX=""
 
 # Pipeline 默认环境变量
 LANE_DEFAULT=""
@@ -73,7 +72,6 @@ while [[ $# -gt 0 ]]; do
     --subnets)                          SUBNETS="$2"; shift 2 ;;
     --security-groups)                  SECURITY_GROUPS="$2"; shift 2 ;;
     --assign-public-ip)                 ASSIGN_PUBLIC_IP="$2"; shift 2 ;;
-    --log-stream-prefix)                LOG_STREAM_PREFIX="$2"; shift 2 ;;
     --lane)                             LANE_DEFAULT="$2"; shift 2 ;;
     --cont-port)                        CONT_PORT_DEFAULT="$2"; shift 2 ;;
     --validate) DO_VALIDATE=1; shift ;;
@@ -145,8 +143,8 @@ STACK_STATUS=$(aws cloudformation describe-stacks \
   --stack-name "$STACK_NAME" \
   --region "$AWS_REGION" --profile "$AWS_PROFILE" \
   --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo NOT_FOUND)
-
-if [[ "$STACK_STATUS" == "ROLLBACK_COMPLETE" ]]; then
+echo "STACK_STATUS=$STACK_STATUS"
+if [[ "$STACK_STATUS" =~ ^(COMPLETE|FAILED)$ ]]; then
   if [[ "$AUTO_DELETE" == "1" ]]; then
     echo "==> $STACK_NAME is ROLLBACK_COMPLETE. Deleting..."
     aws cloudformation delete-stack --stack-name "$STACK_NAME" \
@@ -190,7 +188,6 @@ append_param TaskRoleArn                  "$TASK_ROLE_ARN"
 append_param Subnets                      "$SUBNETS"
 append_param SecurityGroups               "$SECURITY_GROUPS"
 append_param AssignPublicIp               "$ASSIGN_PUBLIC_IP"
-append_param LogStreamPrefix              "$LOG_STREAM_PREFIX"
 
 append_param LaneDefault                  "$LANE_DEFAULT"
 append_param ContPortDefault              "$CONT_PORT_DEFAULT"
