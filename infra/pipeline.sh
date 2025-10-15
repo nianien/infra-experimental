@@ -33,7 +33,6 @@ CODEBUILD_ROLE_ARN=""
 BRANCH_NAME=""
 TEMPLATE_PATH=""
 IMAGE_TAG_FORMAT=""
-ECR_REPOSITORY_URI=""
 CLUSTER_NAME=""
 EXECUTION_ROLE_ARN=""
 TASK_ROLE_ARN=""
@@ -65,7 +64,6 @@ while [[ $# -gt 0 ]]; do
     --branch|--branch-name)             BRANCH_NAME="$2"; shift 2 ;;
     --template-path)                    TEMPLATE_PATH="$2"; shift 2 ;;
     --image-tag-format)                 IMAGE_TAG_FORMAT="$2"; shift 2 ;;
-    --ecr-repo-uri)                     ECR_REPOSITORY_URI="$2"; shift 2 ;;
     --cluster-name)                     CLUSTER_NAME="$2"; shift 2 ;;
     --execution-role-arn)               EXECUTION_ROLE_ARN="$2"; shift 2 ;;
     --task-role-arn)                    TASK_ROLE_ARN="$2"; shift 2 ;;
@@ -158,7 +156,7 @@ if [[ "$STACK_STATUS" =~ ^[A-Z_]*(COMPLETE|FAILED)$ ]]; then
   fi
 fi
 
-# ---------------- 组装参数（可选为空则不传） ----------------
+# ---------------- 组装参数（为空则不传） ----------------
 PARAMS=(
   "PipelineName=${PIPELINE_NAME}"
   "ServiceName=${SERVICE_NAME}"
@@ -181,7 +179,6 @@ append_param CodeBuildRoleArn             "$CODEBUILD_ROLE_ARN"
 append_param BranchName                   "$BRANCH_NAME"
 append_param TemplatePath                 "$TEMPLATE_PATH"
 append_param ImageTagFormat               "$IMAGE_TAG_FORMAT"
-append_param EcrRepositoryUri             "$ECR_REPOSITORY_URI"
 append_param ClusterName                  "$CLUSTER_NAME"
 append_param ExecutionRoleArn             "$EXECUTION_ROLE_ARN"
 append_param TaskRoleArn                  "$TASK_ROLE_ARN"

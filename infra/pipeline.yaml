@@ -150,17 +150,14 @@ Parameters:
 
   LaneName:
     Type: String
-    Default: '-'
-    Description: 'Pipeline 指定服务泳道标签, -表示无'
+    Default: 'default'
+    Description: 'Pipeline 指定服务泳道标签'
 
   ContainerPort:
     Type: Number
     Default: 8080
     Description: 'Pipeline 指定容器默认端口'
 
-Conditions:
-  UseProvidedRepo: !Not [ !Equals [ !Ref EcrRepositoryUri, '' ] ]
-  LaneParamIsDash: !Equals [ !Ref LaneName, '-' ]
 
 Resources:
 
@@ -180,10 +177,7 @@ Resources:
         EnvironmentVariables:
           - Name: ECR_REPO_URI
             Type: PLAINTEXT
-            Value: !If
-              - UseProvidedRepo
-              - !Ref EcrRepositoryUri
-              - !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ServiceName}'
+            Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ServiceName}'
           - Name: IMAGE_TAG_FORMAT
             Type: PLAINTEXT
             Value: !Ref ImageTagFormat
@@ -255,10 +249,7 @@ Resources:
                 - Name: BuildOut
               Configuration:
                 ActionMode: CREATE_UPDATE
-                StackName: !If
-                  - LaneParamIsDash
-                  - !Ref ServiceName
-                  - !Sub '${ServiceName}-#{variables.LANE}'
+                StackName: !Sub '${ServiceName}-#{variables.LANE}'
                 TemplatePath: !Sub 'SourceOut::${TemplatePath}'
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn

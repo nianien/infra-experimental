@@ -7,8 +7,8 @@ Parameters:
     Description: '服务基名，例如 order-api 或 user-api'
   Lane:
     Type: String
-    Default: '-'
-    Description: '泳道名，-表示无'
+    Default: 'default'
+    Description: '泳道名'
   ClusterName:
     Type: String
     Description: 'ECS Cluster 名称'
@@ -50,7 +50,7 @@ Parameters:
     Description: 'Cloud Map Service ARN（所有泳道可共用）'
 
 Conditions:
-  LaneIsDash: !Equals [ !Ref Lane, '-' ]
+  LaneIsDefault: !Equals [ !Ref Lane, 'default' ]
 
 Resources:
   TaskDef:
@@ -80,23 +80,12 @@ Resources:
             Options:
               awslogs-group: !Sub '/ecs/${ServiceBase}'
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !If
-                - LaneIsDash
-                - !Ref 'AWS::NoValue'
-                - !Ref Lane
-      Tags: !If
-        - LaneIsDash
-        - !Ref 'AWS::NoValue'
-        - - Key: lane
-            Value: !Ref Lane
+              awslogs-stream-prefix: !Sub '${Lane}'
 
   Service:
     Type: AWS::ECS::Service
     Properties:
-      ServiceName: !If
-        - LaneIsDash
-        - !Ref ServiceBase
-        - !Sub '${ServiceBase}-${Lane}'
+      ServiceName: !Sub '${ServiceBase}-${Lane}'
       Cluster: !Ref ClusterName
       LaunchType: FARGATE
       DesiredCount: !Ref DesiredCount
