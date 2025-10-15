@@ -114,7 +114,7 @@ Parameters:
   EcrRepositoryUri:
     Type: String
     Default: ''
-    Description: "（可选）显式指定 ECR Repo URI；留空则按 <account>.dkr.ecr.<region>.amazonaws.com/<ServiceName> 推导"
+  Description: "（可选）显式指定 ECR Repo URI；留空则按 <account>.dkr.ecr.<region>.amazonaws.com/<ServiceName> 推导"
 
   # --- ECS 网络与任务执行配置 ---
   ClusterName:
@@ -148,19 +148,19 @@ Parameters:
     Default: 'ENABLED'
     Description: '是否分配公有 IP（默认 ENABLED）'
 
-
   LaneName:
     Type: String
-    Default: 'test'
-    Description: 'Pipeline 指定服务泳道标签'
+    Default: '-'
+    Description: 'Pipeline 指定服务泳道标签, -表示无'
 
   ContainerPort:
     Type: Number
     Default: 8080
     Description: 'Pipeline 指定容器默认端口'
 
+# ✅ 最小改动新增：仅用于决定 StackName 是否带连字符
 Conditions:
-  UseProvidedRepo: !Not [ !Equals [ !Ref EcrRepositoryUri, '' ] ]
+  LaneParamIsDash: !Equals [ !Ref LaneName, '-' ]
 
 Resources:
 
@@ -255,7 +255,11 @@ Resources:
                 - Name: BuildOut
               Configuration:
                 ActionMode: CREATE_UPDATE
-                StackName: !Sub '${ServiceName}-#{variables.LANE}'
+                # ✅ 当 LaneName 为 '-' 时，StackName=ServiceName；否则 ServiceName-#{variables.LANE}
+                StackName: !If
+                  - LaneParamIsDash
+                  - !Ref ServiceName
+                  - !Sub '${ServiceName}-#{variables.LANE}'
                 TemplatePath: !Sub 'SourceOut::${TemplatePath}'
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn

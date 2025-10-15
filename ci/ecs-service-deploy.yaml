@@ -7,7 +7,8 @@ Parameters:
     Description: '服务基名，例如 order-api 或 user-api'
   Lane:
     Type: String
-    Description: '泳道，例如 test/prod/dev'
+    Default: '-'
+    Description: '泳道名，-表示无'
   ClusterName:
     Type: String
     Description: 'ECS Cluster 名称'
@@ -48,6 +49,9 @@ Parameters:
     Type: String
     Description: 'Cloud Map Service ARN（所有泳道可共用）'
 
+Conditions:
+  LaneIsDash: !Equals [ !Ref Lane, '-' ]
+
 Resources:
   TaskDef:
     Type: AWS::ECS::TaskDefinition
@@ -64,7 +68,7 @@ Resources:
         CpuArchitecture: X86_64
         OperatingSystemFamily: LINUX
       ContainerDefinitions:
-        - Name: !Ref ServiceBase            # 容器名 = 服务名（避免额外变量）
+        - Name: !Ref ServiceBase
           Image: !Ref ImageUri
           Essential: true
           PortMappings:
@@ -76,15 +80,23 @@ Resources:
             Options:
               awslogs-group: !Sub '/ecs/${ServiceBase}'
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !Sub '${Lane}'
-      Tags:
-        - Key: lane
-          Value: !Ref Lane
+              awslogs-stream-prefix: !If
+                - LaneIsDash
+                - !Ref 'AWS::NoValue'
+                - !Ref Lane
+      Tags: !If
+        - LaneIsDash
+        - !Ref 'AWS::NoValue'
+        - - Key: lane
+            Value: !Ref Lane
 
   Service:
     Type: AWS::ECS::Service
     Properties:
-      ServiceName: !Sub '${ServiceBase}-${Lane}'
+      ServiceName: !If
+        - LaneIsDash
+        - !Ref ServiceBase
+        - !Sub '${ServiceBase}-${Lane}'
       Cluster: !Ref ClusterName
       LaunchType: FARGATE
       DesiredCount: !Ref DesiredCount
@@ -101,15 +113,17 @@ Resources:
           SecurityGroups: !Ref SecurityGroups
           AssignPublicIp: !Ref AssignPublicIp
       ServiceRegistries:
-        - RegistryArn: !Ref SdRegistryArn   # 仅 ARN（A 记录场景）
+        - RegistryArn: !Ref SdRegistryArn
       EnableECSManagedTags: true
       PropagateTags: SERVICE
       SchedulingStrategy: REPLICA
       DeploymentController:
         Type: ECS
-      Tags:
-        - Key: Lane
-          Value: !Ref Lane
+      Tags: !If
+        - LaneIsDash
+        - !Ref 'AWS::NoValue'
+        - - Key: Lane
+            Value: !Ref Lane
 
 Outputs:
   ServiceArn:
