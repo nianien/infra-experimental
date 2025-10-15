@@ -198,7 +198,7 @@ Resources:
             Value: !Ref ImageTagFormat
       Source:
         Type: CODEPIPELINE
-        BuildSpec: 'ci/buildspec.yml'
+        BuildSpec: 'ci/buildspec.yaml'
       TimeoutInMinutes: 60
 
   # ---------------- Pipeline ----------------
