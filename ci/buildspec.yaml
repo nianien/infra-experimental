@@ -1,38 +1,103 @@
 version: 0.2
 
+# ================================================
+# 🧭 buildspec.yaml 参数来源总览
+# ================================================
+# 🔵 ECR_REPO_URI       → 来自 pipeline.yaml 的 EnvironmentVariables
+#                         由模板中 !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ServiceName}' 生成
+# 🔵 IMAGE_TAG_FORMAT   → 来自 pipeline.yaml（commit8 / timestamp / latest / fixed）
+# 🟢 MODULE_PATH        → 可自定义构建上下文目录（默认 .）
+# 🟢 DOCKERFILE_PATH    → 可自定义 Dockerfile 路径（默认 Dockerfile）
+# 🟢 SKIP_TESTS         → 是否跳过 Maven 测试（默认 1=跳过）
+# 🔴 BUILD_VERSION      → 当 IMAGE_TAG_FORMAT=fixed 时使用的自定义 tag
+#
+
 env:
   shell: bash
+  variables:
+    MODULE_PATH: "."             # 🟢 构建上下文目录（默认当前目录）
+    DOCKERFILE_PATH: "Dockerfile" # 🟢 相对 MODULE_PATH 的 Dockerfile 路径
+    SKIP_TESTS: "1"              # 🟢 1=跳过测试；0=执行测试
+    BUILD_VERSION: ""            # 🔴 当 IMAGE_TAG_FORMAT=fixed 时使用的自定义版本号
 
 phases:
+  install:
+    runtime-versions:
+      java: corretto21   # Java 21 构建环境（仅在检测到 pom.xml 时使用）
+
   pre_build:
     commands:
-      - "set -euo pipefail"
-      - "aws --version"
-      - "test -n \"${ECR_REPO_URI:-}\" || { echo 'ECR_REPO_URI env missing' >&2; exit 1; }"
-      - "echo Ensuring ECR repo exists: $ECR_REPO_URI"
-      - "REPONAME=$(echo \"$ECR_REPO_URI\" | awk -F/ '{print $2}')"
-      - "aws ecr describe-repositories --repository-names \"$REPONAME\" >/dev/null 2>&1 || aws ecr create-repository --repository-name \"$REPONAME\" >/dev/null"
-      - "REGISTRY_HOST=$(echo \"$ECR_REPO_URI\" | awk -F/ '{print $1}')"
-      - "aws ecr get-login-password | docker login --username AWS --password-stdin \"$REGISTRY_HOST\""
-      - "FMT=\"${IMAGE_TAG_FORMAT:-commit7}\""
-      - "if [ \"$FMT\" = \"commit7\" ] && [ -n \"${CODEBUILD_RESOLVED_SOURCE_VERSION:-}\" ]; then IMAGE_TAG=$(echo \"$CODEBUILD_RESOLVED_SOURCE_VERSION\" | cut -c1-7); elif [ \"$FMT\" = \"timestamp\" ]; then IMAGE_TAG=$(date +%Y%m%d%H%M%S); else IMAGE_TAG=latest; fi"
-      - "echo Using image tag: $IMAGE_TAG"
+      - set -euo pipefail
+      - echo "== 环境变量检查 =="
+      - echo "ECR_REPO_URI=${ECR_REPO_URI:-<empty>}"
+      - echo "IMAGE_TAG_FORMAT=${IMAGE_TAG_FORMAT:-commit8}"
+      - echo "MODULE_PATH=${MODULE_PATH:-.}"
+      - echo "DOCKERFILE_PATH=${DOCKERFILE_PATH:-Dockerfile}"
+      - echo "SKIP_TESTS=${SKIP_TESTS:-1}"
+      - echo "BUILD_VERSION=${BUILD_VERSION:-}"
+      - test -n "${ECR_REPO_URI:-}" || { echo "[FATAL] 缺少 ECR_REPO_URI（来自 pipeline.yaml）"; exit 1; }
+
+      - echo "== 登录 ECR 并确保仓库存在 =="
+      - export AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
+      - export REGISTRY_HOST="$(echo "$ECR_REPO_URI" | awk -F/ '{print $1}')"
+      - export REPO_NAME="$(echo "$ECR_REPO_URI" | awk -F/ '{print $2}')"
+      - aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$AWS_REGION" >/dev/null 2>&1 \
+        || aws ecr create-repository --repository-name "$REPO_NAME" --region "$AWS_REGION" >/dev/null
+      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY_HOST"
+
+      - echo "== 生成镜像 tag =="
+      - COMMIT8="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-8 || true)"
+      - |
+        case "${IMAGE_TAG_FORMAT:-commit8}" in
+          commit8)   IMAGE_TAG="${COMMIT8:-latest}" ;;
+          timestamp) IMAGE_TAG="$(date +%Y%m%d%H%M%S)" ;;
+          fixed)     IMAGE_TAG="${BUILD_VERSION:-latest}" ;;
+          latest|"") IMAGE_TAG="latest" ;;
+          *)         IMAGE_TAG="${COMMIT8:-latest}" ;;
+        esac
+      - echo "IMAGE_TAG=$IMAGE_TAG"
 
   build:
     commands:
-      - "if [ -f pom.xml ]; then echo '== Maven build =='; mvn -B -q -DskipTests clean package; else echo 'No pom.xml, skip Maven'; fi"
-      - "DF=\"${DOCKERFILE_PATH:-Dockerfile}\""
-      - "test -f \"$DF\" || { echo \"Dockerfile not found: $DF\" >&2; exit 1; }"
-      - "echo == Docker build =="
-      - "docker build -f \"$DF\" -t \"$ECR_REPO_URI:$IMAGE_TAG\" ."
-      - "docker push \"$ECR_REPO_URI:$IMAGE_TAG\""
+      - echo "== 检查构建目录与 Dockerfile =="
+      - WORK_DIR="${MODULE_PATH:-.}"
+      - DF="${DOCKERFILE_PATH:-docker/Dockerfile}"
+      - test -d "$WORK_DIR" || { echo "[FATAL] MODULE_PATH 不存在: $WORK_DIR"; exit 2; }
+      - test -f "$WORK_DIR/$DF" || { echo "[FATAL] Dockerfile 不存在: $WORK_DIR/$DF"; exit 3; }
+
+      - echo "== 检测 pom.xml 进行 Maven 构建 =="
+      - |
+        if [ -f "$WORK_DIR/pom.xml" ]; then
+          echo "检测到 pom.xml，开始构建..."
+          if [ "${SKIP_TESTS:-1}" = "1" ]; then
+            mvn -B -q -DskipTests -f "$WORK_DIR/pom.xml" clean package
+          else
+            mvn -B  -f "$WORK_DIR/pom.xml" clean package
+          fi
+
+          find "$WORK_DIR/target" -maxdepth 1 -type f -name "*.jar" \
+            ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*-tests.jar" \
+            | head -n1 | grep -q . || { echo "[FATAL] 未找到可运行 jar 包"; exit 4; }
+        else
+          echo "未检测到 pom.xml，跳过 Maven 构建"
+        fi
+
+      - echo "== Docker build & push =="
+      - IMAGE_TAG_URI="$ECR_REPO_URI:$IMAGE_TAG"
+      - docker build -f "$WORK_DIR/$DF" -t "$IMAGE_TAG_URI" "$WORK_DIR"
+      - docker push "$IMAGE_TAG_URI"
+
+      - echo "== 同步 tag :latest =="
+      - LATEST_URI="$ECR_REPO_URI:latest"
+      - docker tag "$IMAGE_TAG_URI" "$LATEST_URI"
+      - docker push "$LATEST_URI"
 
   post_build:
     commands:
-      - "IMAGE_URI=\"$ECR_REPO_URI:$IMAGE_TAG\""
-      - "printf '{\"Parameters\":{\"ImageUri\":\"%s\"}}\\n' \"$IMAGE_URI\" > cfn-params.json"
-      - "echo Wrote cfn-params.json with ImageUri=$IMAGE_URI"
+      - echo "== 输出 CloudFormation 参数文件 =="
+      - printf '{"Parameters":{"ImageUri":"%s"}}\n' "$IMAGE_TAG_URI" > cfn-params.json
+      - echo "生成 cfn-params.json: ImageUri=$IMAGE_TAG_URI"
 
 artifacts:
   files:
-    - "cfn-params.json"
+    - cfn-params.json

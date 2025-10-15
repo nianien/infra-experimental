@@ -2,52 +2,49 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CodePipeline: per-service ECS deploy (GitHub via CodeStar, CodeBuild builds image, CFN deploys ECS stack)'
 
 Parameters:
-  ArtifactBucketName:
+  # ---------------- Pipeline.sh 创建时传入 ----------------
+  ArtifactBucketName:     # 🔵 共享 S3 桶（Pipeline.sh 传入）
     Type: String
     Description: '已存在的 S3 桶名（Pipeline Artifacts 存放处）'
-  PipelineName:
-    Type: String
-    Description: 'Pipeline 名称（例如 deploy-<service>）'
-  CFNDeployRoleArn:
-    Type: String
-    Description: 'CloudFormation 执行角色 ARN（被 Pipeline 假设）'
 
-  # GitHub via CodeStar Connections
-  ConnectionArn:
+  PipelineName:           # 🔵 由 pipeline.sh 根据 --service 自动生成，如 deploy-demo-user-rpc
     Type: String
-    Description: 'CodeStar Connections ARN'
-  FullRepo:
+
+  CFNDeployRoleArn:       # 🔵 CloudFormation 部署角色（由 pipeline.sh 传入）
     Type: String
-    Description: 'GitHub 仓库（org/repo）'
-  BranchName:
+
+  ConnectionArn:          # 🔵 CodeStar Connection ARN（由 pipeline.sh 传入）
+    Type: String
+
+  FullRepo:               # 🔵 GitHub 仓库（org/repo）（由 pipeline.sh 传入）
+    Type: String
+
+  BranchName:             # 🔵 仓库分支（由 pipeline.sh 传入）
     Type: String
     Default: 'main'
 
-  # 服务参数（与创建脚本保持一致）
-  ServiceName:
+  ServiceName:            # 🔵 服务名（由 pipeline.sh 传入，如 demo-user-rpc）
     Type: String
-    Description: '服务名（= ServiceBase，例如 demo-user-rpc）'
-  SdServiceId:
-    Type: String
-    Description: 'Cloud Map Service ID（如 srv-xxxxxx）'
 
-  # 源码中的 ECS 模板路径
-  TemplatePath:
+  SdServiceId:            # 🔵 Cloud Map Service ID（由 pipeline.sh 传入，如 srv-xxxxxx）
+    Type: String
+
+  TemplatePath:           # 🔵 ECS CFN 模板路径（在源码仓库内，如 ci/ecs-service-deploy.yaml）
     Type: String
     Default: 'ci/ecs-service-deploy.yaml'
 
-  # 可选 ECR Repo URI
-  EcrRepositoryUri:
+  # ---------------- 可选参数，由模板内部自动派生 ----------------
+  EcrRepositoryUri:       # 🟢 可选。如果未传，模板会自动拼出 ECR repo（按 ServiceName）
     Type: String
     Default: ""
 
-  ImageTagFormat:
+  ImageTagFormat:         # 🔵 或由 pipeline.sh 传入（默认 commit8）
     Type: String
-    AllowedValues: ['commit7','timestamp','latest']
-    Default: 'commit7'
+    AllowedValues: ['commit8','timestamp','latest']
+    Default: 'commit8'
 
-  # ==== 全局默认参数 ====
-  ClusterName:
+  # ---------------- 全局默认参数（共用基础配置） ----------------
+  ClusterName:            # 🟡 ECS Cluster 名称（默认即可）
     Type: String
     Default: 'demo-cluster'
   ExecutionRoleArn:
@@ -73,8 +70,11 @@ Parameters:
 Conditions:
   UseProvidedRepo: !Not [ !Equals [ !Ref EcrRepositoryUri, "" ] ]
 
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
 Resources:
-  # ---------------- CodePipeline Role ----------------
+  # ================= IAM: CodePipeline Role =================
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -107,13 +107,7 @@ Resources:
               - Sid: CloudFormationCtl
                 Effect: Allow
                 Action:
-                  - cloudformation:CreateStack
-                  - cloudformation:UpdateStack
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:ExecuteChangeSet
-                  - cloudformation:DeleteChangeSet
-                  - cloudformation:Describe*
-                  - cloudformation:GetTemplate*
+                  - cloudformation:*
                 Resource: '*'
               - Sid: AssumeCFNDeployRole
                 Effect: Allow
@@ -126,7 +120,7 @@ Resources:
                   - !Ref ExecutionRoleArn
                   - !Ref TaskRoleArn
 
-  # ---------------- CodeBuild Role ----------------
+  # ================= IAM: CodeBuild Role =================
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -144,36 +138,20 @@ Resources:
             Statement:
               - Sid: Logs
                 Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogGroups
-                  - logs:DescribeLogStreams
+                Action: [ logs:* ]
                 Resource: '*'
               - Sid: S3Artifacts
                 Effect: Allow
-                Action: [ s3:GetObject, s3:PutObject, s3:GetObjectVersion, s3:GetBucketLocation, s3:List* ]
+                Action: [ s3:* ]
                 Resource:
                   - !Sub 'arn:aws:s3:::${ArtifactBucketName}'
                   - !Sub 'arn:aws:s3:::${ArtifactBucketName}/*'
               - Sid: ECRReadWrite
                 Effect: Allow
-                Action:
-                  - ecr:GetAuthorizationToken
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:BatchGetImage
-                  - ecr:DescribeRepositories
-                  - ecr:DescribeImages
-                  - ecr:CreateRepository
-                  - ecr:PutImage
-                  - ecr:InitiateLayerUpload
-                  - ecr:UploadLayerPart
-                  - ecr:CompleteLayerUpload
+                Action: [ ecr:* ]
                 Resource: '*'
 
-  # ---------------- CodeBuild Project ----------------
+  # ================= CodeBuild Project =================
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -187,6 +165,7 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         PrivilegedMode: true
         EnvironmentVariables:
+          # 🔴 下发给 buildspec.yaml 的变量（由 pipeline.yaml 控制）
           - Name: ECR_REPO_URI
             Type: PLAINTEXT
             Value: !If
@@ -201,7 +180,7 @@ Resources:
         BuildSpec: 'ci/buildspec.yaml'
       TimeoutInMinutes: 60
 
-  # ---------------- Pipeline ----------------
+  # ================= CodePipeline =================
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -211,7 +190,7 @@ Resources:
         Type: S3
         Location: !Ref ArtifactBucketName
 
-      Variables:
+      Variables:   # ✅ pipeline-level 运行时变量，可在 start-pipeline-execution 中覆盖
         - Name: LANE
           DefaultValue: 'default'
         - Name: DESIRED
@@ -220,6 +199,7 @@ Resources:
           DefaultValue: '8080'
 
       Stages:
+        # -------- Source --------
         - Name: Source
           Actions:
             - Name: GitHubSource
@@ -237,6 +217,7 @@ Resources:
               OutputArtifacts:
                 - Name: SourceOut
 
+        # -------- Build --------
         - Name: Build
           Actions:
             - Name: DockerBuild
@@ -252,6 +233,7 @@ Resources:
               OutputArtifacts:
                 - Name: BuildOut
 
+        # -------- Deploy --------
         - Name: Deploy
           Actions:
             - Name: CFNDeploy
