@@ -66,21 +66,15 @@ phases:
         test -d "$WORK_DIR" || { echo "[FATAL] MODULE_PATH not found: $WORK_DIR"; exit 2; }
         test -f "$WORK_DIR/$DF" || { echo "[FATAL] Dockerfile not found: $WORK_DIR/$DF"; exit 3; }
 
-        echo "== Checking pom.xml for Maven build =="
-        if [ -f "$WORK_DIR/pom.xml" ]; then
-          echo "Found pom.xml, starting build..."
-          if [ "${SKIP_TESTS:-1}" = "1" ]; then
-            mvn -B -q -DskipTests -f "$WORK_DIR/pom.xml" -am clean package
-          else
-            mvn -B -f "$WORK_DIR/pom.xml" -am clean package
-          fi
-
-          find "$WORK_DIR/target" -maxdepth 1 -type f -name "*.jar" \
-            ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*-tests.jar" \
-            | head -n1 | grep -q . || { echo "[FATAL] No runnable jar found"; exit 4; }
+        if [ "${SKIP_TESTS:-1}" = "1" ]; then
+          mvn -B -DskipTests -pl .,$MODULE_PATH -am clean package
         else
-          echo "No pom.xml found, skipping Maven build"
+          mvn -B -pl .,$MODULE_PATH -am clean package
         fi
+
+        find "$WORK_DIR/target" -maxdepth 1 -type f -name "*.jar" \
+          ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*-tests.jar" \
+          | head -n1 | grep -q . || { echo "[FATAL] No runnable jar found"; exit 4; }
 
         echo "== Docker build & push =="
         IMAGE_TAG_URI="$ECR_REPO_URI:$IMAGE_TAG"
