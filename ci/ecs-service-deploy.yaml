@@ -26,7 +26,7 @@ Parameters:
     Default: '1024'
   ContainerPort:
     Type: Number
-    Default: 80
+    Default: 8081
   ExecutionRoleArn:
     Type: String
     Description: 'ecsTaskExecutionRole ARN'
