@@ -15,8 +15,8 @@ version: 0.2
 env:
   shell: bash
   variables:
-    MODULE_PATH: "."             # 🟢 构建上下文目录（默认当前目录）
-    DOCKERFILE_PATH: "Dockerfile" # 🟢 相对 MODULE_PATH 的 Dockerfile 路径
+    MODULE_PATH: "test/demo-user-rpc"             # 🟢 构建上下文目录（默认当前目录）
+    DOCKERFILE_PATH: "docker/Dockerfile" # 🟢 相对 MODULE_PATH 的 Dockerfile 路径
     SKIP_TESTS: "1"              # 🟢 1=跳过测试；0=执行测试
     BUILD_VERSION: ""            # 🔴 当 IMAGE_TAG_FORMAT=fixed 时使用的自定义版本号
 
@@ -61,7 +61,7 @@ phases:
     commands:
       - echo "== 检查构建目录与 Dockerfile =="
       - WORK_DIR="${MODULE_PATH:-.}"
-      - DF="${DOCKERFILE_PATH:-docker/Dockerfile}"
+      - DF="${DOCKERFILE_PATH:-Dockerfile}"
       - test -d "$WORK_DIR" || { echo "[FATAL] MODULE_PATH 不存在: $WORK_DIR"; exit 2; }
       - test -f "$WORK_DIR/$DF" || { echo "[FATAL] Dockerfile 不存在: $WORK_DIR/$DF"; exit 3; }
 
