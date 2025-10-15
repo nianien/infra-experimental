@@ -78,7 +78,7 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: !Sub '${Lane}'
       Tags:
-        - Key: Lane
+        - Key: lane
           Value: !Ref Lane
 
   Service:
