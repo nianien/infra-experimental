@@ -15,7 +15,6 @@ Metadata:
           - BranchName
           - TemplatePath
           - ModulePath
-          - ImageTagFormat
           - WebPort
           - RpcPort
     ParameterLabels:
@@ -29,7 +28,6 @@ Metadata:
       BranchName: { default: "代码分支名称（默认 main）" }
       TemplatePath: { default: "部署模板路径（默认 ci/ecs-service-deploy.yaml）" }
       ModulePath: { default: "多模块项目下的构建模块路径（如 services/demo-user-rpc）" }
-      ImageTagFormat: { default: "镜像标签生成策略（commit8 / timestamp / latest / fixed）" }
       WebPort: { default: "Web 服务端口（默认 80）" }
       RpcPort: { default: "RPC 服务端口（默认 8081）" }
 
@@ -73,13 +71,6 @@ Parameters:
     Type: String
     Default: 'ci/ecs-service-deploy.yaml'
     Description: '仓库内的 ECS 部署模板路径（随源码打包）'
-
-  # --- 镜像构建配置 ---
-  ImageTagFormat:
-    Type: String
-    AllowedValues: [ 'commit8','timestamp','latest','fixed' ]
-    Default: 'commit8'
-    Description: "镜像 Tag 生成策略：commit8/timestamp/latest/fixed"
 
   # --- 源码来源（GitHub via CodeStar Connections）---
   ConnectionArn:

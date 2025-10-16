@@ -8,11 +8,10 @@ set -euo pipefail
 # - 若显式传入 PORT 且与 TD 不一致，改用 TD 端口（避免连接被拒）
 # ===========================================
 
-# shellcheck source=/dev/null
+# 基础入参（可在 env.sh 中覆写）
 . "$(dirname "$0")/env.sh"
 
-# 基础入参（可在 env.sh 中覆写）
-SERVICE="${SERVICE:-demo-user-rpc-default}"
+SERVICE="$1"
 PORT="${PORT:-}"  # 不给默认值；自动从 TD 读取
 
 AWS_REGION="${AWS_REGION:?missing AWS_REGION}"

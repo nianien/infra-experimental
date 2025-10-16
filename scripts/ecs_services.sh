@@ -10,13 +10,9 @@
 
 # 需要管理的服务列表
 SERVICES=(
-  "demo-order-rpc-test"
-  "demo-order-rpc-test2"
-  "demo-user-rpc-test"
-  "demo-user-rpc-test1"
-  "demo-user-rpc-test2"
-  "demo-web-api-test"
-  "demo-order-rpc-gray"
+  "demo-order-rpc-default"
+  "demo-user-rpc-default"
+  "demo-web-api-default"
 )
 
 usage() {

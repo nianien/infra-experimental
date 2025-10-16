@@ -6,8 +6,6 @@ env:
     MODULE_PATH: "."                  # 构建上下文目录（默认值，可被 Pipeline 变量覆盖）
     DOCKERFILE_PATH: "ci/Dockerfile"  # Dockerfile 相对路径（可被 Pipeline 变量覆盖）
     SKIP_TESTS: "1"                   # 1=跳过测试；0=执行（Pipeline 可覆盖）
-    BUILD_VERSION: "latest"                 # 固定版本号构建时使用（Pipeline 可覆盖）
-    IMAGE_TAG_FORMAT: "commit8"                 # 固定版本号构建时使用（Pipeline 可覆盖）
 
 phases:
   install:
@@ -21,10 +19,8 @@ phases:
         echo "== Environment variables check =="
         echo "MODULE_PATH=${MODULE_PATH:-<empty>}"
         echo "ECR_REPO_URI=${ECR_REPO_URI:-<empty>}"
-        echo "IMAGE_TAG_FORMAT=${IMAGE_TAG_FORMAT:-commit8}"
         echo "DOCKERFILE_PATH=${DOCKERFILE_PATH:-Dockerfile}"
         echo "SKIP_TESTS=${SKIP_TESTS:-1}"
-        echo "BUILD_VERSION=${BUILD_VERSION:-}"
         test -n "${ECR_REPO_URI:-}" || { echo "[FATAL] Missing ECR_REPO_URI (from pipeline.yaml)"; exit 1; }
 
         echo "== Login to ECR and ensure repository exists =="
@@ -36,15 +32,10 @@ phases:
         aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY_HOST"
 
         echo "== Generating image tag =="
-        COMMIT8="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-8 || true)"
-        case "${IMAGE_TAG_FORMAT:-commit8}" in
-          commit8)   IMAGE_TAG="${COMMIT8:-latest}" ;;
-          timestamp) IMAGE_TAG="$(date +%Y%m%d%H%M%S)" ;;
-          fixed)     IMAGE_TAG="${BUILD_VERSION:-latest}" ;;
-          latest|"") IMAGE_TAG="latest" ;;
-          *)         IMAGE_TAG="${COMMIT8:-latest}" ;;
-        esac
-        echo "IMAGE_TAG=$IMAGE_TAG"
+        COMMIT7="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-7 || true)"
+        TIMESTAMP="$(date +%Y%m%d%H%M%S)"
+        IMAGE_TAG="${TIMESTAMP}-${COMMIT7:-latest}"
+        echo "==> IMAGE_TAG=$IMAGE_TAG"
 
   build:
     commands:
