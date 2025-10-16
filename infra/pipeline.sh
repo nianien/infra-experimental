@@ -55,23 +55,12 @@ while [[ $# -gt 0 ]]; do
     --sd-id|--sd-service-id)    SD_ID="$2"; shift 2 ;;
     --pipeline|--pipeline-name) PIPELINE_NAME="$2"; shift 2 ;;
 
-    # 可选（与模板参数名一一对应）
-    --connection-arn)                   CONNECTION_ARN="$2"; shift 2 ;;
-    --artifact-bucket)                  ARTIFACT_BUCKET_NAME="$2"; shift 2 ;;
-    --cloudformation-deploy-role-arn)   CLOUDFORMATION_DEPLOY_ROLE_ARN="$2"; shift 2 ;;
-    --codepipeline-role-arn)            CODEPIPELINE_ROLE_ARN="$2"; shift 2 ;;
-    --codebuild-role-arn)               CODEBUILD_ROLE_ARN="$2"; shift 2 ;;
-    --branch|--branch-name)             BRANCH_NAME="$2"; shift 2 ;;
-    --template-path)                    TEMPLATE_PATH="$2"; shift 2 ;;
-    --image-tag-format)                 IMAGE_TAG_FORMAT="$2"; shift 2 ;;
-    --cluster-name)                     CLUSTER_NAME="$2"; shift 2 ;;
-    --execution-role-arn)               EXECUTION_ROLE_ARN="$2"; shift 2 ;;
-    --task-role-arn)                    TASK_ROLE_ARN="$2"; shift 2 ;;
-    --subnets)                          SUBNETS="$2"; shift 2 ;;
-    --security-groups)                  SECURITY_GROUPS="$2"; shift 2 ;;
-    --assign-public-ip)                 ASSIGN_PUBLIC_IP="$2"; shift 2 ;;
+    # 可选
+    --branch)                           BRANCH_NAME="$2"; shift 2 ;;
+    --module)                           BRANCH_NAME="$2"; shift 2 ;;
     --lane)                             LANE_NAME="$2"; shift 2 ;;
     --port)                             CONTAINER_PORT="$2"; shift 2 ;;
+    --template-path)                    TEMPLATE_PATH="$2"; shift 2 ;;
     --validate) DO_VALIDATE=1; shift ;;
     -h|--help)
       echo "Usage: $0 --repo <org/repo> --service <name> --sd-id <srv-xxx> [options]"
@@ -171,21 +160,8 @@ append_param() {
   fi
 }
 
-append_param ConnectionArn                "$CONNECTION_ARN"
-append_param ArtifactBucketName           "$ARTIFACT_BUCKET_NAME"
-append_param CloudFormationDeployRoleArn  "$CLOUDFORMATION_DEPLOY_ROLE_ARN"
-append_param CodePipelineRoleArn          "$CODEPIPELINE_ROLE_ARN"
-append_param CodeBuildRoleArn             "$CODEBUILD_ROLE_ARN"
 append_param BranchName                   "$BRANCH_NAME"
 append_param TemplatePath                 "$TEMPLATE_PATH"
-append_param ImageTagFormat               "$IMAGE_TAG_FORMAT"
-append_param ClusterName                  "$CLUSTER_NAME"
-append_param ExecutionRoleArn             "$EXECUTION_ROLE_ARN"
-append_param TaskRoleArn                  "$TASK_ROLE_ARN"
-append_param Subnets                      "$SUBNETS"
-append_param SecurityGroups               "$SECURITY_GROUPS"
-append_param AssignPublicIp               "$ASSIGN_PUBLIC_IP"
-
 append_param LaneName                     "$LANE_NAME"
 append_param ContainerPort                "$CONTAINER_PORT"
 

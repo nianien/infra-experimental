@@ -12,7 +12,7 @@ demo-order-rpc)
   ;;
 demo-web-api)
   SD_ID="srv-no4yq2jsnaitk7x2"
-  CONT_PORT="8080"
+  CONT_PORT="80"
   ;;
 esac
 

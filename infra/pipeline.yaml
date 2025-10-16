@@ -12,20 +12,8 @@ Metadata:
           - RepoName
       - Label: { default: "🧩 选填参数（有默认值，可覆盖）" }
         Parameters:
-          - ConnectionArn
-          - ArtifactBucketName
-          - CloudFormationDeployRoleArn
-          - CodePipelineRoleArn
-          - CodeBuildRoleArn
           - BranchName
           - TemplatePath
-          - ImageTagFormat
-          - ClusterName
-          - ExecutionRoleArn
-          - TaskRoleArn
-          - Subnets
-          - SecurityGroups
-          - AssignPublicIp
           - LaneName
           - ContainerPort
     ParameterLabels:
@@ -33,10 +21,8 @@ Metadata:
       ServiceName: { default: "服务名（ServiceBase）" }
       SdServiceId: { default: "Cloud Map Service ID" }
       RepoName: { default: "GitHub 仓库（org/repo）" }
-      ConnectionArn: { default: "CodeStar Connections ARN" }
-      ArtifactBucketName: { default: "存储Artifacts的 S3 桶" }
       LaneName: { default: "泳道环境标签" }
-      ContainerPort: { default: "默认容器端口" }
+      ContainerPort: { default: "容器默认端口" }
 
 Parameters:
 
@@ -110,38 +96,7 @@ Parameters:
     Default: 'commit8'
     Description: "镜像 Tag 生成策略：commit8 / timestamp / latest / fixed；buildspec 将按此规则生成 tag"
 
-  # --- ECS 网络与任务执行配置 ---
-  ClusterName:
-    Type: String
-    Default: 'demo-cluster'
-    Description: 'ECS 集群名称'
-
-  ExecutionRoleArn:
-    Type: String
-    Default: 'arn:aws:iam::297997107448:role/ecsTaskExecutionRole'
-    Description: 'ECS 任务执行角色（task execution role）'
-
-  TaskRoleArn:
-    Type: String
-    Default: 'arn:aws:iam::297997107448:role/ecsTaskRole'
-    Description: 'ECS 容器任务角色（task role）'
-
-  Subnets:
-    Type: String
-    Default: 'subnet-02c0811a961e428b5,subnet-0d3bc6916292f848c'
-    Description: 'ECS Service 使用的子网 ID 列表（逗号分隔）'
-
-  SecurityGroups:
-    Type: String
-    Default: 'sg-00a34a14c1889ddfc'
-    Description: 'ECS Service 安全组 ID 列表（逗号分隔）'
-
-  AssignPublicIp:
-    Type: String
-    AllowedValues: [ 'ENABLED','DISABLED' ]
-    Default: 'ENABLED'
-    Description: '是否分配公有 IP（默认 ENABLED）'
-
+  # --- 服务配置 ---
   LaneName:
     Type: String
     Default: 'default'
@@ -151,7 +106,6 @@ Parameters:
     Type: String
     Default: '80'
     Description: 'Pipeline 指定容器默认端口'
-
 
 Resources:
 
@@ -254,12 +208,6 @@ Resources:
                     {
                       "ServiceBase": "${ServiceName}",
                       "Lane": "#{variables.LANE}",
-                      "ClusterName": "${ClusterName}",
-                      "ExecutionRoleArn": "${ExecutionRoleArn}",
-                      "TaskRoleArn": "${TaskRoleArn}",
-                      "Subnets": "${Subnets}",
-                      "SecurityGroups": "${SecurityGroups}",
-                      "AssignPublicIp": "${AssignPublicIp}",
                       "ContainerPort": "#{variables.CONTAINER_PORT}",
                       "DesiredCount": "#{variables.DESIRED_COUNT}",
                       "SdRegistryArn": "${SdArnResolved}"

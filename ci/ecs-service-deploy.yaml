@@ -9,9 +9,6 @@ Parameters:
     Type: String
     Default: 'default'
     Description: '泳道名'
-  ClusterName:
-    Type: String
-    Description: 'ECS Cluster 名称'
   ImageUri:
     Type: String
     Description: '容器镜像 URI（运行时传入）'
@@ -26,31 +23,50 @@ Parameters:
     Default: '1024'
   ContainerPort:
     Type: Number
-    Default: 8081
+    Default: 80
+  ClusterName:
+    Type: String
+    Default: 'demo-cluster'
+    Description: 'ECS 集群名称'
   ExecutionRoleArn:
     Type: String
-    Description: 'ecsTaskExecutionRole ARN'
+    Default: 'arn:aws:iam::297997107448:role/ecsTaskExecutionRole'
+    Description: 'ECS 任务执行角色（task execution role）'
   TaskRoleArn:
     Type: String
-    Description: 'ecsTaskRole ARN'
+    Default: 'arn:aws:iam::297997107448:role/ecsTaskRole'
+    Description: 'ECS 容器任务角色（task role）'
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: '逗号分隔子网 ID 列表'
+    Default: 'subnet-02c0811a961e428b5,subnet-0d3bc6916292f848c'
+    Description: 'ECS Service 使用的子网 ID 列表'
   SecurityGroups:
     Type: List<AWS::EC2::SecurityGroup::Id>
-    Description: '逗号分隔安全组 ID 列表'
+    Description: 'ECS Service 安全组 ID 列表'
+    Default: 'sg-00a34a14c1889ddfc'
   AssignPublicIp:
     Type: String
     AllowedValues:
       - ENABLED
       - DISABLED
-    Default: ENABLED
+    Default: 'ENABLED'
+    Description: '是否分配公有 IP（默认 ENABLED）'
   SdRegistryArn:
     Type: String
     Description: 'Cloud Map Service ARN（所有泳道可共用）'
 
+
 Conditions:
   LaneIsDefault: !Equals [ !Ref Lane, 'default' ]
+  LaneIsDash: !Equals [ !Ref Lane, '-' ]
+  LaneIsNone: !Equals [ !Ref Lane, 'none' ]
+  LaneIsNull: !Equals [ !Ref Lane, 'null' ]
+  LaneShouldBeDefault: !Or
+    - !Condition LaneIsDefault
+    - !Condition LaneIsDash
+    - !Condition LaneIsNone
+    - !Condition LaneIsNull
+
 
 Resources:
   TaskDef:
@@ -80,12 +96,18 @@ Resources:
             Options:
               awslogs-group: !Sub '/ecs/${ServiceBase}'
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !Sub '${Lane}'
+              awslogs-stream-prefix: !If
+                - LaneShouldBeDefault
+                - 'default'
+                - !Ref Lane
 
   Service:
     Type: AWS::ECS::Service
     Properties:
-      ServiceName: !Sub '${ServiceBase}-${Lane}'
+      ServiceName: !If
+        - LaneShouldBeDefault
+        - !Sub '${ServiceBase}-default'
+        - !Sub '${ServiceBase}-${Lane}'
       Cluster: !Ref ClusterName
       LaunchType: FARGATE
       DesiredCount: !Ref DesiredCount
@@ -109,7 +131,7 @@ Resources:
       DeploymentController:
         Type: ECS
       Tags: !If
-        - LaneIsDefault
+        - LaneShouldBeDefault
         - !Ref 'AWS::NoValue'
         - - Key: Lane
             Value: !Ref Lane

@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
+
+# ===========================================
+# fetch-eni-endpoint.sh
+# - 取 ECS Service 的 RUNNING 任务 -> ENI 公网 IP
+# - 从 TaskDefinition 自动解析端口（优先 hostPort，兜底 containerPort）
+# - 若显式传入 PORT 且与 TD 不一致，改用 TD 端口（避免连接被拒）
+# ===========================================
 
 # shellcheck source=/dev/null
 . "$(dirname "$0")/env.sh"
 
-# Defaults from env.sh; service can be overridden here or via env
-SERVICE="${SERVICE:-demo-web-api-test}"
-PORT="${PORT:-8080}"
+# 基础入参（可在 env.sh 中覆写）
+SERVICE="${SERVICE:-demo-user-rpc-default}"
+PORT="${PORT:-}"  # 不给默认值；自动从 TD 读取
+
+AWS_REGION="${AWS_REGION:?missing AWS_REGION}"
+AWS_PROFILE="${AWS_PROFILE:?missing AWS_PROFILE}"
+CLUSTER="${CLUSTER:?missing CLUSTER}"
 
 echo ">>> 查 RUNNING 任务 ARN ..."
 TASK_ARN=$(aws ecs list-tasks \
@@ -17,10 +28,48 @@ TASK_ARN=$(aws ecs list-tasks \
   --query 'taskArns[0]' --output text)
 
 if [[ -z "$TASK_ARN" || "$TASK_ARN" == "None" ]]; then
-  echo "❌ 没有运行中的任务"
+  echo "❌ 没有运行中的任务（$CLUSTER / $SERVICE）"
   exit 1
 fi
 echo "TASK_ARN=$TASK_ARN"
+
+echo ">>> 读取该任务的 TaskDefinition ARN ..."
+TD_ARN=$(aws ecs describe-tasks \
+  --cluster "$CLUSTER" \
+  --tasks "$TASK_ARN" \
+  --query 'tasks[0].taskDefinitionArn' \
+  --output text --region "$AWS_REGION" --profile "$AWS_PROFILE")
+
+if [[ -z "$TD_ARN" || "$TD_ARN" == "None" ]]; then
+  echo "❌ 取不到 TaskDefinition ARN"
+  exit 1
+fi
+echo "TD_ARN=$TD_ARN"
+
+echo ">>> 解析 TaskDefinition 端口映射（优先 hostPort） ..."
+TD_HOST_PORT=$(aws ecs describe-task-definition \
+  --task-definition "$TD_ARN" \
+  --query 'taskDefinition.containerDefinitions[0].portMappings[?hostPort!=null][0].hostPort' \
+  --output text --region "$AWS_REGION" --profile "$AWS_PROFILE")
+if [[ -z "$TD_HOST_PORT" || "$TD_HOST_PORT" == "None" ]]; then
+  TD_HOST_PORT=$(aws ecs describe-task-definition \
+    --task-definition "$TD_ARN" \
+    --query 'taskDefinition.containerDefinitions[0].portMappings[0].containerPort' \
+    --output text --region "$AWS_REGION" --profile "$AWS_PROFILE")
+fi
+if [[ -z "$TD_HOST_PORT" || "$TD_HOST_PORT" == "None" ]]; then
+  echo "❌ 该 TaskDefinition 未配置端口映射（containerDefinitions[0].portMappings 为空）"
+  exit 1
+fi
+
+# 若未显式指定 PORT，则使用 TD 的端口；如显式指定但不同，也以 TD 为准（避免 connection refused）
+if [[ -z "${PORT:-}" || "$PORT" == "None" ]]; then
+  PORT="$TD_HOST_PORT"
+elif [[ "$PORT" != "$TD_HOST_PORT" ]]; then
+  echo "⚠️ 你指定的 PORT=$PORT 与 TaskDefinition 端口=$TD_HOST_PORT 不一致，已改用 $TD_HOST_PORT"
+  PORT="$TD_HOST_PORT"
+fi
+echo "PORT=$PORT"
 
 echo ">>> 从 attachments 拿 ENI ..."
 ENI_ID=$(aws ecs describe-tasks \
@@ -30,7 +79,7 @@ ENI_ID=$(aws ecs describe-tasks \
   --query "tasks[0].attachments[?type=='ElasticNetworkInterface'] | [0].details[?name=='networkInterfaceId'] | [0].value" \
   --output text)
 
-# 兜底：有些镜像/老任务结构里可以从 containers[].networkInterfaces 拿
+# 兜底：从 containers[].networkInterfaces
 if [[ -z "$ENI_ID" || "$ENI_ID" == "None" ]]; then
   ENI_ID=$(aws ecs describe-tasks \
     --cluster "$CLUSTER" \
@@ -65,7 +114,7 @@ echo "SG_ID=$SG_ID"
 echo "PRIVATE_IP=$PRIVATE_IP"
 
 if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "None" ]]; then
-  echo "❌ 该任务无公网 IP（可能未开启 assignPublicIp 或在私网）。"
+  echo "❌ 该任务无公网 IP（可能未开启 assignPublicIp 或子网非公有）。"
   exit 3
 fi
 if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
@@ -73,12 +122,14 @@ if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
   exit 4
 fi
 
-# 来源 IP
+# 来源 IP（允许外部预先 export MY_IP 覆盖）
 echo ">>> 自动探测你的公网 IP ..."
-MY_IP=$(curl -s https://checkip.amazonaws.com || true)
-MY_IP=${MY_IP//$'\r'/}
-MY_IP=${MY_IP//$'\n'/}
-
+MY_IP="${MY_IP:-}"
+if [[ -z "$MY_IP" ]]; then
+  MY_IP=$(curl -s https://checkip.amazonaws.com || true)
+  MY_IP=${MY_IP//$'\r'/}
+  MY_IP=${MY_IP//$'\n'/}
+fi
 if [[ -z "$MY_IP" ]]; then
   echo "❌ 无法确定你的公网 IP；可先 export MY_IP=1.2.3.4 再跑"
   exit 5
@@ -87,7 +138,6 @@ CIDR="$MY_IP/32"
 echo "MY_IP=$MY_IP  => CIDR=$CIDR"
 
 echo ">>> 检查是否已存在放行规则 ($CIDR -> $PORT/tcp) ..."
-# 关键修正：把二维数组拍平再过滤，确保能正确命中已有规则
 RULE_EXISTS=$(aws ec2 describe-security-groups \
   --group-ids "$SG_ID" \
   --region "$AWS_REGION" --profile "$AWS_PROFILE" \
@@ -97,12 +147,10 @@ RULE_EXISTS=$(aws ec2 describe-security-groups \
   )" \
   --output text 2>/dev/null || echo 0)
 
-# RULE_EXISTS 可能输出 "0" 或数字；防止奇怪输出
 if [[ "$RULE_EXISTS" =~ ^[0-9]+$ ]] && [[ "$RULE_EXISTS" -gt 0 ]]; then
   echo "=== 已存在放行规则，跳过添加。"
 else
   echo ">>> 添加临时放行 $CIDR 到 $PORT/tcp ..."
-  # 即使并发下偶尔重复，这里也静默忽略重复错误，不干扰体验
   aws ec2 authorize-security-group-ingress \
     --group-id "$SG_ID" \
     --ip-permissions "IpProtocol=tcp,FromPort=$PORT,ToPort=$PORT,IpRanges=[{CidrIp=$CIDR,Description='temp open by script'}]" \
