@@ -111,7 +111,7 @@ Parameters:
   # --- 服务配置 ---
   WebPort:
     Type: String
-    Default: '80'
+    Default: '8080'
     Description: 'Pipeline 指定容器默认端口'
   RpcPort:
     Type: String

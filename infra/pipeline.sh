@@ -23,16 +23,16 @@ SERVICE_NAME=""
 SD_ID=""
 PIPELINE_NAME="${PIPELINE_NAME:-}"
 # 可选
-MODULE_PATH="."
 BRANCH_NAME="master"
+MODULE_PATH="."
 
 # =========== 参数解析 ===========
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo|--repo-name)         REPO_NAME="$2"; shift 2 ;;
-    --service)   SERVICE_NAME="$2"; shift 2 ;;
-    --sd-id)    SD_ID="$2"; shift 2 ;;
-    --pipeline) PIPELINE_NAME="$2"; shift 2 ;;
+    --service)                  SERVICE_NAME="$2"; shift 2 ;;
+    --sd-id)                    SD_ID="$2"; shift 2 ;;
+    --pipeline)                 PIPELINE_NAME="$2"; shift 2 ;;
     --branch)                   BRANCH_NAME="$2"; shift 2 ;;
     --module)                   MODULE_PATH="$2"; shift 2 ;;
     -h|--help)
@@ -61,8 +61,8 @@ ECS_LOG_GROUP_NAME="/ecs/${SERVICE_NAME}"
 LG_RETENTION_DAYS=30
 
 echo "==> profile=$AWS_PROFILE region=$AWS_REGION"
-echo "==> pipeline=$PIPELINE_NAME stack=$STACK_NAME"
-echo "==> repo=$REPO_NAME branch=${BRANCH_NAME:-<template-default>} service=$SERVICE_NAME"
+echo "==> service=$SERVICE_NAME pipeline=$PIPELINE_NAME stack=$STACK_NAME"
+echo "==> repo=$REPO_NAME branch=$BRANCH_NAME module=$MODULE_PATH"
 echo "==> ecs_log_group_name=$ECS_LOG_GROUP_NAME retention_days=$LG_RETENTION_DAYS"
 
 # ---------------- 模板校验（失败则终止，成功继续执行） ----------------
@@ -109,11 +109,9 @@ STACK_STATUS=$(aws cloudformation describe-stacks \
   --region "$AWS_REGION" --profile "$AWS_PROFILE" \
   --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo NOT_FOUND)
 echo "STACK_STATUS=$STACK_STATUS"
-
-# 仅在回滚完成或更新回滚失败时清理；不要把 SUCCESS 的 COMPLETE 也删了
-if [[ "$STACK_STATUS" == "ROLLBACK_COMPLETE" || "$STACK_STATUS" == "UPDATE_ROLLBACK_FAILED" ]]; then
+if [[ "$STACK_STATUS" =~ ^[A-Z_]*(COMPLETE|FAILED)$ ]]; then
   if [[ "$AUTO_DELETE" == "1" ]]; then
-    echo "==> $STACK_NAME in final rollback state ($STACK_STATUS). Deleting..."
+    echo "==> $STACK_NAME in final state ($STACK_STATUS). Deleting..."
     aws cloudformation delete-stack --stack-name "$STACK_NAME" \
       --region "$AWS_REGION" --profile "$AWS_PROFILE"
     aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" \
@@ -146,6 +144,6 @@ aws cloudformation deploy \
 set +x
 
 echo "✅ Pipeline 就绪：$PIPELINE_NAME"
-echo "👉 触发示例："
+echo "👉 触发示例（镜像由 CodeBuild 产出；只需传 lane/desired_count/port）："
 echo "aws codepipeline start-pipeline-execution --name $PIPELINE_NAME --region $AWS_REGION --profile $AWS_PROFILE \\"
-echo "  --variables name=
+echo "  --variables name=LANE,value=default name=DESIRED_COUNT,value=1"
