@@ -1,14 +1,12 @@
 version: 0.2
 
-
 env:
   shell: bash
   variables:
-    MODULE_PATH: "."                # 构建上下文目录（默认当前目录）
-    DOCKERFILE_PATH: "docker/Dockerfile"  # 相对 MODULE_PATH 的 Dockerfile 路径
-    SKIP_TESTS: "1"                 # 1=跳过测试；0=执行测试
-    BUILD_VERSION: ""               # 当 IMAGE_TAG_FORMAT=fixed 时使用
-
+    MODULE_PATH: "test/demo-user-rpc"    # 构建上下文目录（默认当前目录）
+    DOCKERFILE_PATH: "docker/Dockerfile" # 相对 MODULE_PATH 的 Dockerfile 路径
+    SKIP_TESTS: "1"              # 1=跳过测试；0=执行测试
+    BUILD_VERSION: ""            # 当 IMAGE_TAG_FORMAT=fixed 时使用
 
 phases:
   install:

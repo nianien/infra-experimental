@@ -20,7 +20,6 @@ Metadata:
           - BranchName
           - TemplatePath
           - ImageTagFormat
-          - EcrRepositoryUri
           - ClusterName
           - ExecutionRoleArn
           - TaskRoleArn
@@ -111,11 +110,6 @@ Parameters:
     Default: 'commit8'
     Description: "镜像 Tag 生成策略：commit8 / timestamp / latest / fixed；buildspec 将按此规则生成 tag"
 
-  EcrRepositoryUri:
-    Type: String
-    Default: ''
-    Description: "（可选）显式指定 ECR Repo URI；留空则按 <account>.dkr.ecr.<region>.amazonaws.com/<ServiceName> 推导"
-
   # --- ECS 网络与任务执行配置 ---
   ClusterName:
     Type: String
@@ -154,8 +148,8 @@ Parameters:
     Description: 'Pipeline 指定服务泳道标签'
 
   ContainerPort:
-    Type: Number
-    Default: 80
+    Type: String
+    Default: '80'
     Description: 'Pipeline 指定容器默认端口'
 
 
@@ -183,7 +177,7 @@ Resources:
             Value: !Ref ImageTagFormat
       Source:
         Type: CODEPIPELINE
-        BuildSpec: 'ci/buildspec.yaml'
+        BuildSpec: 'ci/buildspec-${ServiceName}.yaml'
       TimeoutInMinutes: 60
 
   Pipeline:
