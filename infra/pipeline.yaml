@@ -14,15 +14,24 @@ Metadata:
         Parameters:
           - BranchName
           - TemplatePath
-          - LaneName
-          - ContainerPort
+          - ModulePath
+          - ImageTagFormat
+          - WebPort
+          - RpcPort
     ParameterLabels:
-      PipelineName: { default: "Pipeline 名称" }
-      ServiceName: { default: "服务名（ServiceBase）" }
-      SdServiceId: { default: "Cloud Map Service ID" }
+      # ✅ 必填参数
+      PipelineName: { default: "Pipeline 名称（CI/CD 流水线标识）" }
+      ServiceName: { default: "服务名（ServiceBase，例如 demo-user-rpc）" }
+      SdServiceId: { default: "Cloud Map Service ID（服务注册标识）" }
       RepoName: { default: "GitHub 仓库（org/repo）" }
-      LaneName: { default: "泳道环境标签" }
-      ContainerPort: { default: "容器默认端口" }
+
+      # 🧩 选填参数
+      BranchName: { default: "代码分支名称（默认 main）" }
+      TemplatePath: { default: "部署模板路径（默认 ci/ecs-service-deploy.yaml）" }
+      ModulePath: { default: "多模块项目下的构建模块路径（如 services/demo-user-rpc）" }
+      ImageTagFormat: { default: "镜像标签生成策略（commit8 / timestamp / latest / fixed）" }
+      WebPort: { default: "Web 服务端口（默认 80）" }
+      RpcPort: { default: "RPC 服务端口（默认 8081）" }
 
 Parameters:
 
@@ -51,6 +60,27 @@ Parameters:
   # 🧩 选填参数（有默认值，可覆盖）
   # =========================================================
 
+  # --- 源码与模板 ---
+  BranchName:
+    Type: String
+    Default: 'main'
+    Description: 'Git 分支名（默认 main）'
+  ModulePath:
+    Type: String
+    Default: "."
+    Description: '模块路径，如 services/demo-user-rpc'
+  TemplatePath:
+    Type: String
+    Default: 'ci/ecs-service-deploy.yaml'
+    Description: '仓库内的 ECS 部署模板路径（随源码打包）'
+
+  # --- 镜像构建配置 ---
+  ImageTagFormat:
+    Type: String
+    AllowedValues: [ 'commit8','timestamp','latest','fixed' ]
+    Default: 'commit8'
+    Description: "镜像 Tag 生成策略：commit8/timestamp/latest/fixed"
+
   # --- 源码来源（GitHub via CodeStar Connections）---
   ConnectionArn:
     Type: String
@@ -78,38 +108,19 @@ Parameters:
     Default: 'arn:aws:iam::297997107448:role/CodeBuildRole'
     Description: 'CodeBuild Service Role ARN'
 
-  # --- 源码与模板 ---
-  BranchName:
-    Type: String
-    Default: 'main'
-    Description: 'Git 分支名（默认 main）'
-
-  TemplatePath:
-    Type: String
-    Default: 'ci/ecs-service-deploy.yaml'
-    Description: '仓库内的 ECS 部署模板路径（随源码打包）'
-
-  # --- 镜像构建配置 ---
-  ImageTagFormat:
-    Type: String
-    AllowedValues: [ 'commit8','timestamp','latest','fixed' ]
-    Default: 'commit8'
-    Description: "镜像 Tag 生成策略：commit8 / timestamp / latest / fixed；buildspec 将按此规则生成 tag"
-
   # --- 服务配置 ---
-  LaneName:
-    Type: String
-    Default: 'default'
-    Description: 'Pipeline 指定服务泳道标签'
-
-  ContainerPort:
+  WebPort:
     Type: String
     Default: '80'
+    Description: 'Pipeline 指定容器默认端口'
+  RpcPort:
+    Type: String
+    Default: '8081'
     Description: 'Pipeline 指定容器默认端口'
 
 Resources:
 
-  # ---------------- CodeBuild Project（使用固定Role）----------------
+  # ---------------- CodeBuild Project----------------
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -129,9 +140,18 @@ Resources:
           - Name: IMAGE_TAG_FORMAT
             Type: PLAINTEXT
             Value: !Ref ImageTagFormat
+          - Name: MODULE_PATH
+            Type: PLAINTEXT
+            Value: !Ref ModulePath
+          - Name: WEB_PORT
+            Type: PLAINTEXT
+            Value: !Ref WebPort
+          - Name: RPC_PORT
+            Type: PLAINTEXT
+            Value: !Ref RpcPort
       Source:
         Type: CODEPIPELINE
-        BuildSpec: 'ci/buildspec-${ServiceName}.yaml'
+        BuildSpec: 'ci/buildspec.yaml'
       TimeoutInMinutes: 60
 
   Pipeline:
@@ -145,11 +165,9 @@ Resources:
 
       Variables:
         - Name: LANE
-          DefaultValue: !Ref LaneName
+          DefaultValue: '-'
         - Name: DESIRED_COUNT
           DefaultValue: '1'
-        - Name: CONTAINER_PORT
-          DefaultValue: !Ref ContainerPort
 
       Stages:
         - Name: Source
@@ -165,7 +183,7 @@ Resources:
                 FullRepositoryId: !Ref RepoName
                 BranchName: !Ref BranchName
                 OutputArtifactFormat: CODE_ZIP
-                DetectChanges: true
+                DetectChanges: false
               OutputArtifacts:
                 - Name: SourceOut
 
@@ -207,10 +225,11 @@ Resources:
                   - |
                     {
                       "ServiceBase": "${ServiceName}",
+                      "WebPort": "${WebPort}",
+                      "RpcPort": "${RpcPort}",
+                      "SdRegistryArn": "${SdArnResolved}",
                       "Lane": "#{variables.LANE}",
-                      "ContainerPort": "#{variables.CONTAINER_PORT}",
-                      "DesiredCount": "#{variables.DESIRED_COUNT}",
-                      "SdRegistryArn": "${SdArnResolved}"
+                      "DesiredCount": "#{variables.DESIRED_COUNT}"
                     }
                   - { SdArnResolved: !Sub 'arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdServiceId}' }
 

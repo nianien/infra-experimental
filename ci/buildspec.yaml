@@ -1,14 +1,13 @@
 version: 0.2
 
-
 env:
   shell: bash
   variables:
-    MODULE_PATH: "."                # 构建上下文目录（默认当前目录）
-    DOCKERFILE_PATH: "docker/Dockerfile"  # 相对 MODULE_PATH 的 Dockerfile 路径
-    SKIP_TESTS: "1"                 # 1=跳过测试；0=执行测试
-    BUILD_VERSION: ""               # 当 IMAGE_TAG_FORMAT=fixed 时使用
-
+    MODULE_PATH: "."                  # 构建上下文目录（默认值，可被 Pipeline 变量覆盖）
+    DOCKERFILE_PATH: "ci/Dockerfile"  # Dockerfile 相对路径（可被 Pipeline 变量覆盖）
+    SKIP_TESTS: "1"                   # 1=跳过测试；0=执行（Pipeline 可覆盖）
+    BUILD_VERSION: "latest"                 # 固定版本号构建时使用（Pipeline 可覆盖）
+    IMAGE_TAG_FORMAT: "commit8"                 # 固定版本号构建时使用（Pipeline 可覆盖）
 
 phases:
   install:
@@ -20,9 +19,9 @@ phases:
       - |-
         set -euo pipefail
         echo "== Environment variables check =="
+        echo "MODULE_PATH=${MODULE_PATH:-<empty>}"
         echo "ECR_REPO_URI=${ECR_REPO_URI:-<empty>}"
         echo "IMAGE_TAG_FORMAT=${IMAGE_TAG_FORMAT:-commit8}"
-        echo "MODULE_PATH=${MODULE_PATH:-.}"
         echo "DOCKERFILE_PATH=${DOCKERFILE_PATH:-Dockerfile}"
         echo "SKIP_TESTS=${SKIP_TESTS:-1}"
         echo "BUILD_VERSION=${BUILD_VERSION:-}"
@@ -52,9 +51,12 @@ phases:
       - |-
         echo "== Checking build directory and Dockerfile =="
         WORK_DIR="${MODULE_PATH:-.}"
-        DF="${DOCKERFILE_PATH:-Dockerfile}"
+        DF="${DOCKERFILE_PATH:-Dockerfile}"   # 优先使用环境变量，否则默认 Dockerfile
+        if [[ -f "$MODULE_PATH/$DF" ]]; then  # 如果模块目录下存在该文件
+          DF="$MODULE_PATH/$DF"               # 优先使用模块内的 Dockerfile
+        fi
         test -d "$WORK_DIR" || { echo "[FATAL] MODULE_PATH not found: $WORK_DIR"; exit 2; }
-        test -f "$WORK_DIR/$DF" || { echo "[FATAL] Dockerfile not found: $WORK_DIR/$DF"; exit 3; }
+        test -f "$DF" || { echo "[FATAL] Dockerfile not found: $DF"; exit 3; }
 
         if [[ "$MODULE_PATH" == "." ]]; then
           mvn -B $( [[ "$SKIP_TESTS" == "1" ]] && echo -DskipTests ) clean package
@@ -68,7 +70,11 @@ phases:
 
         echo "== Docker build & push =="
         IMAGE_TAG_URI="$ECR_REPO_URI:$IMAGE_TAG"
-        docker build --build-arg APP_PORT="$CONTAINER_PORT" -f "$WORK_DIR/$DF" -t "$IMAGE_TAG_URI" "$WORK_DIR"
+        # 环境变量来自 pipeline
+        docker build \
+          --build-arg WEB_PORT="${WEB_PORT:-80}" \
+          --build-arg RPC_PORT="${RPC_PORT:-8081}" \
+          -f "$DF" -t "$IMAGE_TAG_URI" "$WORK_DIR"
         docker push "$IMAGE_TAG_URI"
 
         echo "== Syncing tag :latest =="

@@ -21,9 +21,14 @@ Parameters:
   Memory:
     Type: String
     Default: '1024'
-  ContainerPort:
+  WebPort:
     Type: Number
     Default: 80
+    Description: 'Web 服务端口'
+  RpcPort:
+    Type: Number
+    Default: 8081
+    Description: 'RPC 服务端口'
   ClusterName:
     Type: String
     Default: 'demo-cluster'
@@ -42,8 +47,8 @@ Parameters:
     Description: 'ECS Service 使用的子网 ID 列表'
   SecurityGroups:
     Type: List<AWS::EC2::SecurityGroup::Id>
-    Description: 'ECS Service 安全组 ID 列表'
     Default: 'sg-00a34a14c1889ddfc'
+    Description: 'ECS Service 安全组 ID 列表'
   AssignPublicIp:
     Type: String
     AllowedValues:
@@ -55,18 +60,18 @@ Parameters:
     Type: String
     Description: 'Cloud Map Service ARN（所有泳道可共用）'
 
-
 Conditions:
   LaneIsDefault: !Equals [ !Ref Lane, 'default' ]
   LaneIsDash: !Equals [ !Ref Lane, '-' ]
   LaneIsNone: !Equals [ !Ref Lane, 'none' ]
+  LaneIsEmpty: !Equals [ !Ref Lane, '' ]
   LaneIsNull: !Equals [ !Ref Lane, 'null' ]
   LaneShouldBeDefault: !Or
     - !Condition LaneIsDefault
     - !Condition LaneIsDash
     - !Condition LaneIsNone
+    - !Condition LaneIsEmpty
     - !Condition LaneIsNull
-
 
 Resources:
   TaskDef:
@@ -88,9 +93,15 @@ Resources:
           Image: !Ref ImageUri
           Essential: true
           PortMappings:
-            - ContainerPort: !Ref ContainerPort
-              HostPort: !Ref ContainerPort
+            - ContainerPort: !Ref WebPort
               Protocol: tcp
+            - ContainerPort: !Ref RpcPort
+              Protocol: tcp
+          Environment:
+            - Name: WEB_SERVER_PORT
+              Value: !Ref WebPort
+            - Name: RPC_SERVER_PORT
+              Value: !Ref RpcPort
           LogConfiguration:
             LogDriver: awslogs
             Options:
