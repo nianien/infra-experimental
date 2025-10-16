@@ -215,7 +215,7 @@ Resources:
                 - Name: BuildOut
               Configuration:
                 ActionMode: CREATE_UPDATE
-                StackName: !Sub '${ServiceName}-#{variables.LANE}'
+                StackName: !Sub '${ServiceName}'
                 TemplatePath: !Sub 'SourceOut::${TemplatePath}'
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn
