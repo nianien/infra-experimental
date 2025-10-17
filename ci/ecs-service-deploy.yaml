@@ -82,9 +82,9 @@ Parameters:
     Description: '是否分配公有 IP'
 
   # ================= Cloud Map =================
-  SdRegistryId:
+  SdRegistryArn:
     Type: String
-    Description: 'Cloud Map Service Id（形如 srv-xxxx）'
+    Description: 'Cloud Map Service ARN（形如 arn:aws:servicediscovery:...:service/srv-xxxx）'
 
 # ================= 条件定义 =================
 Conditions:
@@ -161,7 +161,7 @@ Resources:
           SecurityGroups: !Ref SecurityGroups
           AssignPublicIp: !Ref AssignPublicIp
       ServiceRegistries:
-        - RegistryId: !Ref SdRegistryId
+        - RegistryId: !Ref RegistryId
           ContainerName: !Ref ServiceBase
           ContainerPort: !Ref RpcPort
       EnableECSManagedTags: true
@@ -183,3 +183,6 @@ Outputs:
   TaskDefinitionArn:
     Description: 'ECS TaskDefinition ARN'
     Value: !Ref TaskDef
+  DiscoveryServiceArn:
+    Description: 'Cloud Map Service ARN'
+    Value: !Ref SdRegistryArn
