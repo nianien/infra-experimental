@@ -17,10 +17,6 @@ phases:
       - |-
         set -euo pipefail
 
-        # 规范化泳道：空/“-” => default
-        if [[ -z "${LANE:-}" || "$LANE" == "-" ]]; then export LANE="default"; else export LANE; fi
-        echo "LANE=$LANE"
-
         echo "== Environment variables check =="
         echo "MODULE_PATH=${MODULE_PATH:-<empty>}"
         echo "ECR_REPO_URI=${ECR_REPO_URI:-<empty>}"

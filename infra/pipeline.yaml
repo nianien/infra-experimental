@@ -141,7 +141,7 @@ Resources:
 
       Variables:
         - Name: LANE
-          DefaultValue: '-'
+          DefaultValue: 'default'
         - Name: DESIRED_COUNT
           DefaultValue: '1'
 
