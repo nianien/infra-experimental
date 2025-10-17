@@ -181,14 +181,12 @@ Resources:
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn
                 Capabilities: 'CAPABILITY_IAM,CAPABILITY_NAMED_IAM'
-                ParameterOverrides:
-                  !Sub
-                  - |-
-                    {
-                      "ServiceBase": "${ServiceName}",
-                      "Lane": "#{variables.LANE}",
-                      "SdRegistryArn": "${SdRegistryArn}"
-                    }
+                ParameterOverrides: !Sub |
+                  {
+                    "ServiceBase": "${ServiceName}",
+                    "Lane": "#{variables.LANE}",
+                    "SdRegistryArn": "${SdRegistryArn}"
+                  }
       RestartExecutionOnUpdate: true
 
 Outputs:

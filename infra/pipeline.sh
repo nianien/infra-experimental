@@ -1,151 +1,266 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
 # ===========================================
-# pipeline.sh
-# - 必选/可选参数都解析；可选为空时不覆盖模板默认值
-# - 自动派生 PipelineName（未传时 = deploy-<service>）
-# - 可选 --validate 仅做模板校验
+# pipeline.sh (refactored with functions + robust errors)
+# - 参数解析 / 校验 / 模板校验 / 日志组 / 栈处理 / Cloud Map / 部署
+# - 统一错误处理：任何失败都会打印提示与出错位置，然后退出
 # ===========================================
+. "$(dirname "$0")/env.sh"  # 加载你的环境变量
 
-. "$(dirname "$0")/env.sh"  # 保留你原有的环境变量加载
+# -------- 错误处理 --------
+on_err() {
+  local ec=$?
+  # 只提示退出码与失败命令，不打印行号
+  local where="${FUNCNAME[1]:-main}"
+  echo "❌ ERROR (exit=$ec) in ${where}: ${BASH_COMMAND}" >&2
+  exit "$ec"
+}
+on_interrupt() { echo "❌ 中断，已退出。" >&2; exit 130; }
+trap on_err ERR
+trap on_interrupt SIGINT SIGTERM
 
-# 全局环境（可被外部覆盖）
-AUTO_DELETE="${AUTO_DELETE:-1}"     # 1=回滚栈自动删除；0=保留
+log() { echo "==> $*"; }
+ok()  { echo "✅ $*"; }
+die() { local msg="$1"; local code="${2:-1}"; echo "❌ $msg" >&2; exit "$code"; }
+
+# -------- 可覆盖变量 --------
+AUTO_DELETE="${AUTO_DELETE:-1}"
 PIPELINE_TEMPLATE="${PIPELINE_TEMPLATE:-$(dirname "$0")/pipeline.yaml}"
-DEBUG="${DEBUG:-0}"
-[[ "$DEBUG" == "1" ]] && set -x
+[[ "${DEBUG:-0}" == "1" ]] && set -x
 
-# =========== 参数定义 ===========
-# 必选
+# -------- 运行时变量 --------
 REPO_NAME=""
 SERVICE_NAME=""
-SD_ID=""
-PIPELINE_NAME="${PIPELINE_NAME:-}"
-# 可选
+PIPELINE_NAME=""
 BRANCH_NAME="master"
 MODULE_PATH="."
-
-# =========== 参数解析 ===========
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --repo|--repo-name)         REPO_NAME="$2"; shift 2 ;;
-    --service)                  SERVICE_NAME="$2"; shift 2 ;;
-    --pipeline)                 PIPELINE_NAME="$2"; shift 2 ;;
-    --branch)                   BRANCH_NAME="$2"; shift 2 ;;
-    --module)                   MODULE_PATH="$2"; shift 2 ;;
-    -h|--help)
-      echo "Usage: $0 --repo <org/repo> --service <name> --sd-id <srv-xxx> [--pipeline <name>] [--branch <name>] [--module <path>] [--validate]"
-      exit 0 ;;
-    --*) # 未知的选项（带 -- 前缀）
-      echo "忽略未知参数: $1"
-      shift 2 || shift 1 ;;   # 如果后面有值则跳过2个，否则跳过1个
-      *)
-      echo "忽略无效参数: $1"
-      shift ;;
-  esac
-done
-
-# ---------------- 必填校验 & 默认派生 ----------------
-[[ -z "$REPO_NAME" ]]    && { echo "❌ 缺少 --repo"; exit 1; }
-[[ -z "$SERVICE_NAME" ]] && { echo "❌ 缺少 --service"; exit 1; }
-
-if [[ -z "$PIPELINE_NAME" ]]; then
-  PIPELINE_NAME="deploy-${SERVICE_NAME}"
-fi
-STACK_NAME="${PIPELINE_NAME}-pipeline"
-
-# 若传了空字符串，回落到默认值（防止外部传空覆盖）
-[[ -z "${MODULE_PATH}" ]] && MODULE_PATH="."
-[[ -z "${BRANCH_NAME}" ]] && BRANCH_NAME="master"
-
-# 自动生成 ECS 日志组名
-ECS_LOG_GROUP_NAME="/ecs/${SERVICE_NAME}"
+NAMESPACE_NAME=""      # 命名空间名称（如 test.local）
+NAMESPACE_ID=""
+STACK_NAME=""
+ECS_LOG_GROUP_NAME=""
 LG_RETENTION_DAYS=30
+SD_REGISTRY_ARN=""
 
-echo "==> profile=$AWS_PROFILE region=$AWS_REGION"
-echo "==> service=$SERVICE_NAME pipeline=$PIPELINE_NAME stack=$STACK_NAME"
-echo "==> repo=$REPO_NAME branch=$BRANCH_NAME module=$MODULE_PATH"
-echo "==> ecs_log_group_name=$ECS_LOG_GROUP_NAME retention_days=$LG_RETENTION_DAYS"
-
-# ---------------- 模板校验（失败则终止，成功继续执行） ----------------
-echo "==> Validating template syntax: $PIPELINE_TEMPLATE"
-if aws cloudformation validate-template \
-    --template-body "file://$PIPELINE_TEMPLATE" \
-    --region "$AWS_REGION" --profile "$AWS_PROFILE" >/dev/null; then
-  echo "✅ Template valid, continue..."
-else
-  echo "❌ Template invalid, abort." >&2
-  exit 1
-fi
-
-# ---------------- 工具函数：仅当不存在时创建日志组 ----------------
-ensure_log_group() {
-  local name="$1"
-  local retention="${2:-30}"
-  local q="logGroups[?logGroupName==\`$name\`]|length(@)"
-  local exists
-  exists="$(aws logs describe-log-groups \
-              --log-group-name-prefix "$name" \
-              --query "$q" --output text \
-              --region "$AWS_REGION" --profile "$AWS_PROFILE" 2>/dev/null || echo 0)"
-  if [[ "$exists" != "0" ]]; then
-    echo "==> Log group exists: $name"
-    return 0
-  fi
-  echo "==> Creating log group: $name (retention=$retention)"
-  aws logs create-log-group \
-    --log-group-name "$name" \
-    --region "$AWS_REGION" --profile "$AWS_PROFILE" || true
-  aws logs put-retention-policy \
-    --log-group-name "$name" \
-    --retention-in-days "$retention" \
-    --region "$AWS_REGION" --profile "$AWS_PROFILE" || true
+# =========================
+# 参数解析
+# =========================
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repo|--repo-name) REPO_NAME="$2"; shift 2 ;;
+      --service)          SERVICE_NAME="$2"; shift 2 ;;
+      --pipeline)         PIPELINE_NAME="$2"; shift 2 ;;
+      --branch)           BRANCH_NAME="$2"; shift 2 ;;
+      --module)           MODULE_PATH="$2"; shift 2 ;;
+      --namespace)        NAMESPACE_NAME="$2"; shift 2 ;;
+      -h|--help)
+        cat <<EOF
+Usage: $0 --repo <org/repo> --service <name> --namespace <namespace-name>
+       [--pipeline <name>] [--branch <name>] [--module <path>]
+Example:
+  $0 --repo org/repo --service demo-user-rpc --namespace test.local
+EOF
+        exit 0 ;;
+      *) log "忽略未知参数: $1"; shift ;;
+    esac
+  done
 }
 
-# ---------------- 在部署前确保日志组存在（自动判断，无需参数） ----------------
-ensure_log_group "$ECS_LOG_GROUP_NAME" "$LG_RETENTION_DAYS"
+# =========================
+# 基础校验与默认值（方案 B）
+# =========================
+validate_required() {
+  if [[ -z "$REPO_NAME" ]]; then die "缺少 --repo"; fi
+  if [[ -z "$SERVICE_NAME" ]]; then die "缺少 --service"; fi
+  if [[ -z "$NAMESPACE_NAME" ]]; then die "缺少 --namespace（例如 test.local）"; fi
 
-# ---------------- 栈状态预处理 ----------------
-STACK_STATUS=$(aws cloudformation describe-stacks \
-  --stack-name "$STACK_NAME" \
-  --region "$AWS_REGION" --profile "$AWS_PROFILE" \
-  --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo NOT_FOUND)
-echo "STACK_STATUS=$STACK_STATUS"
-if [[ "$STACK_STATUS" =~ ^[A-Z_]*(COMPLETE|FAILED)$ ]]; then
-  if [[ "$AUTO_DELETE" == "1" ]]; then
-    echo "==> $STACK_NAME in final state ($STACK_STATUS). Deleting..."
-    aws cloudformation delete-stack --stack-name "$STACK_NAME" \
-      --region "$AWS_REGION" --profile "$AWS_PROFILE"
-    aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" \
-      --region "$AWS_REGION" --profile "$AWS_PROFILE"
-    STACK_STATUS="NOT_FOUND"
+  : "${BRANCH_NAME:=master}"
+  : "${MODULE_PATH:=.}"
+
+  if [[ -z "$PIPELINE_NAME" ]]; then PIPELINE_NAME="deploy-${SERVICE_NAME}"; fi
+  STACK_NAME="${PIPELINE_NAME}-pipeline"
+  ECS_LOG_GROUP_NAME="/ecs/${SERVICE_NAME}"
+}
+
+# =========================
+# 环境变量校验（允许你在 env.sh 里给默认）
+# =========================
+validate_env() {
+  if [[ -z "${AWS_REGION:-}"  ]]; then die "缺少环境变量 AWS_REGION";  fi
+  if [[ -z "${AWS_PROFILE:-}" ]]; then die "缺少环境变量 AWS_PROFILE"; fi
+}
+
+# =========================
+# 模板校验
+# =========================
+validate_template() {
+  log "Validating template: $PIPELINE_TEMPLATE"
+  aws cloudformation validate-template \
+    --template-body "file://$PIPELINE_TEMPLATE" \
+    --region "$AWS_REGION" --profile "$AWS_PROFILE" >/dev/null
+  ok "Template valid"
+}
+
+# =========================
+# 日志组保障
+# =========================
+ensure_log_group() {
+  local name="$1" retention="${2:-30}"
+  local exists
+  exists="$(aws logs describe-log-groups \
+      --log-group-name-prefix "$name" \
+      --query "logGroups[?logGroupName=='$name']|length(@)" \
+      --output text \
+      --region "$AWS_REGION" --profile "$AWS_PROFILE" 2>/dev/null || echo 0)"
+  if [[ "$exists" == "0" ]]; then
+    log "Creating log group: $name (retention=$retention)"
+    aws logs create-log-group --log-group-name "$name" \
+      --region "$AWS_REGION" --profile "$AWS_PROFILE" || true
+    aws logs put-retention-policy \
+      --log-group-name "$name" \
+      --retention-in-days "$retention" \
+      --region "$AWS_REGION" --profile "$AWS_PROFILE" || true
   else
-    echo "❌ Stack in $STACK_STATUS and AUTO_DELETE=0. Abort to preserve resources." >&2
-    exit 2
+    log "Log group exists: $name"
   fi
-fi
+}
 
-# ---------------- 组装参数 ----------------
-PARAMS=(
-  "PipelineName=${PIPELINE_NAME}"
-  "ServiceName=${SERVICE_NAME}"
-  "RepoName=${REPO_NAME}"
-  "BranchName=${BRANCH_NAME}"
-  "ModulePath=${MODULE_PATH}"
-)
+# =========================
+# Cloud Map：名称→ID，查/建 Service，取 ARN
+# =========================
+ensure_cloud_map_service() {
+  log "Resolving NamespaceId for '${NAMESPACE_NAME}'..."
+  local ns_id
+  ns_id="$(aws servicediscovery list-namespaces \
+      --query "Namespaces[?Name=='${NAMESPACE_NAME}'].Id | [0]" \
+      --output text \
+      --region "$AWS_REGION" --profile "$AWS_PROFILE" 2>/dev/null || true)"
+  if [[ -z "$ns_id" || "$ns_id" == "None" || "$ns_id" == "null" ]]; then
+    die "无法找到命名空间 '${NAMESPACE_NAME}'" 2
+  fi
+  NAMESPACE_ID="$ns_id"
+  log "Namespace resolved: id=$NAMESPACE_ID"
 
-# ---------------- 部署 ----------------
-set -x
-aws cloudformation deploy \
-  --stack-name "$STACK_NAME" \
-  --template-file "$PIPELINE_TEMPLATE" \
-  --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-  --region "$AWS_REGION" --profile "$AWS_PROFILE" \
-  --parameter-overrides "${PARAMS[@]}"
-set +x
+  log "Searching Cloud Map Service: ${SERVICE_NAME}"
+  local next_token="" arn=""
+  while :; do
+    arn="$(aws servicediscovery list-services \
+        --filters Name=NAMESPACE_ID,Values="$NAMESPACE_ID",Condition=EQ \
+        ${next_token:+--next-token "$next_token"} \
+        --max-results 100 \
+        --query "Services[?Name=='${SERVICE_NAME}'].Arn | [0]" \
+        --output text \
+        --region "$AWS_REGION" --profile "$AWS_PROFILE" 2>/dev/null || echo "")"
+    if [[ -n "$arn" && "$arn" != "None" && "$arn" != "null" ]]; then
+      SD_REGISTRY_ARN="$arn"
+      log "Found existing Cloud Map Service: $SD_REGISTRY_ARN"
+      break
+    fi
+    next_token="$(aws servicediscovery list-services \
+        --filters Name=NAMESPACE_ID,Values="$NAMESPACE_ID",Condition=EQ \
+        --max-results 100 \
+        --query "NextToken" --output text \
+        --region "$AWS_REGION" --profile "$AWS_PROFILE" 2>/dev/null || echo "")"
+    if [[ -z "$next_token" || "$next_token" == "None" ]]; then break; fi
+  done
 
-echo "✅ Pipeline 就绪：$PIPELINE_NAME"
-echo "👉 触发示例（镜像由 CodeBuild 产出；只需传 lane/desired_count/port）："
-echo "aws codepipeline start-pipeline-execution --name $PIPELINE_NAME --region $AWS_REGION --profile $AWS_PROFILE \\"
-echo "  --variables name=LANE,value=default name=DESIRED_COUNT,value=1"
+  if [[ -z "$SD_REGISTRY_ARN" ]]; then
+    log "Not found, creating Cloud Map Service '$SERVICE_NAME' (SRV, MULTIVALUE, FailureThreshold=1)..."
+    SD_REGISTRY_ARN="$(aws servicediscovery create-service \
+        --name "$SERVICE_NAME" \
+        --namespace-id "$NAMESPACE_ID" \
+        --dns-config 'RoutingPolicy=MULTIVALUE,DnsRecords=[{Type=SRV,TTL=30}]' \
+        --health-check-custom-config 'FailureThreshold=1' \
+        --query 'Service.Arn' --output text \
+        --region "$AWS_REGION" --profile "$AWS_PROFILE")"
+    log "Created Cloud Map Service: $SD_REGISTRY_ARN"
+  fi
+
+  if [[ -z "$SD_REGISTRY_ARN" || "$SD_REGISTRY_ARN" == "None" || "$SD_REGISTRY_ARN" == "null" ]]; then
+    die "无法解析/创建 SdRegistryArn（namespace='${NAMESPACE_NAME}', id='${NAMESPACE_ID}', service='${SERVICE_NAME}'）" 3
+  fi
+}
+
+# =========================
+# 清理旧栈
+# =========================
+prepare_stack_state() {
+  local status
+  status="$(aws cloudformation describe-stacks \
+      --stack-name "$STACK_NAME" \
+      --query 'Stacks[0].StackStatus' --output text \
+      --region "$AWS_REGION" --profile "$AWS_PROFILE" 2>/dev/null || echo NOT_FOUND)"
+  echo "STACK_STATUS=$status"
+  if [[ "$status" =~ (COMPLETE|FAILED)$ ]]; then
+    if [[ "$AUTO_DELETE" == "1" ]]; then
+      log "Deleting old stack: $STACK_NAME ($status)"
+      aws cloudformation delete-stack --stack-name "$STACK_NAME" \
+        --region "$AWS_REGION" --profile "$AWS_PROFILE"
+      aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" \
+        --region "$AWS_REGION" --profile "$AWS_PROFILE"
+    else
+      die "Stack in $status；AUTO_DELETE=0，已终止以保护资源" 2
+    fi
+  fi
+}
+
+# =========================
+# 组装 CFN 参数
+# =========================
+assemble_params() {
+  PARAMS=(
+    "PipelineName=${PIPELINE_NAME}"
+    "ServiceName=${SERVICE_NAME}"
+    "RepoName=${REPO_NAME}"
+    "BranchName=${BRANCH_NAME}"
+    "ModulePath=${MODULE_PATH}"
+    "SdRegistryArn=${SD_REGISTRY_ARN}"
+  )
+}
+
+# =========================
+# 部署
+# =========================
+deploy_stack() {
+  set -x
+  aws cloudformation deploy \
+    --stack-name "$STACK_NAME" \
+    --template-file "$PIPELINE_TEMPLATE" \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --region "$AWS_REGION" --profile "$AWS_PROFILE" \
+    --parameter-overrides "${PARAMS[@]}"
+  set +x
+  ok "Pipeline 部署完成：$PIPELINE_NAME"
+  echo "👉 启动示例："
+  echo "aws codepipeline start-pipeline-execution --name $PIPELINE_NAME --region $AWS_REGION --profile $AWS_PROFILE \\"
+  echo "  --variables name=LANE,value=default name=DESIRED_COUNT,value=1"
+}
+
+# =========================
+# 打印上下文
+# =========================
+print_context() {
+  log "profile=${AWS_PROFILE:-} region=${AWS_REGION:-}"
+  log "service=$SERVICE_NAME"
+  log "repo=$REPO_NAME branch=$BRANCH_NAME module=$MODULE_PATH"
+  log "namespace=$NAMESPACE_NAME id=$NAMESPACE_ID"
+  log "pipeline=$PIPELINE_NAME stack=$STACK_NAME"
+  log "ecs_log_group=$ECS_LOG_GROUP_NAME retention=$LG_RETENTION_DAYS"
+}
+
+# =========================
+# 主流程
+# =========================
+main() {
+  parse_args "$@"
+  validate_required
+  validate_env
+  ensure_cloud_map_service
+  print_context
+  validate_template
+  ensure_log_group "$ECS_LOG_GROUP_NAME" "$LG_RETENTION_DAYS"
+  prepare_stack_state
+  assemble_params
+  deploy_stack
+}
+
+main "$@"
