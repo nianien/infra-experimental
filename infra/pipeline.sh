@@ -239,12 +239,14 @@ deploy_stack() {
 # 打印上下文
 # =========================
 print_context() {
-  log "profile=${AWS_PROFILE:-} region=${AWS_REGION:-}"
-  log "service=$SERVICE_NAME"
-  log "repo=$REPO_NAME branch=$BRANCH_NAME module=$MODULE_PATH"
-  log "namespace=$NAMESPACE_NAME id=$NAMESPACE_ID"
-  log "pipeline=$PIPELINE_NAME stack=$STACK_NAME"
-  log "ecs_log_group=$ECS_LOG_GROUP_NAME retention=$LG_RETENTION_DAYS"
+  echo "============context:begin==========="
+  echo "profile=${AWS_PROFILE:-} region=${AWS_REGION:-}"
+  echo "service=$SERVICE_NAME"
+  echo "repo=$REPO_NAME branch=$BRANCH_NAME module=$MODULE_PATH"
+  echo "namespace=$NAMESPACE_NAME id=$NAMESPACE_ID"
+  echo "pipeline=$PIPELINE_NAME stack=$STACK_NAME"
+  echo "ecs_log_group=$ECS_LOG_GROUP_NAME retention=$LG_RETENTION_DAYS"
+  echo "============context:end==========="
 }
 
 # =========================
@@ -252,15 +254,15 @@ print_context() {
 # =========================
 main() {
   parse_args "$@"
-  validate_required
-  validate_env
-  ensure_cloud_map_service
+#  validate_required
+#  validate_env
+#  ensure_cloud_map_service
   print_context
-  validate_template
-  ensure_log_group "$ECS_LOG_GROUP_NAME" "$LG_RETENTION_DAYS"
-  prepare_stack_state
-  assemble_params
-  deploy_stack
+#  validate_template
+#  ensure_log_group "$ECS_LOG_GROUP_NAME" "$LG_RETENTION_DAYS"
+#  prepare_stack_state
+#  assemble_params
+#  deploy_stack
 }
 
 main "$@"
