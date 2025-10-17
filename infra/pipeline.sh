@@ -254,15 +254,15 @@ print_context() {
 # =========================
 main() {
   parse_args "$@"
-#  validate_required
-#  validate_env
-#  ensure_cloud_map_service
+  validate_required
+  validate_env
+  ensure_cloud_map_service
   print_context
-#  validate_template
-#  ensure_log_group "$ECS_LOG_GROUP_NAME" "$LG_RETENTION_DAYS"
-#  prepare_stack_state
-#  assemble_params
-#  deploy_stack
+  validate_template
+  ensure_log_group "$ECS_LOG_GROUP_NAME" "$LG_RETENTION_DAYS"
+  prepare_stack_state
+  assemble_params
+  deploy_stack
 }
 
 main "$@"
