@@ -127,6 +127,9 @@ Resources:
           - Name: MODULE_PATH
             Type: PLAINTEXT
             Value: !Ref ModulePath
+          - Name: SERVICE_NAME
+            Type: PLAINTEXT
+            Value: !Ref ServiceName
       Source:
         Type: CODEPIPELINE
         BuildSpec: !Ref BuildSpec

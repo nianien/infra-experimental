@@ -18,25 +18,27 @@ phases:
         set -euo pipefail
 
         echo "== Environment variables check =="
-        echo "MODULE_PATH=${MODULE_PATH:-<empty>}"
-        echo "ECR_REPO_URI=${ECR_REPO_URI:-<empty>}"
-        echo "DOCKERFILE_PATH=${DOCKERFILE_PATH:-Dockerfile}"
-        echo "SKIP_TESTS=${SKIP_TESTS:-1}"
-        test -n "${ECR_REPO_URI:-}" || { echo "[FATAL] Missing ECR_REPO_URI (from pipeline.yaml)"; exit 1; }
-
+        echo "MODULE_PATH=${MODULE_PATH:-.}"
+        echo "SERVICE_NAME=${SERVICE_NAME:-}"
+        test -n "${SERVICE_NAME:-}" || { echo "[FATAL] Missing SERVICE_NAME (from pipeline.yaml)"; exit 1; }
+        # 计算 ECR_REPO_URI
+        ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
+        ECR_REPO_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${SERVICE_NAME}"
+        export ECR_REPO_URI
+        
         echo "== Login to ECR and ensure repository exists =="
-        export AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
-        # 更健壮的解析：host = 左边第一段；repo = 去掉第一段后的剩余
-        export REGISTRY_HOST="${ECR_REPO_URI%%/*}"
-        export REPO_NAME="${ECR_REPO_URI#*/}"
+        REGISTRY_HOST="${ECR_REPO_URI%%/*}"
+        REPO_NAME="${ECR_REPO_URI#*/}"
         aws ecr describe-repositories --repository-names "$REPO_NAME" --region "$AWS_REGION" >/dev/null 2>&1 \
-          || aws ecr create-repository --repository-name "$REPO_NAME" --region "$AWS_REGION" >/dev/null
+        || aws ecr create-repository --repository-name "$REPO_NAME" --region "$AWS_REGION" >/dev/null
         aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY_HOST"
-
+        
         echo "== Generating image tag =="
-        export COMMIT7="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-7 || true)"
-        export TIMESTAMP="$(date +%Y%m%d%H%M%S)"
-        export IMAGE_TAG="${TIMESTAMP}-${COMMIT7:-latest}"
+        COMMIT7="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-7 || true)"
+        TIMESTAMP="$(date +%Y%m%d%H%M%S)"
+        IMAGE_TAG="${TIMESTAMP}-${COMMIT7:.latest}"
+        export IMAGE_TAG
         echo "==> IMAGE_TAG=$IMAGE_TAG"
 
   build:
