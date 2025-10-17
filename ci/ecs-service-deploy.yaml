@@ -1,65 +1,93 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Generic ECS Service + TaskDefinition'
+Description: 'ECS Service + TaskDefinition (SRV registration via existing Cloud Map Namespace)'
 
 Parameters:
+  # ================= 基本参数 =================
   ServiceBase:
     Type: String
-    Description: '服务基名，例如 order-api 或 user-api'
+    Description: '服务基名，例如 a 或 b（最终 SRV 域名为 <ServiceBase>.test.local）'
+
   Lane:
     Type: String
     Default: 'default'
-    Description: '泳道名'
+    Description: '泳道名（default 时不添加 Lane 标签）'
+
   ImageUri:
     Type: String
-    Description: '容器镜像 URI（运行时传入）'
+    Description: '容器镜像 URI（由上游 CodeBuild 注入）'
+
   DesiredCount:
     Type: Number
     Default: 1
+    Description: 'ECS Service 实例数'
+
+  # ================= 资源规格 =================
   Cpu:
     Type: String
     Default: '512'
+    Description: 'CPU 配额（单位：vCPU * 1024）'
+
   Memory:
     Type: String
     Default: '1024'
+    Description: '内存配额（单位：MB）'
+
+  # ================= 应用配置 =================
+  AppEnv:
+    Type: String
+    Default: 'default'
+    AllowedValues: [ default, dev, test, preonline, online ]
+    Description: 'Spring Profile，对应 SPRING_PROFILES_ACTIVE'
+
   WebPort:
     Type: Number
     Default: 80
     Description: 'Web 服务端口'
+
   RpcPort:
     Type: Number
     Default: 8081
-    Description: 'RPC 服务端口'
+    Description: 'RPC 服务端口（注册到 Cloud Map SRV 记录）'
+
+  # ================= 基础设施依赖 =================
   ClusterName:
     Type: String
     Default: 'demo-cluster'
     Description: 'ECS 集群名称'
+
   ExecutionRoleArn:
     Type: String
     Default: 'arn:aws:iam::297997107448:role/ecsTaskExecutionRole'
-    Description: 'ECS 任务执行角色（task execution role）'
+    Description: 'ECS 任务执行角色 (task execution role)'
+
   TaskRoleArn:
     Type: String
     Default: 'arn:aws:iam::297997107448:role/ecsTaskRole'
-    Description: 'ECS 容器任务角色（task role）'
+    Description: 'ECS 任务运行角色 (task role)'
+
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
     Default: 'subnet-02c0811a961e428b5,subnet-0d3bc6916292f848c'
-    Description: 'ECS Service 使用的子网 ID 列表'
+    Description: 'Service 使用的子网 ID 列表'
+
   SecurityGroups:
     Type: List<AWS::EC2::SecurityGroup::Id>
     Default: 'sg-00a34a14c1889ddfc'
-    Description: 'ECS Service 安全组 ID 列表'
+    Description: 'Service 使用的安全组 ID 列表'
+
   AssignPublicIp:
     Type: String
-    AllowedValues:
-      - ENABLED
-      - DISABLED
+    AllowedValues: [ ENABLED, DISABLED ]
     Default: 'ENABLED'
-    Description: '是否分配公有 IP（默认 ENABLED）'
-  SdRegistryArn:
-    Type: String
-    Description: 'Cloud Map Service ARN（所有泳道可共用）'
+    Description: '是否分配公有 IP'
 
+  # ================= Cloud Map 命名空间 =================
+  NamespaceId:
+    Type: String
+    Default: 'ns-worulupicnhfzb6y'
+    Description: '已存在的 Cloud Map NamespaceId，例如 ns-worulupicnhfzb6y 对应 test.local'
+
+# ---------------- 条件定义 ----------------
 Conditions:
   LaneIsDefault: !Equals [ !Ref Lane, 'default' ]
   LaneIsDash: !Equals [ !Ref Lane, '-' ]
@@ -73,13 +101,15 @@ Conditions:
     - !Condition LaneIsEmpty
     - !Condition LaneIsNull
 
+# ================= 资源定义 =================
 Resources:
+
+  # --- ECS 任务定义 ---
   TaskDef:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Sub '${ServiceBase}-task'
-      RequiresCompatibilities:
-        - FARGATE
+      RequiresCompatibilities: [ FARGATE ]
       NetworkMode: awsvpc
       Cpu: !Ref Cpu
       Memory: !Ref Memory
@@ -102,16 +132,30 @@ Resources:
               Value: !Ref WebPort
             - Name: RPC_SERVER_PORT
               Value: !Ref RpcPort
+            - Name: SPRING_PROFILES_ACTIVE
+              Value: !Ref AppEnv
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: !Sub '/ecs/${ServiceBase}'
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !If
-                - LaneShouldBeDefault
-                - 'default'
-                - !Ref Lane
+              awslogs-stream-prefix: !If [ LaneShouldBeDefault, 'default', !Ref Lane ]
 
+  # --- Cloud Map 服务注册 ---
+  RpcDiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Name: !Ref ServiceBase
+      NamespaceId: !Ref NamespaceId
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - Type: SRV
+            TTL: 30
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+
+  # --- ECS 服务 ---
   Service:
     Type: AWS::ECS::Service
     Properties:
@@ -135,7 +179,9 @@ Resources:
           SecurityGroups: !Ref SecurityGroups
           AssignPublicIp: !Ref AssignPublicIp
       ServiceRegistries:
-        - RegistryArn: !Ref SdRegistryArn
+        - RegistryArn: !GetAtt RpcDiscoveryService.Arn
+          ContainerName: !Ref ServiceBase
+          ContainerPort: !Ref RpcPort
       EnableECSManagedTags: true
       PropagateTags: SERVICE
       SchedulingStrategy: REPLICA
@@ -147,6 +193,7 @@ Resources:
         - - Key: Lane
             Value: !Ref Lane
 
+# ================= 输出 =================
 Outputs:
   ServiceArn:
     Description: 'ECS Service ARN'
@@ -154,3 +201,6 @@ Outputs:
   TaskDefinitionArn:
     Description: 'ECS TaskDefinition ARN'
     Value: !Ref TaskDef
+  DiscoveryServiceArn:
+    Description: 'Cloud Map Service ARN (<ServiceBase>.test.local)'
+    Value: !GetAtt RpcDiscoveryService.Arn

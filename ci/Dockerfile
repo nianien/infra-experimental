@@ -15,12 +15,12 @@ COPY --chown=app:app ${JAR_FILE} /app/app.jar
 # JDK21 已容器感知，无需 UseContainerSupport
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 
-# 动态端口：可在 build 时通过 --build-arg WEB_PORT=xxxx 覆盖
-ARG WEB_PORT=80
-ARG RPC_PORT=8081
-ENV WEB_SERVER_PORT=${WEB_PORT}
-ENV RPC_SERVER_PORT=${RPC_PORT}
-EXPOSE ${WEB_PORT} ${RPC_PORT}
+# 运行时由ECS注入同名变量进行覆盖
+ENV WEB_SERVER_PORT=80
+ENV RPC_SERVER_PORT=8081
+
+#运行时替换
+EXPOSE 80
 
 USER app
 ENTRYPOINT ["java","-jar","/app/app.jar"]
