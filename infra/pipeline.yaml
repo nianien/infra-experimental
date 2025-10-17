@@ -128,18 +128,9 @@ Resources:
           - Name: ECR_REPO_URI
             Type: PLAINTEXT
             Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ServiceName}'
-          - Name: IMAGE_TAG_FORMAT
-            Type: PLAINTEXT
-            Value: !Ref ImageTagFormat
           - Name: MODULE_PATH
             Type: PLAINTEXT
             Value: !Ref ModulePath
-          - Name: WEB_PORT
-            Type: PLAINTEXT
-            Value: !Ref WebPort
-          - Name: RPC_PORT
-            Type: PLAINTEXT
-            Value: !Ref RpcPort
       Source:
         Type: CODEPIPELINE
         BuildSpec: 'ci/buildspec.yaml'
