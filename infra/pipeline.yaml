@@ -214,7 +214,7 @@ Resources:
                     {
                       "ServiceBase": "${ServiceName}",
                       "SdRegistryArn": "${SdArnResolved}",
-                      "Lane": "#{variables.LANE}",
+                      "Lane": "#{variables.LANE}"
                     }
                   - { SdArnResolved: !Sub 'arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdRegistryId}' }
 
