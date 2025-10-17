@@ -183,7 +183,7 @@ Resources:
                 EnvironmentVariables: !Sub |
                   [
                     {"name":"LANE","value":"#{variables.LANE}","type":"PLAINTEXT"},
-                    {"name":"BRANCH","value":"#{variables.BRANCH}","type":"PLAINTEXT"},
+                    {"name":"BRANCH","value":"#{variables.BRANCH}","type":"PLAINTEXT"}
                   ]
               InputArtifacts:
                 - Name: SourceOut
