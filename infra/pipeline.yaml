@@ -208,15 +208,12 @@ Resources:
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn
                 Capabilities: 'CAPABILITY_IAM,CAPABILITY_NAMED_IAM'
-                ParameterOverrides:
-                  !Sub
-                  - |
-                    {
-                      "ServiceBase": "${ServiceName}",
-                      "SdRegistryArn": "${SdArnResolved}",
-                      "Lane": "#{variables.LANE}"
-                    }
-                  - { SdArnResolved: !Sub 'arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdRegistryId}' }
+                ParameterOverrides: !Sub |
+                  {
+                    "ServiceBase": "${ServiceName}",
+                    "Lane": "#{variables.LANE}",
+                    "SdRegistryArn": "arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdRegistryId}"
+                  }
 
       RestartExecutionOnUpdate: true
 
