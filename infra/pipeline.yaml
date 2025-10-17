@@ -8,26 +8,22 @@ Metadata:
         Parameters:
           - PipelineName
           - ServiceName
+          - SdRegistryArn
           - RepoName
       - Label: { default: "🧩 选填参数（有默认值，可覆盖）" }
         Parameters:
           - BranchName
-          - TemplatePath
           - ModulePath
-          - WebPort
-          - RpcPort
     ParameterLabels:
       # ✅ 必填参数
       PipelineName: { default: "Pipeline 名称（CI/CD 流水线标识）" }
       ServiceName: { default: "服务名（ServiceBase，例如 demo-user-rpc）" }
+      SdRegistryArn: { default: "Cloud Map Service ARN（srv-… 的 ARN）" }
       RepoName: { default: "GitHub 仓库（org/repo）" }
 
       # 🧩 选填参数
       BranchName: { default: "代码分支名称（默认 main）" }
-      TemplatePath: { default: "部署模板路径（默认 ci/ecs-service-deploy.yaml）" }
       ModulePath: { default: "多模块项目下的构建模块路径（如 services/demo-user-rpc）" }
-      WebPort: { default: "Web 服务端口（默认 80）" }
-      RpcPort: { default: "RPC 服务端口（默认 8081）" }
 
 Parameters:
 
@@ -43,6 +39,10 @@ Parameters:
   ServiceName:
     Type: String
     Description: '服务名（= ServiceBase，例如 demo-user-rpc）'
+
+  SdRegistryArn:
+    Type: String
+    Description: 'Cloud Map Service ARN（例如 arn:aws:servicediscovery:…:service/srv-xxxx）'
 
   RepoName:
     Type: String
@@ -61,10 +61,6 @@ Parameters:
     Type: String
     Default: "."
     Description: '模块路径，如 services/demo-user-rpc'
-  TemplatePath:
-    Type: String
-    Default: 'ci/ecs-service-deploy.yaml'
-    Description: '仓库内的 ECS 部署模板路径（随源码打包）'
 
   # --- 源码来源（GitHub via CodeStar Connections）---
   ConnectionArn:
@@ -93,15 +89,6 @@ Parameters:
     Default: 'arn:aws:iam::297997107448:role/CodeBuildRole'
     Description: 'CodeBuild Service Role ARN'
 
-  # --- 服务配置 ---
-  WebPort:
-    Type: String
-    Default: '8080'
-    Description: 'Pipeline 指定容器默认端口'
-  RpcPort:
-    Type: String
-    Default: '8081'
-    Description: 'Pipeline 指定容器默认端口'
 
 Resources:
 
@@ -142,8 +129,6 @@ Resources:
       Variables:
         - Name: LANE
           DefaultValue: 'default'
-        - Name: DESIRED_COUNT
-          DefaultValue: '1'
 
       Stages:
         - Name: Source
@@ -192,18 +177,18 @@ Resources:
               Configuration:
                 ActionMode: CREATE_UPDATE
                 StackName: !Sub '${ServiceName}-#{variables.LANE}'
-                TemplatePath: !Sub 'SourceOut::${TemplatePath}'
+                TemplatePath: !Sub 'SourceOut::ci/ecs-service-deploy.yaml'
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn
                 Capabilities: 'CAPABILITY_IAM,CAPABILITY_NAMED_IAM'
-                ParameterOverrides: !Sub |
-                  {
-                    "ServiceBase": "${ServiceName}",
-                    "WebPort": "${WebPort}",
-                    "RpcPort": "${RpcPort}",
-                    "Lane": "#{variables.LANE}",
-                    "DesiredCount": "#{variables.DESIRED_COUNT}"
-                  }
+                ParameterOverrides:
+                  !Sub
+                  - |-
+                    {
+                      "ServiceBase": "${ServiceName}",
+                      "Lane": "#{variables.LANE}",
+                      "SdRegistryArn": "${SdRegistryArn}"
+                    }
       RestartExecutionOnUpdate: true
 
 Outputs:
