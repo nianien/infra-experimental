@@ -147,6 +147,8 @@ Resources:
       Variables:
         - Name: LANE
           DefaultValue: 'default'
+        - Name: BRANCH
+          DefaultValue: 'main'
 
       Stages:
         - Name: Source
@@ -204,13 +206,10 @@ Resources:
                   - |
                     {
                       "ServiceBase": "${ServiceName}",
-                      "WebPort": "${WebPort}",
-                      "RpcPort": "${RpcPort}",
                       "SdRegistryArn": "${SdArnResolved}",
                       "Lane": "#{variables.LANE}",
-                      "DesiredCount": "#{variables.DESIRED_COUNT}"
                     }
-                  - { SdArnResolved: !Sub 'arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdServiceId}' }
+                  - { SdArnResolved: !Sub 'arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdRegistryId}' }
 
       RestartExecutionOnUpdate: true
 
