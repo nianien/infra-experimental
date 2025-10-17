@@ -37,7 +37,7 @@ phases:
         echo "== Generating image tag =="
         COMMIT7="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | cut -c1-7 || true)"
         TIMESTAMP="$(date +%Y%m%d%H%M%S)"
-        IMAGE_TAG="${TIMESTAMP}-${COMMIT7:.latest}"
+        IMAGE_TAG="${TIMESTAMP}.${COMMIT7:-latest}"
         export IMAGE_TAG
         echo "==> IMAGE_TAG=$IMAGE_TAG"
 
