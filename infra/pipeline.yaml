@@ -150,8 +150,10 @@ Resources:
       Variables:
         - Name: LANE
           DefaultValue: 'default'
+          Description: '泳道名称'
         - Name: BRANCH
           DefaultValue: !Ref BranchName
+          Description: '分支名称'
 
       Stages:
         - Name: Source
