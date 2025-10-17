@@ -38,7 +38,7 @@ NAMESPACE_ID=""
 STACK_NAME=""
 ECS_LOG_GROUP_NAME=""
 LG_RETENTION_DAYS=30
-SD_REGISTRY_ARN=""
+SD_REGISTRY_ID=""
 
 # =========================
 # 参数解析
@@ -140,19 +140,19 @@ ensure_cloud_map_service() {
   NAMESPACE_ID="$ns_id"
   log "Namespace resolved: id=$NAMESPACE_ID"
 
-  log "Searching Cloud Map Service: ${SERVICE_NAME}"
-  local next_token="" arn=""
+  log "Searching Cloud Map Service ID: ${SERVICE_NAME}"
+  local next_token="" svc_id=""
   while :; do
-    arn="$(aws servicediscovery list-services \
+    svc_id="$(aws servicediscovery list-services \
         --filters Name=NAMESPACE_ID,Values="$NAMESPACE_ID",Condition=EQ \
         ${next_token:+--next-token "$next_token"} \
         --max-results 100 \
-        --query "Services[?Name=='${SERVICE_NAME}'].Arn | [0]" \
+        --query "Services[?Name=='${SERVICE_NAME}'].Id | [0]" \
         --output text \
         --region "$AWS_REGION" --profile "$AWS_PROFILE" 2>/dev/null || echo "")"
-    if [[ -n "$arn" && "$arn" != "None" && "$arn" != "null" ]]; then
-      SD_REGISTRY_ARN="$arn"
-      log "Found existing Cloud Map Service: $SD_REGISTRY_ARN"
+    if [[ -n "$svc_id" && "$svc_id" != "None" && "$svc_id" != "null" ]]; then
+      SD_REGISTRY_ID="$svc_id"
+      log "Found existing Cloud Map Service: id=$SD_REGISTRY_ID"
       break
     fi
     next_token="$(aws servicediscovery list-services \
@@ -163,20 +163,20 @@ ensure_cloud_map_service() {
     if [[ -z "$next_token" || "$next_token" == "None" ]]; then break; fi
   done
 
-  if [[ -z "$SD_REGISTRY_ARN" ]]; then
+  if [[ -z "$SD_REGISTRY_ID" ]]; then
     log "Not found, creating Cloud Map Service '$SERVICE_NAME' (SRV, MULTIVALUE, FailureThreshold=1)..."
-    SD_REGISTRY_ARN="$(aws servicediscovery create-service \
+    SD_REGISTRY_ID="$(aws servicediscovery create-service \
         --name "$SERVICE_NAME" \
         --namespace-id "$NAMESPACE_ID" \
         --dns-config 'RoutingPolicy=MULTIVALUE,DnsRecords=[{Type=SRV,TTL=30}]' \
         --health-check-custom-config 'FailureThreshold=1' \
-        --query 'Service.Arn' --output text \
+        --query 'Service.Id' --output text \
         --region "$AWS_REGION" --profile "$AWS_PROFILE")"
-    log "Created Cloud Map Service: $SD_REGISTRY_ARN"
+    log "Created Cloud Map Service: id=$SD_REGISTRY_ID"
   fi
 
-  if [[ -z "$SD_REGISTRY_ARN" || "$SD_REGISTRY_ARN" == "None" || "$SD_REGISTRY_ARN" == "null" ]]; then
-    die "无法解析/创建 SdRegistryArn（namespace='${NAMESPACE_NAME}', id='${NAMESPACE_ID}', service='${SERVICE_NAME}'）" 3
+  if [[ -z "$SD_REGISTRY_ID" || "$SD_REGISTRY_ID" == "None" || "$SD_REGISTRY_ID" == "null" ]]; then
+    die "无法解析/创建 SdRegistryId（namespace='${NAMESPACE_NAME}', id='${NAMESPACE_ID}', service='${SERVICE_NAME}'）" 3
   fi
 }
 
@@ -213,7 +213,7 @@ assemble_params() {
     "RepoName=${REPO_NAME}"
     "BranchName=${BRANCH_NAME}"
     "ModulePath=${MODULE_PATH}"
-    "SdRegistryArn=${SD_REGISTRY_ARN}"
+    "SdRegistryId=${SD_REGISTRY_ID}"
   )
 }
 

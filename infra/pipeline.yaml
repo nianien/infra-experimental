@@ -8,7 +8,7 @@ Metadata:
         Parameters:
           - PipelineName
           - ServiceName
-          - SdRegistryArn
+          - SdRegistryId
           - RepoName
       - Label: { default: "🧩 选填参数（有默认值，可覆盖）" }
         Parameters:
@@ -18,7 +18,7 @@ Metadata:
       # ✅ 必填参数
       PipelineName: { default: "Pipeline 名称（CI/CD 流水线标识）" }
       ServiceName: { default: "服务名（ServiceBase，例如 demo-user-rpc）" }
-      SdRegistryArn: { default: "Cloud Map Service ARN（srv-… 的 ARN）" }
+      SdRegistryId: { default: "Cloud Map Service ID" }
       RepoName: { default: "GitHub 仓库（org/repo）" }
 
       # 🧩 选填参数
@@ -40,16 +40,16 @@ Parameters:
     Type: String
     Description: '服务名（= ServiceBase，例如 demo-user-rpc）'
 
-  SdRegistryArn:
+  SdRegistryId:
     Type: String
-    Description: 'Cloud Map Service ARN（例如 arn:aws:servicediscovery:…:service/srv-xxxx）'
+    Description: 'Cloud Map Service ID（例如 srv-xxxx）'
 
   RepoName:
     Type: String
     Description: 'GitHub 仓库全名（org/repo）'
 
   # =========================================================
-  # 🧩 选填参数（有默认值，可覆盖）
+  # 🧩 选填参数（默认值，可覆盖）
   # =========================================================
 
   # --- 源码与模板 ---
@@ -62,6 +62,9 @@ Parameters:
     Default: "."
     Description: '模块路径，如 services/demo-user-rpc'
 
+  # =========================================================
+  # 🧩 未开放参数（默认值，不可覆盖）
+  # =========================================================
   # --- 源码来源（GitHub via CodeStar Connections）---
   ConnectionArn:
     Type: String
@@ -72,6 +75,21 @@ Parameters:
     Type: String
     Default: 'codepipeline-us-east-1-3622cd43956e-4d23-9284-a18746ff6c07'
     Description: '存放Pipeline Artifacts的S3桶名'
+
+  TemplatePath:
+    Type: String
+    Default: 'ci/ecs-service-deploy.yaml'
+    Description: 'ECS 部署模板路径'
+
+  BuildSpec:
+    Type: String
+    Default: 'ci/buildspec.yaml'
+    Description: 'CodeBuild构建文件路径'
+
+  ContainerImage:
+    Type: String
+    Default: 'aws/codebuild/standard:7.0'
+    Description: '容器镜像'
 
   # --- 固定角色 ---
   CloudFormationDeployRoleArn:
@@ -102,19 +120,16 @@ Resources:
         Type: CODEPIPELINE
       Environment:
         Type: LINUX_CONTAINER
-        Image: 'aws/codebuild/standard:7.0'
+        Image: !Ref ContainerImage
         ComputeType: BUILD_GENERAL1_SMALL
         PrivilegedMode: true
         EnvironmentVariables:
-          - Name: ECR_REPO_URI
-            Type: PLAINTEXT
-            Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ServiceName}'
           - Name: MODULE_PATH
             Type: PLAINTEXT
             Value: !Ref ModulePath
       Source:
         Type: CODEPIPELINE
-        BuildSpec: 'ci/buildspec.yaml'
+        BuildSpec: !Ref BuildSpec
       TimeoutInMinutes: 60
 
   Pipeline:
@@ -177,7 +192,7 @@ Resources:
               Configuration:
                 ActionMode: CREATE_UPDATE
                 StackName: !Sub '${ServiceName}-#{variables.LANE}'
-                TemplatePath: !Sub 'SourceOut::ci/ecs-service-deploy.yaml'
+                TemplatePath: !Sub 'SourceOut::${TemplatePath}'
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn
                 Capabilities: 'CAPABILITY_IAM,CAPABILITY_NAMED_IAM'
@@ -185,7 +200,7 @@ Resources:
                   {
                     "ServiceBase": "${ServiceName}",
                     "Lane": "#{variables.LANE}",
-                    "SdRegistryArn": "${SdRegistryArn}"
+                    "SdRegistryId": "${SdRegistryId}"
                   }
       RestartExecutionOnUpdate: true
 
