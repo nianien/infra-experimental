@@ -8,7 +8,6 @@ Metadata:
         Parameters:
           - PipelineName
           - ServiceName
-          - SdServiceId
           - RepoName
       - Label: { default: "🧩 选填参数（有默认值，可覆盖）" }
         Parameters:
@@ -21,7 +20,6 @@ Metadata:
       # ✅ 必填参数
       PipelineName: { default: "Pipeline 名称（CI/CD 流水线标识）" }
       ServiceName: { default: "服务名（ServiceBase，例如 demo-user-rpc）" }
-      SdServiceId: { default: "Cloud Map Service ID（服务注册标识）" }
       RepoName: { default: "GitHub 仓库（org/repo）" }
 
       # 🧩 选填参数
@@ -45,10 +43,6 @@ Parameters:
   ServiceName:
     Type: String
     Description: '服务名（= ServiceBase，例如 demo-user-rpc）'
-
-  SdServiceId:
-    Type: String
-    Description: 'Cloud Map Service ID（如 srv-xxxxxx）'
 
   RepoName:
     Type: String
@@ -202,19 +196,14 @@ Resources:
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn
                 Capabilities: 'CAPABILITY_IAM,CAPABILITY_NAMED_IAM'
-                ParameterOverrides:
-                  !Sub
-                  - |
-                    {
-                      "ServiceBase": "${ServiceName}",
-                      "WebPort": "${WebPort}",
-                      "RpcPort": "${RpcPort}",
-                      "SdRegistryArn": "${SdArnResolved}",
-                      "Lane": "#{variables.LANE}",
-                      "DesiredCount": "#{variables.DESIRED_COUNT}"
-                    }
-                  - { SdArnResolved: !Sub 'arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdServiceId}' }
-
+                ParameterOverrides: !Sub |
+                  {
+                    "ServiceBase": "${ServiceName}",
+                    "WebPort": "${WebPort}",
+                    "RpcPort": "${RpcPort}",
+                    "Lane": "#{variables.LANE}",
+                    "DesiredCount": "#{variables.DESIRED_COUNT}"
+                  }
       RestartExecutionOnUpdate: true
 
 Outputs:
