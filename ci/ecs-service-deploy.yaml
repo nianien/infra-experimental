@@ -161,7 +161,7 @@ Resources:
           SecurityGroups: !Ref SecurityGroups
           AssignPublicIp: !Ref AssignPublicIp
       ServiceRegistries:
-        - RegistryId: !Ref RegistryId
+        - RegistryArn: !Ref SdRegistryArn
           ContainerName: !Ref ServiceBase
           ContainerPort: !Ref RpcPort
       EnableECSManagedTags: true
