@@ -130,9 +130,6 @@ Resources:
           - Name: SERVICE_NAME
             Type: PLAINTEXT
             Value: !Ref ServiceName
-          - Name: BRANCH
-            Type: PLAINTEXT
-            Value: !Ref
       Source:
         Type: CODEPIPELINE
         BuildSpec: !Ref BuildSpec
