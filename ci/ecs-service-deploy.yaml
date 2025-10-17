@@ -90,11 +90,9 @@ Parameters:
 # ---------------- 条件定义 ----------------
 Conditions:
   LaneIsDefault: !Equals [ !Ref Lane, 'default' ]
-  LaneIsDash: !Equals [ !Ref Lane, '-' ]
   LaneIsEmpty: !Equals [ !Ref Lane, '' ]
-  LaneShouldBeDefault: !Or
+  LaneAsDefault: !Or
     - !Condition LaneIsDefault
-    - !Condition LaneIsDash
     - !Condition LaneIsEmpty
 
 # ================= 资源定义 =================
@@ -135,7 +133,7 @@ Resources:
             Options:
               awslogs-group: !Sub '/ecs/${ServiceBase}'
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: !If [ LaneShouldBeDefault, 'default', !Ref Lane ]
+              awslogs-stream-prefix: !If [ LaneAsDefault, 'default', !Ref Lane ]
 
   # --- Cloud Map 服务注册 ---
   RpcDiscoveryService:
@@ -156,7 +154,7 @@ Resources:
     Type: AWS::ECS::Service
     Properties:
       ServiceName: !If
-        - LaneShouldBeDefault
+        - LaneAsDefault
         - !Sub '${ServiceBase}-default'
         - !Sub '${ServiceBase}-${Lane}'
       Cluster: !Ref ClusterName
@@ -184,7 +182,7 @@ Resources:
       DeploymentController:
         Type: ECS
       Tags: !If
-        - LaneShouldBeDefault
+        - LaneAsDefault
         - !Ref 'AWS::NoValue'
         - - Key: Lane
             Value: !Ref Lane
