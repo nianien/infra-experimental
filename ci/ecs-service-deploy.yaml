@@ -91,15 +91,11 @@ Parameters:
 Conditions:
   LaneIsDefault: !Equals [ !Ref Lane, 'default' ]
   LaneIsDash: !Equals [ !Ref Lane, '-' ]
-  LaneIsNone: !Equals [ !Ref Lane, 'none' ]
   LaneIsEmpty: !Equals [ !Ref Lane, '' ]
-  LaneIsNull: !Equals [ !Ref Lane, 'null' ]
   LaneShouldBeDefault: !Or
     - !Condition LaneIsDefault
     - !Condition LaneIsDash
-    - !Condition LaneIsNone
     - !Condition LaneIsEmpty
-    - !Condition LaneIsNull
 
 # ================= 资源定义 =================
 Resources:

@@ -31,21 +31,24 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo|--repo-name)         REPO_NAME="$2"; shift 2 ;;
     --service)                  SERVICE_NAME="$2"; shift 2 ;;
-    --sd-id)                    SD_ID="$2"; shift 2 ;;
     --pipeline)                 PIPELINE_NAME="$2"; shift 2 ;;
     --branch)                   BRANCH_NAME="$2"; shift 2 ;;
     --module)                   MODULE_PATH="$2"; shift 2 ;;
     -h|--help)
       echo "Usage: $0 --repo <org/repo> --service <name> --sd-id <srv-xxx> [--pipeline <name>] [--branch <name>] [--module <path>] [--validate]"
       exit 0 ;;
-    *) echo "Unknown arg: $1"; exit 1 ;;
+    --*) # 未知的选项（带 -- 前缀）
+      echo "忽略未知参数: $1"
+      shift 2 || shift 1 ;;   # 如果后面有值则跳过2个，否则跳过1个
+      *)
+      echo "忽略无效参数: $1"
+      shift ;;
   esac
 done
 
 # ---------------- 必填校验 & 默认派生 ----------------
 [[ -z "$REPO_NAME" ]]    && { echo "❌ 缺少 --repo"; exit 1; }
 [[ -z "$SERVICE_NAME" ]] && { echo "❌ 缺少 --service"; exit 1; }
-[[ -z "$SD_ID" ]]        && { echo "❌ 缺少 --sd-id"; exit 1; }
 
 if [[ -z "$PIPELINE_NAME" ]]; then
   PIPELINE_NAME="deploy-${SERVICE_NAME}"
@@ -127,7 +130,6 @@ fi
 PARAMS=(
   "PipelineName=${PIPELINE_NAME}"
   "ServiceName=${SERVICE_NAME}"
-  "SdServiceId=${SD_ID}"
   "RepoName=${REPO_NAME}"
   "BranchName=${BRANCH_NAME}"
   "ModulePath=${MODULE_PATH}"
