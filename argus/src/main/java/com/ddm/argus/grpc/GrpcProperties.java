@@ -27,7 +27,7 @@ public class GrpcProperties {
          * 名称解析刷新间隔（如 10s、500ms、1m）
          */
         @DurationUnit(ChronoUnit.SECONDS)
-        private Duration refreshInterval = Duration.ofSeconds(10);
+        private Duration refreshInterval = Duration.ofSeconds(30);
 
         public Duration getRefreshInterval() {
             return refreshInterval;

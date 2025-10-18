@@ -167,7 +167,7 @@ public final class CloudMapNameResolver extends NameResolver {
 
     // instance attributes -> EAG
     private EquivalentAddressGroup toEag(HttpInstanceSummary instance) {
-        log.info("==>[argus] Discover Instance, id={}, attributes={}", instance.instanceId(), instance.attributes());
+        log.debug("==>[argus] Discover Instance, id={}, attributes={}", instance.instanceId(), instance.attributes());
         Map<String, String> attr = instance.attributes();
         String ip = CommonUtils.firstNonBlank(attr.get(CM_ATTR_IPV4), attr.get(CM_ATTR_IPV4_FALLBACK));
         if (CommonUtils.isBlank(ip)) return null;
