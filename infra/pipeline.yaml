@@ -1,21 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'ECS deployment pipeline (GitHub → CodeBuild → CloudFormation → ECS)'
 
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label: { default: "Required Parameters" }
-        Parameters:
-          - PipelineName
-          - ServiceName
-          - SdRegistryId
-          - RepoName
-          - AppEnv
-      - Label: { default: "Optional Parameters" }
-        Parameters:
-          - BranchName
-          - ModulePath
-
 Parameters:
 
   # =========================================================
@@ -57,7 +42,6 @@ Parameters:
       Type: String
       Default: '.'
       Description: 'Module path (relative to project root)'
-
 
     ConnectionArn:
       Type: String
