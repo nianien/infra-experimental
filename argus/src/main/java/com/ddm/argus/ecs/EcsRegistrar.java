@@ -1,17 +1,21 @@
 package com.ddm.argus.ecs;
 
+import com.ddm.argus.utils.EcsUtils;
+import com.ddm.argus.utils.EcsUtils.HostPort;
 import com.ddm.argus.utils.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.ecs.model.Service;
-import software.amazon.awssdk.services.ecs.model.ServiceRegistry;
+import software.amazon.awssdk.services.ecs.EcsClient;
+import software.amazon.awssdk.services.ecs.model.*;
 import software.amazon.awssdk.services.servicediscovery.model.RegisterInstanceRequest;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 应用启动完成后，将当前任务实例注册到 AWS Cloud Map。
@@ -29,29 +33,19 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
-        if (ins.getClusterArn() == null || ins.getTaskArn() == null ||
-                ins.getServiceName() == null || ins.getContainerName() == null ||
-                ins.getContainerPort() == null || ins.getRegionId() == null ||
-                ins.getLane() == null || ins.getLane().isBlank()) {
+        if (ins.clusterArn() == null || ins.taskArn() == null ||
+                ins.serviceName() == null || ins.containerName() == null ||
+                ins.containerPort() == null || ins.regionId() == null ||
+                ins.lane() == null || ins.lane().isBlank()) {
             log.info("==>[argus] LaneRegistrar: incomplete ecs.instance or missing lane, skip registration.");
             return;
         }
 
-        var region = Region.of(ins.getRegionId());
+        var region = Region.of(ins.regionId());
         try (var ecs = EcsUtils.ecs(region);
              var sd = EcsUtils.serviceDiscovery(region)) {
 
-            String ip = Retry.get(
-                    () -> EcsUtils.getPrivateIp(ecs, ins.getClusterArn(), ins.getTaskArn(), ins.getContainerName()).orElse(null),
-                    v -> v != null && !v.isBlank(),
-                    30, 1000
-            );
-            if (ip == null) {
-                log.warn("==>[argus] LaneRegistrar: cannot get private IP. Skip.");
-                return;
-            }
-
-            Service svc = EcsUtils.getService(ecs, ins.getClusterArn(), ins.getServiceName()).orElse(null);
+            Service svc = EcsUtils.getService(ecs, ins.clusterArn(), ins.serviceName()).orElse(null);
             if (svc == null) {
                 log.warn("==>[argus] LaneRegistrar: service not found. Skip.");
                 return;
@@ -68,14 +62,14 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
             String serviceId = registryArn.substring(registryArn.lastIndexOf('/') + 1);
 
             Map<String, String> attrs = new LinkedHashMap<>();
-            attrs.put(EcsConstants.CM_ATTR_IPV4, ip);
-            attrs.put(EcsConstants.CM_ATTR_PORT, String.valueOf(ins.getContainerPort()));
-            attrs.put(EcsConstants.CM_ATTR_LANE, ins.getLane());
+            attrs.put(EcsConstants.CM_ATTR_IPV4, ins.containerHost());
+            attrs.put(EcsConstants.CM_ATTR_PORT, String.valueOf(ins.containerPort()));
+            attrs.put(EcsConstants.CM_ATTR_LANE, ins.lane());
 
             var resp = Retry.get(
                     () -> sd.registerInstance(RegisterInstanceRequest.builder()
                             .serviceId(serviceId)
-                            .instanceId(ins.getTaskId())
+                            .instanceId(ins.taskId())
                             .attributes(attrs)
                             .build()),
                     r -> r != null && r.sdkHttpResponse().isSuccessful(),
@@ -88,9 +82,12 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
             }
 
             log.info("==>[argus] LaneRegistrar OK. serviceId={}, instanceId={}, ip={}, port={}, lane={}, region={}",
-                    serviceId, ins.getTaskId(), ip, ins.getContainerPort(), ins.getLane(), region.id());
+                    serviceId, ins.taskId(), ins.containerHost(), ins.containerPort(), ins.lane(), region.id());
         } catch (Exception e) {
             log.warn("==>[argus] LaneRegistrar failed: {}", e.getMessage(), e);
         }
     }
+
+
+
 }

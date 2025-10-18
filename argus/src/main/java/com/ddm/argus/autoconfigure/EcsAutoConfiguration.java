@@ -33,7 +33,7 @@ public class EcsAutoConfiguration {
     @Bean
     public CloudMapNameResolverProvider cloudMapNameResolverProvider(
             GrpcProperties resolverProps, EcsInstanceProperties ecsProps) {
-        var nrp = new CloudMapNameResolverProvider(ecsProps.getRegionId(), resolverProps.getResolver().getRefreshInterval());
+        var nrp = new CloudMapNameResolverProvider(ecsProps.regionId(), resolverProps.getResolver().getRefreshInterval());
         NameResolverRegistry.getDefaultRegistry().register(nrp);
         log.info("==>[Argus] Registered CloudMap NameResolverProvider: scheme=cloud");
         return nrp;

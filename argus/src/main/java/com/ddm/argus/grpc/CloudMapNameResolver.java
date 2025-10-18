@@ -1,5 +1,6 @@
 package com.ddm.argus.grpc;
 
+import com.ddm.argus.utils.EcsUtils.HostPort;
 import com.ddm.argus.utils.CommonUtils;
 import io.grpc.Attributes;
 import io.grpc.EquivalentAddressGroup;
@@ -56,8 +57,8 @@ public final class CloudMapNameResolver extends NameResolver {
         this.args = Objects.requireNonNull(args, "args required");
 
         HostPort hp = parseHostPort(hostPort);
-        this.targetPort = hp.port;
-        String host = hp.host;
+        this.targetPort = hp.port();
+        String host = hp.host();
 
         int dot = host.indexOf('.');
         if (dot <= 0 || dot == host.length() - 1) {
@@ -287,14 +288,5 @@ public final class CloudMapNameResolver extends NameResolver {
         return h;
     }
 
-    // --------- small DTO ---------
-    private static final class HostPort {
-        final String host;
-        final Integer port;
 
-        HostPort(String host, Integer port) {
-            this.host = host;
-            this.port = port;
-        }
-    }
 }

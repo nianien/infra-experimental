@@ -28,6 +28,7 @@ public final class EcsConstants {
     public static final String PROP_TASK_DEF_ARN = PROP_PREFIX + "task-def-arn";
     public static final String PROP_CONTAINER_NAME = PROP_PREFIX + "container-name";
     public static final String PROP_CONTAINER_PORT = PROP_PREFIX + "container-port";
+    public static final String PROP_CONTAINER_HOST = PROP_PREFIX + "container-host";
     public static final String PROP_LANE = PROP_PREFIX + "lane";
     public static final String PROP_PROFILES = PROP_PREFIX + "profiles";
 

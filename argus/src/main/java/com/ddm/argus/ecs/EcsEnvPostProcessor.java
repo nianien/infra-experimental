@@ -1,7 +1,6 @@
 package com.ddm.argus.ecs;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.logging.Log;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
@@ -15,11 +14,13 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.*;
 
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.*;
+
+import static com.ddm.argus.utils.CommonUtils.*;
+import static com.ddm.argus.utils.EcsUtils.*;
+import static com.ddm.argus.utils.JsonUtils.httpJson;
+import static com.ddm.argus.utils.JsonUtils.text;
 
 /**
  * 启动早期（EnvironmentPostProcessor）注入 ECS 任务元数据：
@@ -27,7 +28,8 @@ import java.util.*;
  */
 public class EcsEnvPostProcessor implements EnvironmentPostProcessor, Ordered {
 
-    private static final ObjectMapper M = new ObjectMapper();
+    private record SelfContainerMeta(String name, String privateIp) {
+    }
 
     private final Log log;
 
@@ -43,7 +45,7 @@ public class EcsEnvPostProcessor implements EnvironmentPostProcessor, Ordered {
             return;
         }
         try {
-            // 1) /task → clusterArn, taskArn
+            // ---------- 0) 先拿最基础的 metadata ----------
             final HttpClient http = HttpClient.newBuilder().connectTimeout(EcsConstants.HTTP_TIMEOUT).build();
             final JsonNode taskMeta = httpJson(http, metaBase + "/task");
             final String clusterArn = text(taskMeta, EcsConstants.META_FIELD_CLUSTER);
@@ -55,43 +57,48 @@ public class EcsEnvPostProcessor implements EnvironmentPostProcessor, Ordered {
             final String taskId = taskArn.substring(taskArn.lastIndexOf('/') + 1);
             final Region region = regionFromArn(clusterArn);
 
-            String serviceName = null, serviceArn = null, taskDefArn = null, containerName = null, lane = null;
-            Integer containerPort = null;
+            // 自身容器（可能拿不到）
+            final SelfContainerMeta self = fetchSelfContainerMeta(http, metaBase);
+            final String selfContainerNameFromMeta = self.name();
+            String privateIp = self.privateIp();
+
+            // ---------- 1) 一次性把 ECS 三件套取齐 ----------
+            Task task = null;
+            Service svc = null;
+            TaskDefinition td = null;
             List<Tag> tags = List.of();
 
-            // 2) ECS SDK 预取
-            final ClientOverrideConfiguration cfg = ClientOverrideConfiguration.builder().apiCallTimeout(EcsConstants.SDK_TIMEOUT).build();
+            final ClientOverrideConfiguration cfg =
+                    ClientOverrideConfiguration.builder().apiCallTimeout(EcsConstants.SDK_TIMEOUT).build();
+            try (EcsClient ecs = EcsClient.builder()
+                    .region(region)
+                    .credentialsProvider(DefaultCredentialsProvider.create())
+                    .overrideConfiguration(cfg)
+                    .build()) {
 
-            try (EcsClient ecs = EcsClient.builder().region(region).credentialsProvider(DefaultCredentialsProvider.create()).overrideConfiguration(cfg).build()) {
+                task = fetchTask(ecs, clusterArn, taskArn);
 
-                final Task task = ecs.describeTasks(DescribeTasksRequest.builder().cluster(clusterArn).tasks(taskArn).build()).tasks().stream().findFirst().orElse(null);
+                // metadata 没拿到 IP，则从 task 兜底
+                if (isBlank(privateIp) && task != null) {
+                    privateIp = ipFromTask(task, selfContainerNameFromMeta);
+                }
 
+                // 只有 Service 任务才继续
                 if (task != null && notBlank(task.group()) && task.group().startsWith("service:")) {
-                    serviceName = task.group().substring("service:".length());
-                    taskDefArn = task.taskDefinitionArn();
-
-                    final Service svc = ecs.describeServices(DescribeServicesRequest.builder().cluster(clusterArn).services(serviceName).build()).services().stream().findFirst().orElse(null);
-
+                    String serviceName = task.group().substring("service:".length());
+                    svc = fetchService(ecs, clusterArn, serviceName);
                     if (svc != null) {
-                        serviceArn = svc.serviceArn();
                         try {
-                            tags = ecs.listTagsForResource(ListTagsForResourceRequest.builder().resourceArn(serviceArn).build()).tags();
-                        } catch (Exception ignore) {
-                            // ignore tag fetch failure
-                        }
+                            tags = ecs.listTagsForResource(
+                                    ListTagsForResourceRequest.builder().resourceArn(svc.serviceArn()).build()
+                            ).tags();
+                        } catch (Exception ignore) { /* ignore */ }
                     }
-
+                    // Task Definition
+                    final String taskDefArn = task.taskDefinitionArn();
                     if (notBlank(taskDefArn)) {
-                        final TaskDefinition td = ecs.describeTaskDefinition(DescribeTaskDefinitionRequest.builder().taskDefinition(taskDefArn).build()).taskDefinition();
-
-                        final ContainerDefinition appC = (td == null) ? null : td.containerDefinitions().stream().filter(cd -> cd.portMappings() != null && !cd.portMappings().isEmpty()).findFirst().orElse(null);
-
-                        if (appC != null) {
-                            containerName = appC.name();
-                            containerPort = appC.portMappings().get(0).containerPort();
-                        }
+                        td = fetchTaskDefinition(ecs, taskDefArn);
                     }
-                    lane = firstTagIgnoreCase(tags, EcsConstants.TAG_LANE).orElse(null);
                 } else {
                     log.warn("==>[argus] not a service task. group=" + (task == null ? null : task.group()));
                 }
@@ -99,7 +106,20 @@ public class EcsEnvPostProcessor implements EnvironmentPostProcessor, Ordered {
                 log.warn("==>[argus] ECS SDK prefetch failed (ignored): " + e1);
             }
 
-            // 3) 注入 ecs.instance.* 属性（仅放非空值）
+            // ---------- 2) 统一解析（在内存里"算"） ----------
+            final String serviceName = (svc != null) ? svc.serviceName() : null;
+            final String serviceArn = (svc != null) ? svc.serviceArn() : null;
+            final String taskDefArn = (task != null) ? task.taskDefinitionArn() : null;
+
+            // 容器名和端口：先选容器，再分别取名称和端口
+            final ContainerDefinition appC = pickContainer(td, selfContainerNameFromMeta);
+            final String containerName = resolveContainerName(appC);
+            final Integer containerPort = resolveContainerPort(appC);
+
+            // lane（与 profile）：从 tag 里拿
+            final String lane = firstIgnoreCase(tags, EcsConstants.TAG_LANE).orElse(null);
+
+            // ---------- 3) 注入属性 ----------
             final Map<String, Object> kv = new LinkedHashMap<>();
             kv.put(EcsConstants.PROP_CLUSTER_ARN, clusterArn);
             kv.put(EcsConstants.PROP_TASK_ARN, taskArn);
@@ -111,71 +131,54 @@ public class EcsEnvPostProcessor implements EnvironmentPostProcessor, Ordered {
             putIfNotNull(kv, EcsConstants.PROP_TASK_DEF_ARN, taskDefArn);
             putIfNotNull(kv, EcsConstants.PROP_CONTAINER_NAME, containerName);
             putIfNotNull(kv, EcsConstants.PROP_CONTAINER_PORT, containerPort);
+            putIfNotNull(kv, EcsConstants.PROP_CONTAINER_HOST, privateIp);
             putIfNotNull(kv, EcsConstants.PROP_LANE, lane);
             env.getPropertySources().addFirst(new MapPropertySource(EcsConstants.PS_ECS_INSTANCE, kv));
 
-            // 4) 仅使用 tag "profile" 激活 profiles
-            String activeFromEnv = env.getProperty("spring.profiles.active");
-            List<String> profiles = new ArrayList<>(parseProfiles(activeFromEnv));
-            String profilesRaw = firstTagIgnoreCase(tags, EcsConstants.TAG_PROFILE).orElse(null);
-            profiles.addAll(parseProfiles(profilesRaw));
+            // 仅用 tag:profile 激活
+            final String activeFromEnv = env.getProperty("spring.profiles.active");
+            final List<String> profiles = new ArrayList<>(splitToUniqueList(activeFromEnv));
+            final String profilesRaw = firstIgnoreCase(tags, EcsConstants.TAG_PROFILE).orElse(null);
+            profiles.addAll(splitToUniqueList(profilesRaw));
             if (!profiles.isEmpty()) {
                 activateProfiles(env, profiles);
                 kv.put(EcsConstants.PROP_PROFILES, String.join(",", profiles));
             }
-            log.info(String.format("==>[argus] ecs.instance injected: region=%s, service=%s, container=%s:%s, lane='%s', profiles=%s", region.id(), serviceName, containerName, containerPort, lane, profiles));
+
+            log.info(String.format(
+                    "==>[argus] ecs.instance injected: region=%s, service=%s, container=%s:%s, lane='%s', profiles=%s",
+                    region.id(), serviceName, containerName, containerPort, lane, profiles));
 
         } catch (Exception e) {
             log.warn("==>[argus] ecs.instance inject failed: " + e.getMessage(), e);
         }
     }
 
+
+    /**
+     * 从 ECS metadata v4 的 /container 拉取“当前容器名”，失败则返回 null。
+     */
+    private static SelfContainerMeta fetchSelfContainerMeta(HttpClient http, String metaBase) {
+        try {
+            JsonNode c = httpJson(http, metaBase + "/container");
+            String name = text(c, "Name");
+            String ip = Optional.ofNullable(c.path("Networks"))
+                    .filter(JsonNode::isArray).map(n -> n.size() > 0 ? n.get(0) : null)
+                    .map(n0 -> n0.path("IPv4Addresses"))
+                    .filter(JsonNode::isArray).map(n -> n.size() > 0 ? n.get(0).asText(null) : null)
+                    .orElse(null);
+            return new SelfContainerMeta(name, ip);
+        } catch (Exception ignore) {
+            return new SelfContainerMeta(null, null);
+        }
+    }
+
+
+    // ========================= Spring 顺序 =========================
+
     @Override
     public int getOrder() {
         return Ordered.HIGHEST_PRECEDENCE + 10;
-    }
-
-    // ===== helpers =====
-
-    private static JsonNode httpJson(HttpClient http, String url) throws Exception {
-        final HttpRequest req = HttpRequest.newBuilder(URI.create(url)).timeout(EcsConstants.HTTP_TIMEOUT).GET().build();
-        final HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
-        return M.readTree(res.body());
-    }
-
-    private static String text(JsonNode root, String field) {
-        if (root == null) return null;
-        final JsonNode n = root.path(field);
-        return n.isMissingNode() ? null : n.asText();
-    }
-
-    private static Region regionFromArn(String arn) {
-        final String[] p = arn.split(":");
-        if (p.length > 3 && notBlank(p[3])) return Region.of(p[3]);
-        throw new IllegalStateException("Cannot parse region from ARN: " + arn);
-    }
-
-
-    private static void putIfNotNull(Map<String, Object> m, String k, Object v) {
-        if (v == null) return;
-        if (v instanceof String s && s.isBlank()) return;
-        m.put(k, v);
-    }
-
-    private static Optional<String> firstTagIgnoreCase(List<Tag> tags, String key) {
-        if (tags == null || key == null) return Optional.empty();
-        for (Tag t : tags) {
-            if (t.key() != null && t.key().equalsIgnoreCase(key)) {
-                final String v = t.value();
-                if (notBlank(v)) return Optional.of(v);
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static List<String> parseProfiles(String raw) {
-        if (isBlank(raw)) return List.of();
-        return Arrays.stream(raw.split(",")).map(String::trim).filter(EcsEnvPostProcessor::notBlank).distinct().toList();
     }
 
     private void activateProfiles(ConfigurableEnvironment env, List<String> profiles) {
@@ -186,11 +189,5 @@ public class EcsEnvPostProcessor implements EnvironmentPostProcessor, Ordered {
         log.info("==>[argus] Activated profiles from ECS tags: " + profiles);
     }
 
-    private static boolean isBlank(String s) {
-        return s == null || s.isBlank();
-    }
 
-    private static boolean notBlank(String s) {
-        return !isBlank(s);
-    }
 }

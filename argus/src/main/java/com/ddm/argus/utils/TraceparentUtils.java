@@ -51,7 +51,7 @@ public final class TraceparentUtils {
         if (tp.isEmpty()) return null;
 
         // 格式：version-traceId-parentId-flags
-        String[] parts = tp.split("-");
+        String[] parts = tp.split("-", 4);
         if (parts.length != 4) return null;
 
         String ver = parts[0];
@@ -71,8 +71,8 @@ public final class TraceparentUtils {
      * 格式化 W3C traceparent：version 固定 "00"。
      */
     public static String formatTraceparent(String traceId, String spanId, String flags) {
-        String f = (flags == null || !isValidFlags(flags)) ? DEFAULT_FLAGS : flags;
-        return "00-" + traceId + "-" + spanId + "-" + f;
+        String f = (flags == null || !isValidFlags(flags)) ? DEFAULT_FLAGS : flags.toLowerCase();
+        return "00-" + traceId.toLowerCase() + "-" + spanId.toLowerCase() + "-" + f;
     }
 
     /**
@@ -123,18 +123,7 @@ public final class TraceparentUtils {
             return java.util.Collections.emptyMap();
         }
 
-        Map<String, String> map = new LinkedHashMap<>();
-        for (String kv : targetValue.split(";")) {
-            String s = kv.trim();
-            if (s.isEmpty()) continue;
-            int c = s.indexOf(':');
-            if (c <= 0) continue;
-            String k = s.substring(0, c).trim();
-            String val = s.substring(c + 1).trim();
-            if (!k.isEmpty() && !val.isEmpty()) {
-                map.put(k, val);
-            }
-        }
+        Map<String, String> map = parseVendorValue(targetValue);
         return java.util.Collections.unmodifiableMap(map);
     }
 
@@ -200,7 +189,9 @@ public final class TraceparentUtils {
                 String v = m.substring(0, eq).trim();
                 String val = m.substring(eq + 1).trim();
                 if (vendor.equals(v)) {
-                    existingValue = val;        // 只记第一个同名 vendor（规范上不应重复）
+                    if (existingValue == null) { // 只记第一个
+                        existingValue = val;
+                    }
                 } else {
                     others.add(m);              // 其它 vendor 原样放回
                 }
@@ -208,20 +199,7 @@ public final class TraceparentUtils {
         }
 
         // 4) 解析既有 vendor 的 key:value
-        Map<String, String> map = new LinkedHashMap<>();
-        if (existingValue != null && !existingValue.isBlank()) {
-            for (String kv : existingValue.split(";")) {
-                String s = kv.trim();
-                if (s.isEmpty()) continue;
-                int c = s.indexOf(':');
-                if (c <= 0) continue;
-                String k = s.substring(0, c).trim();
-                String v = s.substring(c + 1).trim();
-                if (!k.isEmpty() && !v.isEmpty()) {
-                    map.put(k, v);
-                }
-            }
-        }
+        Map<String, String> map = parseVendorValue(existingValue);
 
         // 5) 应用更新：空值/空串 => 删除；否则 upsert
         for (Map.Entry<String, String> e : updates.entrySet()) {
@@ -236,13 +214,13 @@ public final class TraceparentUtils {
         }
 
         // 6) 组装：目标 vendor 放最前；若目标 vendor 为空则不写入
-        String vendorValue = CommonUtils.joinKv(map); // 形如 "lane:blue;env:prod"
+        String vendorValue = joinKv(map); // 形如 "lane:blue;env:prod"
         List<String> result = new ArrayList<>(1 + others.size());
         if (!vendorValue.isBlank()) {
             result.add(vendor + "=" + vendorValue);
         }
         result.addAll(others);
-        return String.join(", ", result);
+        return String.join(",", result);
     }
 
     /**
@@ -256,6 +234,63 @@ public final class TraceparentUtils {
     /* -------------------------------------------------------
      * Internals / validation
      * ------------------------------------------------------- */
+
+    /**
+     * 将 Map 以 "k:v;k2:v2" 形式拼接。
+     * - 忽略 null/空键或 null/空值
+     * - 过滤值中的非法字符（W3C tracestate 不支持转义）
+     */
+    private static String joinKv(Map<String, String> map) {
+        if (map == null || map.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (var e : map.entrySet()) {
+            String k = e.getKey();
+            String v = e.getValue();
+            if (k == null || k.isBlank() || v == null || v.isBlank()) continue;
+            if (!first) sb.append(';');
+            sb.append(k.trim()).append(':').append(sanitizeVendorValue(v));
+            first = false;
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 解析 vendor value 字符串为 key:value 映射。
+     * 格式：key1:value1;key2:value2;key3:value3
+     * 
+     * @param value vendor value 字符串，可为 null/空
+     * @return 解析后的映射，按出现顺序保留
+     */
+    private static Map<String, String> parseVendorValue(String value) {
+        Map<String, String> map = new LinkedHashMap<>();
+        if (value == null || value.isBlank()) return map;
+
+        for (String kv : value.split(";")) {
+            String s = kv.trim();
+            if (s.isEmpty()) continue;
+            int c = s.indexOf(':');
+            if (c <= 0) continue;
+            String k = s.substring(0, c).trim();
+            String v = s.substring(c + 1).trim();
+            if (!k.isEmpty() && !v.isEmpty()) {
+                map.put(k, v);
+            }
+        }
+        return map;
+    }
+
+    /**
+     * 清理 vendor value 中的非法字符。
+     * W3C Trace Context 规范：值中不能包含 , = 字符，不支持转义。
+     * 将非法字符替换为下划线。
+     */
+    private static String sanitizeVendorValue(String v) {
+        if (v == null) return "";
+        String s = v.trim();
+        // 删除不允许出现的字符: , = （; : 作为 vendor 内部分隔符保留）
+        return s.replaceAll("[,=]", "_");
+    }
 
     private static boolean isValidVersion(String v) {
         // W3C 目前版本 00；但为了前向兼容，仅校验为2位hex
