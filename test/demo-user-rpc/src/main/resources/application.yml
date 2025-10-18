@@ -1,8 +1,6 @@
 spring:
   application:
     name: user-service
-  profiles:
-    active: ${APP_ENV:default}
 
 # gRPC 服务端配置 - UserService 端口 (下游服务)
 grpc:

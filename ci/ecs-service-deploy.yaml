@@ -125,14 +125,14 @@ Resources:
               Protocol: tcp
               AppProtocol: grpc
           Environment:
-            - Name: WEB_SERVER_PORT
-              Value: !Ref WebServerPort
-            - Name: RPC_SERVER_PORT
-              Value: !Ref RpcServerPort
             - Name: APP_ENV
               Value: !Ref AppEnv
             - Name: SPRING_PROFILES_ACTIVE
               Value: !Ref AppEnv
+            - Name: WEB_SERVER_PORT
+              Value: !Ref WebServerPort
+            - Name: RPC_SERVER_PORT
+              Value: !Ref RpcServerPort
           LogConfiguration:
             LogDriver: awslogs
             Options:
