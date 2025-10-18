@@ -95,7 +95,6 @@ Conditions:
 
 Resources:
 
-  # --- ECS 任务定义 ---
   TaskDef:
     Type: AWS::ECS::TaskDefinition
     Properties:
