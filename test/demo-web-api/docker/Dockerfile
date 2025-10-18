@@ -9,7 +9,7 @@ RUN addgroup -S app && adduser -S app -G app
 # 通过构建参数精确指定要复制的 JAR
 # 构建时可传 --build-arg JAR_FILE=target/demo-web-*.jar
 ARG JAR_FILE=target/*.jar
-COPY --chown=app:app ${JAR_FILE} /app/app.jar
+COPY ${JAR_FILE} /app/app.jar
 
 # JDK21 已默认容器感知，无需 UseContainerSupport
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"

@@ -39,6 +39,6 @@ spring:
 grpc:
   client:
     user-service:
-      address: "cloud:///user.test.local"
+      address: "cloud:///demo-user-rpc.test.local"
     order-service:
-      address: "cloud:///order.test.local"
+      address: "cloud:///demo-order-rpc.test.local"

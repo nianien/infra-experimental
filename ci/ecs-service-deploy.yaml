@@ -41,7 +41,7 @@ Parameters:
 
   WebPort:
     Type: Number
-    Default: 80
+    Default: 8080
     Description: 'Web 服务端口'
 
   RpcPort:

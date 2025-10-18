@@ -35,4 +35,4 @@ grpc:
   client:
     user-service:
       # 部署在 ECS/Cloud Map 的地址
-      address: "cloud:///user.test.local"
+      address: "cloud:///demo-user-rpc.test.local"
