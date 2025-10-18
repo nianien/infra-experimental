@@ -173,7 +173,7 @@ public final class CloudMapNameResolver extends NameResolver {
         if (CommonUtils.isBlank(ip)) return null;
         int port = targetPort;
         // 端口优先级：GRPC_PORT> host:port
-        String grpcPort = (attr != null) ? attr.get(CM_ATTR_GRPC_PORT) : null;
+        String grpcPort = (attr != null) ? attr.get(CM_ATTR_PORT) : null;
         if (notBlank(grpcPort)) {
             try {
                 port = Integer.parseInt(grpcPort.trim());

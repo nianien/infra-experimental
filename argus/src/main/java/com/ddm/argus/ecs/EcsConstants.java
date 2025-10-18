@@ -3,6 +3,9 @@ package com.ddm.argus.ecs;
 
 import java.time.Duration;
 
+/**
+ * {ECS_TASK_DEFINITION_FAMILY=demo-order-rpc-task, ECS_CLUSTER_NAME=demo-cluster, AVAILABILITY_ZONE=us-east-1b, AWS_INSTANCE_PORT=8081, ECS_SERVICE_NAME=demo-order-rpc-default, AWS_INSTANCE_IPV4=10.0.22.242, AWS_INIT_HEALTH_STATUS=HEALTHY, REGION=us-east-1}
+ */
 public final class EcsConstants {
     private EcsConstants() {
     }
@@ -51,10 +54,6 @@ public final class EcsConstants {
      */
     public static final String CM_ATTR_PORT = "AWS_INSTANCE_PORT";
 
-    /**
-     * Cloud Map 实例属性：自定义 gRPC 端口（可选）
-     */
-    public static final String CM_ATTR_GRPC_PORT = "grpcPort";
 
     /**
      * Cloud Map 实例属性：泳道
