@@ -1,119 +1,103 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CodePipeline: per-service ECS deploy (GitHub via CodeStar, CodeBuild builds image, CFN deploys ECS stack)'
+Description: 'ECS deployment pipeline (GitHub → CodeBuild → CloudFormation → ECS)'
 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label: { default: "✅ 必填参数（必须提供）" }
+      - Label: { default: "Required Parameters" }
         Parameters:
           - PipelineName
           - ServiceName
           - SdRegistryId
           - RepoName
           - AppEnv
-      - Label: { default: "🧩 选填参数（有默认值，可覆盖）" }
+      - Label: { default: "Optional Parameters" }
         Parameters:
           - BranchName
           - ModulePath
-    ParameterLabels:
-      # ✅ 必填参数
-      PipelineName: { default: "Pipeline 名称（CI/CD 流水线标识）" }
-      ServiceName: { default: "服务名（ServiceBase，例如 demo-user-rpc）" }
-      SdRegistryId: { default: "Cloud Map Service ID" }
-      RepoName: { default: "GitHub 仓库（org/repo）" }
-      AppEnv: { default: "应用环境标识" }
-
-      # 🧩 选填参数
-      BranchName: { default: "代码分支名称（默认 main）" }
-      ModulePath: { default: "多模块项目下的构建模块路径（如 services/demo-user-rpc）" }
 
 Parameters:
 
   # =========================================================
-  # ✅ 必填参数（无默认值，必须传入）
+  # Required Parameters
   # =========================================================
 
-  # --- 服务基础信息 ---
   PipelineName:
     Type: String
-    Description: 'Pipeline 名称（例如 deploy-<service>）'
+    Description: 'CodePipeline name (format: <service>-<env>)'
 
   ServiceName:
     Type: String
-    Description: '服务名（例如 demo-user-rpc）'
+    Description: 'ECS service name (e.g. demo-rpc or demo-api)'
 
   SdRegistryId:
     Type: String
-    Description: 'Cloud Map Service ID（例如 srv-xxxx）'
+    Description: 'Cloud Map service ID (format: srv-<17-hex>)'
 
   RepoName:
     Type: String
-    Description: 'GitHub 仓库全名（org/repo）'
+    Description: 'GitHub repository (format: <org>/<repo>)'
 
-  # =========================================================
-  # 🧩 选填参数（默认值，可覆盖）
-  # =========================================================
-
-  # --- 源码与模板 ---
-  BranchName:
-    Type: String
-    Default: 'main'
-    Description: 'Git 分支名（默认 main）'
-  ModulePath:
-    Type: String
-    Default: "."
-    Description: '模块路径，如 services/demo-user-rpc'
-  # --- 环境配置 ---
   AppEnv:
     Type: String
     Default: 'default'
     AllowedValues: [ default, dev, test, preonline, online ]
-    Description: '应用环境标识（例如 test,online）'
+    Description: 'Deployment environment (allowed: default, dev, test, preonline, online)'
 
   # =========================================================
-  # 🧩 未开放参数（默认值，不可覆盖）
+  # Optional Parameters
   # =========================================================
-  # --- 源码来源（GitHub via CodeStar Connections）---
-  ConnectionArn:
-    Type: String
-    Default: 'arn:aws:codeconnections:us-east-1:297997107448:connection/9adfd918-2843-4147-9bc9-c4ee1a99bc39'
-    Description: 'CodeStar Connections ARN（GitHub 连接）'
 
-  ArtifactBucketName:
+  BranchName:
     Type: String
-    Default: 'codepipeline-us-east-1-3622cd43956e-4d23-9284-a18746ff6c07'
-    Description: '存放Pipeline Artifacts的S3桶名'
+    Default: 'main'
+    Description: 'Git branch (default: main)'
 
-  TemplatePath:
-    Type: String
-    Default: 'ci/ecs-service-deploy.yaml'
-    Description: 'ECS 部署模板路径'
+    ModulePath:
+      Type: String
+      Default: '.'
+      Description: 'Module path (relative to project root)'
 
-  BuildSpec:
-    Type: String
-    Default: 'ci/buildspec.yaml'
-    Description: 'CodeBuild构建文件路径'
 
-  ContainerImage:
-    Type: String
-    Default: 'aws/codebuild/standard:7.0'
-    Description: '容器镜像'
+    ConnectionArn:
+      Type: String
+      Default: 'arn:aws:codeconnections:us-east-1:297997107448:connection/9adfd918-2843-4147-9bc9-c4ee1a99bc39'
+      Description: 'CodeStar connection ARN (GitHub integration)'
 
-  # --- 固定角色 ---
-  CloudFormationDeployRoleArn:
-    Type: String
-    Default: 'arn:aws:iam::297997107448:role/CloudFormationDeployRole'
-    Description: 'CloudFormation 执行角色 ARN（由 CodePipeline 的 CFN Action 假设）'
+    ArtifactBucketName:
+      Type: String
+      Default: 'codepipeline-us-east-1-3622cd43956e-4d23-9284-a18746ff6c07'
+      Description: 'S3 artifact bucket for CodePipeline artifacts'
 
-  CodePipelineRoleArn:
-    Type: String
-    Default: 'arn:aws:iam::297997107448:role/CodePipelineRole'
-    Description: 'CodePipeline Service Role ARN'
+    TemplatePath:
+      Type: String
+      Default: 'ci/ecs-service-deploy.yaml'
+      Description: 'CloudFormation template path (relative to source root)'
 
-  CodeBuildRoleArn:
-    Type: String
-    Default: 'arn:aws:iam::297997107448:role/CodeBuildRole'
-    Description: 'CodeBuild Service Role ARN'
+    BuildSpec:
+      Type: String
+      Default: 'ci/buildspec.yaml'
+      Description: 'CodeBuild buildspec file path (relative to source root)'
+
+    ContainerImage:
+      Type: String
+      Default: 'aws/codebuild/standard:7.0'
+      Description: 'CodeBuild container image (choose from AWS standard runtimes)'
+
+    CloudFormationDeployRoleArn:
+      Type: String
+      Default: 'arn:aws:iam::297997107448:role/CloudFormationDeployRole'
+      Description: 'CloudFormation deployment role ARN (used by CodePipeline Deploy action)'
+
+    CodePipelineRoleArn:
+      Type: String
+      Default: 'arn:aws:iam::297997107448:role/CodePipelineRole'
+      Description: 'CodePipeline service role ARN (default project role)'
+
+    CodeBuildRoleArn:
+      Type: String
+      Default: 'arn:aws:iam::297997107448:role/CodeBuildRole'
+      Description: 'CodeBuild service role ARN (used for image build and artifact upload)'
 
 
 Resources:
@@ -155,10 +139,10 @@ Resources:
       Variables:
         - Name: LANE
           DefaultValue: 'default'
-          Description: '泳道名称'
+          Description: 'Lane name'
         - Name: BRANCH
           DefaultValue: !Ref BranchName
-          Description: '分支名称'
+          Description: 'Branch name'
 
       Stages:
         - Name: Source
