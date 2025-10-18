@@ -79,7 +79,7 @@ validate_required() {
   : "${BRANCH_NAME:=master}"
   : "${MODULE_PATH:=.}"
 
-  if [[ -z "$PIPELINE_NAME" ]]; then PIPELINE_NAME="deploy-${SERVICE_NAME}"; fi
+  if [[ -z "$PIPELINE_NAME" ]]; then PIPELINE_NAME="${SERVICE_NAME}-${APP_ENV}"; fi
   STACK_NAME="${PIPELINE_NAME}-pipeline"
   ECS_LOG_GROUP_NAME="/ecs/${SERVICE_NAME}"
 }
