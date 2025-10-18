@@ -1,6 +1,8 @@
 spring:
   application:
     name: order-service
+  profiles:
+    active: ${APP_ENV:default}
 
 # gRPC 服务端（本服务）
 grpc:

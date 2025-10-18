@@ -39,6 +39,7 @@ STACK_NAME=""
 ECS_LOG_GROUP_NAME=""
 LG_RETENTION_DAYS=30
 SD_REGISTRY_ID=""
+APP_ENV=""
 
 # =========================
 # 参数解析
@@ -51,10 +52,11 @@ parse_args() {
       --pipeline)         PIPELINE_NAME="$2"; shift 2 ;;
       --branch)           BRANCH_NAME="$2"; shift 2 ;;
       --module)           MODULE_PATH="$2"; shift 2 ;;
-      --namespace)        NAMESPACE_NAME="$2"; shift 2 ;;
+      --ns|--namespace)   NAMESPACE_NAME="$2"; shift 2 ;;
+      --env)              APP_ENV="$2"; shift 2 ;;
       -h|--help)
         cat <<EOF
-Usage: $0 --repo <org/repo> --service <name> --namespace <namespace-name>
+Usage: $0 --repo <org/repo> --service <name> --namespace <name> --env <name>
        [--pipeline <name>] [--branch <name>] [--module <path>]
 Example:
   $0 --repo org/repo --service demo-user-rpc --namespace test.local
@@ -66,12 +68,13 @@ EOF
 }
 
 # =========================
-# 基础校验与默认值（方案 B）
+# 基础校验与默认值
 # =========================
 validate_required() {
   if [[ -z "$REPO_NAME" ]]; then die "缺少 --repo"; fi
   if [[ -z "$SERVICE_NAME" ]]; then die "缺少 --service"; fi
   if [[ -z "$NAMESPACE_NAME" ]]; then die "缺少 --namespace（例如 test.local）"; fi
+  if [[ -z "$APP_ENV" ]]; then die "缺少 --env"; fi
 
   : "${BRANCH_NAME:=master}"
   : "${MODULE_PATH:=.}"
@@ -214,6 +217,7 @@ assemble_params() {
     "BranchName=${BRANCH_NAME}"
     "ModulePath=${MODULE_PATH}"
     "SdRegistryId=${SD_REGISTRY_ID}"
+    "AppEnv=${APP_ENV}"
   )
 }
 
@@ -241,7 +245,7 @@ deploy_stack() {
 print_context() {
   echo "============context:begin==========="
   echo "profile=${AWS_PROFILE:-} region=${AWS_REGION:-}"
-  echo "service=$SERVICE_NAME"
+  echo "service=$SERVICE_NAME env=$APP_ENV"
   echo "repo=$REPO_NAME branch=$BRANCH_NAME module=$MODULE_PATH"
   echo "namespace=$NAMESPACE_NAME id=$NAMESPACE_ID"
   echo "pipeline=$PIPELINE_NAME stack=$STACK_NAME"

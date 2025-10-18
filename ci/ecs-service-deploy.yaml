@@ -37,7 +37,7 @@ Parameters:
     Type: String
     Default: 'default'
     AllowedValues: [ default, dev, test, preonline, online ]
-    Description: 'Spring Profile，对应 SPRING_PROFILES_ACTIVE'
+    Description: '应用环境标识（例如 test,online）'
 
   WebServerPort:
     Type: Number
@@ -116,15 +116,21 @@ Resources:
           Image: !Ref ImageUri
           Essential: true
           PortMappings:
-            - ContainerPort: !Ref WebServerPort
+            - Name: !Sub '${ServiceBase}-${WebServerPort}-tcp'
+              ContainerPort: !Ref WebServerPort
               Protocol: tcp
-            - ContainerPort: !Ref RpcServerPort
+              AppProtocol: http
+            - Name: !Sub '${ServiceBase}-${RpcServerPort}-tcp'
+              ContainerPort: !Ref RpcServerPort
               Protocol: tcp
+              AppProtocol: grpc
           Environment:
             - Name: WEB_SERVER_PORT
               Value: !Ref WebServerPort
             - Name: RPC_SERVER_PORT
               Value: !Ref RpcServerPort
+            - Name: APP_ENV
+              Value: !Ref AppEnv
             - Name: SPRING_PROFILES_ACTIVE
               Value: !Ref AppEnv
           LogConfiguration:

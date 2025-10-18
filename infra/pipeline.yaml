@@ -10,6 +10,7 @@ Metadata:
           - ServiceName
           - SdRegistryId
           - RepoName
+          - AppEnv
       - Label: { default: "🧩 选填参数（有默认值，可覆盖）" }
         Parameters:
           - BranchName
@@ -20,6 +21,7 @@ Metadata:
       ServiceName: { default: "服务名（ServiceBase，例如 demo-user-rpc）" }
       SdRegistryId: { default: "Cloud Map Service ID" }
       RepoName: { default: "GitHub 仓库（org/repo）" }
+      AppEnv: { default: "应用环境标识" }
 
       # 🧩 选填参数
       BranchName: { default: "代码分支名称（默认 main）" }
@@ -38,7 +40,7 @@ Parameters:
 
   ServiceName:
     Type: String
-    Description: '服务名（= ServiceBase，例如 demo-user-rpc）'
+    Description: '服务名（例如 demo-user-rpc）'
 
   SdRegistryId:
     Type: String
@@ -61,6 +63,12 @@ Parameters:
     Type: String
     Default: "."
     Description: '模块路径，如 services/demo-user-rpc'
+  # --- 环境配置 ---
+  AppEnv:
+    Type: String
+    Default: 'default'
+    AllowedValues: [ default, dev, test, preonline, online ]
+    Description: '应用环境标识（例如 test,online）'
 
   # =========================================================
   # 🧩 未开放参数（默认值，不可覆盖）
@@ -211,6 +219,7 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "ServiceBase": "${ServiceName}",
+                    "AppEnv": "${AppEnv}",
                     "Lane": "#{variables.LANE}",
                     "SdRegistryArn": "arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdRegistryId}"
                   }

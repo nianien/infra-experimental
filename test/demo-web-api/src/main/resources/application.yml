@@ -1,6 +1,8 @@
 spring:
   application:
     name: web-app
+  profiles:
+    active: ${APP_ENV:default}
 
 # Web 服务配置
 server:
