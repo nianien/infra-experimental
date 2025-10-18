@@ -38,50 +38,50 @@ Parameters:
     Default: 'main'
     Description: 'Git branch (default: main)'
 
-    ModulePath:
-      Type: String
-      Default: '.'
-      Description: 'Module path (relative to project root)'
+  ModulePath:
+    Type: String
+    Default: '.'
+    Description: 'Module path (relative to project root)'
 
-    ConnectionArn:
-      Type: String
-      Default: 'arn:aws:codeconnections:us-east-1:297997107448:connection/9adfd918-2843-4147-9bc9-c4ee1a99bc39'
-      Description: 'CodeStar connection ARN (GitHub integration)'
+  ConnectionArn:
+    Type: String
+    Default: 'arn:aws:codeconnections:us-east-1:297997107448:connection/9adfd918-2843-4147-9bc9-c4ee1a99bc39'
+    Description: 'CodeStar connection ARN (GitHub integration)'
 
-    ArtifactBucketName:
-      Type: String
-      Default: 'codepipeline-us-east-1-3622cd43956e-4d23-9284-a18746ff6c07'
-      Description: 'S3 artifact bucket for CodePipeline artifacts'
+  ArtifactBucketName:
+    Type: String
+    Default: 'codepipeline-us-east-1-3622cd43956e-4d23-9284-a18746ff6c07'
+    Description: 'S3 artifact bucket for CodePipeline artifacts'
 
-    TemplatePath:
-      Type: String
-      Default: 'ci/ecs-service-deploy.yaml'
-      Description: 'CloudFormation template path (relative to source root)'
+  TemplatePath:
+    Type: String
+    Default: 'ci/ecs-service-deploy.yaml'
+    Description: 'CloudFormation template path (relative to source root)'
 
-    BuildSpec:
-      Type: String
-      Default: 'ci/buildspec.yaml'
-      Description: 'CodeBuild buildspec file path (relative to source root)'
+  BuildSpec:
+    Type: String
+    Default: 'ci/buildspec.yaml'
+    Description: 'CodeBuild buildspec file path (relative to source root)'
 
-    ContainerImage:
-      Type: String
-      Default: 'aws/codebuild/standard:7.0'
-      Description: 'CodeBuild container image (choose from AWS standard runtimes)'
+  ContainerImage:
+    Type: String
+    Default: 'aws/codebuild/standard:7.0'
+    Description: 'CodeBuild container image (choose from AWS standard runtimes)'
 
-    CloudFormationDeployRoleArn:
-      Type: String
-      Default: 'arn:aws:iam::297997107448:role/CloudFormationDeployRole'
-      Description: 'CloudFormation deployment role ARN (used by CodePipeline Deploy action)'
+  CloudFormationDeployRoleArn:
+    Type: String
+    Default: 'arn:aws:iam::297997107448:role/CloudFormationDeployRole'
+    Description: 'CloudFormation deployment role ARN (used by CodePipeline Deploy action)'
 
-    CodePipelineRoleArn:
-      Type: String
-      Default: 'arn:aws:iam::297997107448:role/CodePipelineRole'
-      Description: 'CodePipeline service role ARN (default project role)'
+  CodePipelineRoleArn:
+    Type: String
+    Default: 'arn:aws:iam::297997107448:role/CodePipelineRole'
+    Description: 'CodePipeline service role ARN (default project role)'
 
-    CodeBuildRoleArn:
-      Type: String
-      Default: 'arn:aws:iam::297997107448:role/CodeBuildRole'
-      Description: 'CodeBuild service role ARN (used for image build and artifact upload)'
+  CodeBuildRoleArn:
+    Type: String
+    Default: 'arn:aws:iam::297997107448:role/CodeBuildRole'
+    Description: 'CodeBuild service role ARN (used for image build and artifact upload)'
 
 
 Resources:
