@@ -39,12 +39,12 @@ Parameters:
     AllowedValues: [ default, dev, test, preonline, online ]
     Description: 'Spring Profile，对应 SPRING_PROFILES_ACTIVE'
 
-  WebPort:
+  WebServerPort:
     Type: Number
     Default: 8080
     Description: 'Web 服务端口'
 
-  RpcPort:
+  RpcServerPort:
     Type: Number
     Default: 8081
     Description: 'RPC 服务端口（注册到 Cloud Map SRV 记录）'
@@ -116,15 +116,15 @@ Resources:
           Image: !Ref ImageUri
           Essential: true
           PortMappings:
-            - ContainerPort: !Ref WebPort
+            - ContainerPort: !Ref WebServerPort
               Protocol: tcp
-            - ContainerPort: !Ref RpcPort
+            - ContainerPort: !Ref RpcServerPort
               Protocol: tcp
           Environment:
             - Name: WEB_SERVER_PORT
-              Value: !Ref WebPort
+              Value: !Ref WebServerPort
             - Name: RPC_SERVER_PORT
-              Value: !Ref RpcPort
+              Value: !Ref RpcServerPort
             - Name: SPRING_PROFILES_ACTIVE
               Value: !Ref AppEnv
           LogConfiguration:
@@ -163,7 +163,7 @@ Resources:
       ServiceRegistries:
         - RegistryArn: !Ref SdRegistryArn
           ContainerName: !Ref ServiceBase
-          ContainerPort: !Ref RpcPort
+          ContainerPort: !Ref RpcServerPort
       EnableECSManagedTags: true
       PropagateTags: SERVICE
       SchedulingStrategy: REPLICA
