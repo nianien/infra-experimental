@@ -1,15 +1,17 @@
 package com.ddm.argus.utils;
 
-import java.time.Duration;
-import java.util.Objects;
-import java.util.Optional;
-
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.*;
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
+
+import java.time.Duration;
+import java.util.Objects;
+import java.util.Optional;
+
+import static com.ddm.argus.utils.CommonUtils.notBlank;
 
 /**
  * 工具类：封装对 ECS 任务/服务定义与标签等元数据的查询。
@@ -18,17 +20,17 @@ import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
  */
 public final class EcsUtils {
 
-    private EcsUtils() {}
-
-    // --------- small DTO ---------
-    public record HostPort(String host, Integer port) {}
+    private EcsUtils() {
+    }
 
     private static final ClientOverrideConfiguration CFG =
             ClientOverrideConfiguration.builder()
                     .apiCallTimeout(Duration.ofSeconds(6))
                     .build();
 
-    /** 由调用方负责关闭（try-with-resources）。 */
+    /**
+     * 由调用方负责关闭（try-with-resources）。
+     */
     public static EcsClient ecs(Region region) {
         return EcsClient.builder()
                 .region(region)
@@ -37,7 +39,9 @@ public final class EcsUtils {
                 .build();
     }
 
-    /** 由调用方负责关闭（try-with-resources）。 */
+    /**
+     * 由调用方负责关闭（try-with-resources）。
+     */
     public static ServiceDiscoveryClient serviceDiscovery(Region region) {
         return ServiceDiscoveryClient.builder()
                 .region(region)
@@ -87,7 +91,9 @@ public final class EcsUtils {
 
     // ---------- 容器与端口解析 ----------
 
-    /** 先在 TD 里选出目标容器：优先用 preferName 命中且有端口；否则挑第一个有端口的。 */
+    /**
+     * 先在 TD 里选出目标容器：优先用 preferName 命中且有端口；否则挑第一个有端口的。
+     */
     public static ContainerDefinition pickContainer(TaskDefinition td, String preferName) {
         if (td == null || td.containerDefinitions() == null) return null;
 
@@ -109,7 +115,9 @@ public final class EcsUtils {
         return (cd == null) ? null : cd.name();
     }
 
-    /** 从选中的容器取端口：GRPC 优先，否则第一个。 */
+    /**
+     * 从选中的容器取端口：GRPC 优先，否则第一个。
+     */
     public static Integer resolveContainerPort(ContainerDefinition cd) {
         if (!hasPorts(cd)) return null;
         return cd.portMappings().stream()
@@ -123,7 +131,9 @@ public final class EcsUtils {
         return cd != null && cd.portMappings() != null && !cd.portMappings().isEmpty();
     }
 
-    /** 从 Task 中查找指定名称的容器；若 containerName 为 null，则返回第一个容器。 */
+    /**
+     * 从 Task 中查找指定名称的容器；若 containerName 为 null，则返回第一个容器。
+     */
     public static Container findContainer(Task task, String containerName) {
         if (task == null || task.containers() == null) return null;
         return task.containers().stream()
@@ -134,8 +144,8 @@ public final class EcsUtils {
 
     /**
      * 从 Task 里兜底拿 IP：
-     *  - 优先：指定容器的 networkInterfaces[0].privateIpv4Address；
-     *  - 其次：按该容器的 ENI attachmentId 精确匹配到 attachments 里的 ENI，取 privateIPv4Address。
+     * - 优先：指定容器的 networkInterfaces[0].privateIpv4Address；
+     * - 其次：按该容器的 ENI attachmentId 精确匹配到 attachments 里的 ENI，取 privateIPv4Address。
      */
     public static String ipFromTask(Task task, String selfContainerName) {
         if (task == null) return null;
@@ -166,13 +176,4 @@ public final class EcsUtils {
         return null;
     }
 
-    // ---------- 小工具 ----------
-
-    private static boolean isBlank(String s) {
-        return s == null || s.isBlank();
-    }
-
-    private static boolean notBlank(String s) {
-        return !isBlank(s);
-    }
 }

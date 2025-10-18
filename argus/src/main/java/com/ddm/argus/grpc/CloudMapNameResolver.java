@@ -1,16 +1,18 @@
 package com.ddm.argus.grpc;
 
-import com.ddm.argus.utils.EcsUtils.HostPort;
 import com.ddm.argus.utils.CommonUtils;
 import io.grpc.Attributes;
 import io.grpc.EquivalentAddressGroup;
 import io.grpc.NameResolver;
 import io.grpc.Status;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
 import software.amazon.awssdk.services.servicediscovery.model.DiscoverInstancesRequest;
 import software.amazon.awssdk.services.servicediscovery.model.DiscoverInstancesResponse;
+import software.amazon.awssdk.services.servicediscovery.model.HttpInstanceSummary;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
@@ -21,13 +23,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static com.ddm.argus.ecs.EcsConstants.*;
+import static com.ddm.argus.utils.CommonUtils.notBlank;
 
 /**
  * 解析 Cloud Map 实例，并在 EAG Attributes 标注 lane。
  * 支持 target 形式: "service.namespace[:port]"
  */
 public final class CloudMapNameResolver extends NameResolver {
-
+    private static final Logger log = LoggerFactory.getLogger(CloudMapNameResolver.class);
     // --------- ctor args ---------
     private final String hostPortRaw;
     private final String namespace;
@@ -56,7 +59,7 @@ public final class CloudMapNameResolver extends NameResolver {
         this.refreshInterval = Objects.requireNonNull(refreshInterval, "refreshInterval required");
         this.args = Objects.requireNonNull(args, "args required");
 
-        HostPort hp = parseHostPort(hostPort);
+        HostPort hp = new HostPort(hostPort);
         this.targetPort = hp.port();
         String host = hp.host();
 
@@ -136,7 +139,7 @@ public final class CloudMapNameResolver extends NameResolver {
         );
 
         List<EquivalentAddressGroup> raw = resp.instances().stream()
-                .map(i -> toEag(i.attributes()))
+                .map(this::toEag)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
@@ -163,23 +166,27 @@ public final class CloudMapNameResolver extends NameResolver {
     }
 
     // instance attributes -> EAG
-    private EquivalentAddressGroup toEag(Map<String, String> a) {
-        String ip = CommonUtils.firstNonBlank(a.get(CM_ATTR_IPV4), a.get(CM_ATTR_IPV4_FALLBACK));
+    private EquivalentAddressGroup toEag(HttpInstanceSummary instance) {
+        log.info("==>[argus] Discover Instance, id={}, attributes={}", instance.instanceId(), instance.attributes());
+        Map<String, String> attr = instance.attributes();
+        String ip = CommonUtils.firstNonBlank(attr.get(CM_ATTR_IPV4), attr.get(CM_ATTR_IPV4_FALLBACK));
         if (CommonUtils.isBlank(ip)) return null;
-
-        // 端口优先级：显式 host:port > GRPC_PORT > 默认 80
-        int port = resolvePort(targetPort, a);
-
-        String lane = CommonUtils.trimToNull(a.get(CM_ATTR_LANE));
+        int port = targetPort;
+        // 端口优先级：GRPC_PORT> host:port
+        String grpcPort = (attr != null) ? attr.get(CM_ATTR_GRPC_PORT) : null;
+        if (notBlank(grpcPort)) {
+            try {
+                port = Integer.parseInt(grpcPort.trim());
+            } catch (NumberFormatException ignore) { /* 非法就跳过 */ }
+        }
+        String lane = CommonUtils.trimToNull(attr.get(CM_ATTR_LANE));
         Attributes attrs = Attributes.newBuilder()
                 .set(ChannelAttributes.LANE, lane)
                 .build();
-
         return new EquivalentAddressGroup(new InetSocketAddress(ip, port), attrs);
     }
 
     // ---------------- callbacks ----------------
-
     private void postOnResult(List<EquivalentAddressGroup> eags) {
         args.getSynchronizationContext().execute(() -> {
             if (shutdown) return;
@@ -206,39 +213,26 @@ public final class CloudMapNameResolver extends NameResolver {
     }
 
     // ---------------- helpers ----------------
-
-    /**
-     * host[:port] 解析，仅允许一个冒号；端口非法则忽略
-     */
-    private static HostPort parseHostPort(String raw) {
-        String host = raw;
-        Integer port = null;
-
-        int idx = raw.lastIndexOf(':');
-        if (idx > 0 && idx == raw.indexOf(':')) { // 仅一个冒号
-            String part = raw.substring(idx + 1);
-            try {
-                port = Integer.parseInt(part);
-                host = raw.substring(0, idx);
-            } catch (NumberFormatException ignore) {
-                // 非法端口则当无端口处理
+    public record HostPort(String host, Integer port) {
+        public HostPort {
+            if (host != null && host.contains(":")) {
+                int idx = host.indexOf(':');
+                if (idx == host.lastIndexOf(':')) {
+                    String part = host.substring(idx + 1);
+                    try {
+                        int parsedPort = Integer.parseInt(part);
+                        host = host.substring(0, idx);
+                        port = parsedPort;
+                    } catch (NumberFormatException ignore) {
+                    }
+                }
             }
+            if (port == null) port = -1;
         }
-        return new HostPort(host, port);
-    }
 
-    /**
-     * 端口优先级：显式 host:port > CM_ATTR_GRPC_PORT > 默认 80；
-     */
-    private static int resolvePort(Integer explicit, Map<String, String> attrs) {
-        if (explicit != null) return explicit; // 显式写了就别瞎猜
-        String grpcPort = (attrs != null) ? attrs.get(CM_ATTR_GRPC_PORT) : null;
-        if (grpcPort != null && !grpcPort.isBlank()) {
-            try {
-                return Integer.parseInt(grpcPort.trim());
-            } catch (NumberFormatException ignore) { /* 非法就跳过 */ }
+        public HostPort(String raw) {
+            this(raw, null);
         }
-        return 80; // 默认兜底
     }
 
 
