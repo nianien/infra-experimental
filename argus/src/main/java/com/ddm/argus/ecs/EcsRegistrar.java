@@ -1,19 +1,18 @@
 package com.ddm.argus.ecs;
 
 import com.ddm.argus.utils.EcsUtils;
-import com.ddm.argus.utils.EcsUtils.HostPort;
 import com.ddm.argus.utils.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.*;
 import software.amazon.awssdk.services.servicediscovery.model.RegisterInstanceRequest;
+import software.amazon.awssdk.services.servicediscovery.model.RegisterInstanceResponse;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -66,17 +65,18 @@ public class EcsRegistrar implements ApplicationListener<ApplicationReadyEvent> 
             attrs.put(EcsConstants.CM_ATTR_PORT, String.valueOf(ins.containerPort()));
             attrs.put(EcsConstants.CM_ATTR_LANE, ins.lane());
 
-            var resp = Retry.get(
+            Optional<RegisterInstanceResponse> resp = Retry.get(
                     () -> sd.registerInstance(RegisterInstanceRequest.builder()
                             .serviceId(serviceId)
                             .instanceId(ins.taskId())
                             .attributes(attrs)
                             .build()),
                     r -> r != null && r.sdkHttpResponse().isSuccessful(),
-                    10, 1000
+                    10,
+                    Duration.ofMillis(1000)
             );
 
-            if (resp == null) {
+            if (resp.isEmpty()) {
                 log.warn("==>[argus] LaneRegistrar: registerInstance failed after retries. Skip.");
                 return;
             }
