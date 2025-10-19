@@ -85,6 +85,11 @@ Parameters:
   SdRegistryArn:
     Type: String
     Description: 'Cloud Map service ARN (format: arn:aws:servicediscovery:<region>:<account>:service/srv-<id>)'
+  # ================= ALB TargetGroup =================
+  TargetGroupArn:
+    Type: String
+    Default: ''
+    Description: 'Optional: existing ALB Target Group ARN. Leave empty to skip LB binding.'
 
 Conditions:
   LaneIsDefault: !Equals [ !Ref Lane, 'default' ]
@@ -92,6 +97,7 @@ Conditions:
   LaneAsDefault: !Or
     - !Condition LaneIsDefault
     - !Condition LaneIsEmpty
+  TgIsEmpty: !Equals [ !Ref TargetGroupArn, '' ]
 
 Resources:
 
@@ -176,6 +182,16 @@ Resources:
         - !Ref 'AWS::NoValue'
         - - Key: Lane
             Value: !Ref Lane
+      HealthCheckGracePeriodSeconds: !If
+        - TgIsEmpty
+        - !Ref 'AWS::NoValue'
+        - 60
+      LoadBalancers: !If
+        - TgIsEmpty
+        - !Ref 'AWS::NoValue'
+        - - TargetGroupArn: !Ref TargetGroupArn
+            ContainerName: !Ref ServiceBase
+            ContainerPort: !Ref WebServerPort
 
 Outputs:
   ServiceArn:
@@ -187,3 +203,6 @@ Outputs:
   DiscoveryServiceArn:
     Description: 'Cloud Map Service ARN'
     Value: !Ref SdRegistryArn
+  TargetGroupArn:
+    Description: 'ALB Target Group ARN'
+    Value: !Ref TargetGroupArn
