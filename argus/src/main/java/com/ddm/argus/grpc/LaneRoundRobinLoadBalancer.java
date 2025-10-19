@@ -11,8 +11,10 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.ddm.argus.utils.CommonUtils.isBlank;
+
 /**
- * - 若 TraceInfo 无 lane → 只在“无 lane”的 READY 子通道中轮询；
+ * - 若 TraceInfo 无 lane → 只在“default”的 READY 子通道中轮询；
  * - 若有 lane → 优先同 lane，若无 READY 则回退 default；
  * - 两个桶都空 → UNAVAILABLE。
  */
@@ -27,7 +29,7 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
      */
     private final Map<ScKey, Subchannel> subsByKey = new LinkedHashMap<>();
     /**
-     * Subchannel -> 规范化后的 lane（"" 表示无 lane）
+     * Subchannel -> 规范化后的 lane（"default" 表示默认 lane）
      */
     private final Map<Subchannel, String> laneOf = new ConcurrentHashMap<>();
     /**
@@ -86,13 +88,8 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
             ScKey key = new ScKey(eag.getAddresses(), normLane);
             Subchannel sc = subsByKey.get(key);
             if (sc == null) {
-                Attributes scAttrs = Attributes.newBuilder()
-                        .set(ChannelAttributes.LANE, lane)
-                        .build();
-                sc = helper.createSubchannel(CreateSubchannelArgs.newBuilder()
-                        .setAddresses(eag)
-                        .setAttributes(scAttrs)
-                        .build());
+                Attributes scAttrs = Attributes.newBuilder().set(ChannelAttributes.LANE, lane).build();
+                sc = helper.createSubchannel(CreateSubchannelArgs.newBuilder().setAddresses(eag).setAttributes(scAttrs).build());
                 subsByKey.put(key, sc);
                 laneOf.put(sc, normLane);
                 if (log.isDebugEnabled()) {
@@ -111,8 +108,7 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
         //汇总状态
         if (subsByKey.isEmpty()) {
             log.warn("==>[argus] no subchannels -> TRANSIENT_FAILURE");
-            helper.updateBalancingState(ConnectivityState.TRANSIENT_FAILURE,
-                    new Picker(Status.UNAVAILABLE.withDescription("no subchannels")));
+            helper.updateBalancingState(ConnectivityState.TRANSIENT_FAILURE, new Picker(Status.UNAVAILABLE.withDescription("no subchannels")));
         } else {
             helper.updateBalancingState(ConnectivityState.CONNECTING, new Picker(null));
         }
@@ -197,7 +193,7 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
             TraceInfo info = args.getCallOptions().getOption(TraceContext.CALL_OPT_TRACE_INFO);
             String wanted = (info != null && info.lane() != null && !info.lane().isBlank()) ? info.lane().trim() : "";
             String keyWanted = normalize(wanted);
-            String keyDefault = normalize("");
+            String keyDefault = normalize("default");
 
             List<Subchannel> laneList = readyByLane.getOrDefault(keyWanted, Collections.emptyList());
             List<Subchannel> defaultList = readyByLane.getOrDefault(keyDefault, Collections.emptyList());
@@ -205,13 +201,11 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
             boolean useWanted = !keyWanted.isEmpty() && !laneList.isEmpty();
             List<Subchannel> candidates = useWanted ? laneList : defaultList;
             if (log.isDebugEnabled()) {
-                log.debug("==>[argus] pick: wantedLane={} useWanted={} laneSize={} defaultSize={}",
-                        wanted, useWanted, laneList.size(), defaultList.size());
+                log.debug("==>[argus] pick: wantedLane={} useWanted={} laneSize={} defaultSize={}", wanted, useWanted, laneList.size(), defaultList.size());
             }
 
             if (candidates.isEmpty()) {
-                Status err = (errorIfAny != null) ? errorIfAny
-                        : Status.UNAVAILABLE.withDescription("no READY subchannel for lane=" + wanted);
+                Status err = (errorIfAny != null) ? errorIfAny : Status.UNAVAILABLE.withDescription("no READY subchannel for lane=" + wanted);
                 log.warn("==>[argus] pick error: {}", err);
                 return PickResult.withError(err);
             }
@@ -230,21 +224,19 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
     /* ==================== 工具 & 内部类 ==================== */
 
     /**
-     * 统一把可能为 null/blank 的 lane 变成非 null；空串表示“无 lane”
+     * 将 null/blank 的 lane 规范化为 "default"
      */
     private static String normalize(String lane) {
-        return (lane == null || lane.isBlank()) ? "" : lane;
+        return isBlank(lane) ? "default" : lane;
     }
 
     /**
-     * 组合键：地址列表（保序，不可变） + 规范化 lane
+     * 组合键：地址列表（保序，不可变） + 规范化 lane（null/blank → "default"）
+     *
+     * @param addrs 保序，不可变
+     * @param lane  "default" 表示默认泳道
      */
-    static final class ScKey {
-        // 保序，不可变
-        final List<SocketAddress> addrs;
-        // "" 表示默认泳道
-        final String lane;
-
+    record ScKey(List<SocketAddress> addrs, String lane) {
         ScKey(List<SocketAddress> addrs, String lane) {
             this.addrs = List.copyOf(addrs);
             this.lane = normalize(lane);
@@ -255,11 +247,6 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
             if (this == o) return true;
             if (!(o instanceof ScKey k)) return false;
             return addrs.equals(k.addrs) && lane.equals(k.lane);
-        }
-
-        @Override
-        public int hashCode() {
-            return 31 * addrs.hashCode() + lane.hashCode();
         }
 
         @Override

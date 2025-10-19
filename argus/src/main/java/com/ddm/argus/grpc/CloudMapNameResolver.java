@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static com.ddm.argus.ecs.EcsConstants.*;
+import static com.ddm.argus.utils.CommonUtils.isBlank;
 import static com.ddm.argus.utils.CommonUtils.notBlank;
 
 /**
@@ -243,7 +244,7 @@ public final class CloudMapNameResolver extends NameResolver {
      */
     private record EagKey(String lane, String host, int port) implements Comparable<EagKey> {
         EagKey {
-            lane = (lane == null || lane.isBlank()) ? "" : lane.trim();
+            lane = isBlank(lane) ? "default" : lane.trim();
         }
 
         static EagKey from(EquivalentAddressGroup e) {

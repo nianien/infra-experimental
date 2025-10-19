@@ -48,6 +48,25 @@ Parameters:
     Default: 'arn:aws:codeconnections:us-east-1:297997107448:connection/9adfd918-2843-4147-9bc9-c4ee1a99bc39'
     Description: 'CodeStar connection ARN (GitHub integration)'
 
+  # ================= Network Parameters =================
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: 'VPC ID for ALB and ECS deployment'
+
+  SubnetIds:
+    Type: CommaDelimitedList
+    Description: 'Comma-separated list of subnet IDs for ALB deployment'
+
+  DomainName:
+    Type: String
+    Default: ''
+    Description: 'Optional: Domain name for ALB (leave empty for ALB DNS name)'
+
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: 'Optional: SSL certificate ARN for HTTPS listener'
+
   ArtifactBucketName:
     Type: String
     Default: 'codepipeline-us-east-1-3622cd43956e-4d23-9284-a18746ff6c07'
@@ -166,9 +185,36 @@ Resources:
               OutputArtifacts:
                 - Name: BuildOut
 
-        - Name: Deploy
+        - Name: DeployNetwork
           Actions:
-            - Name: CFNDeploy
+            - Name: CFNDeployNetwork
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: SourceOut
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                StackName: !Sub '${ServiceName}-network'
+                TemplatePath: 'SourceOut::ci/ecs-network-stack.yaml'
+                RoleArn: !Ref CloudFormationDeployRoleArn
+                Capabilities: 'CAPABILITY_IAM,CAPABILITY_NAMED_IAM'
+                ParameterOverrides: !Sub |
+                  {
+                    "ServiceBase": "${ServiceName}",
+                    "VpcId": "${VpcId}",
+                    "SubnetIds": "${SubnetIds}",
+                    "DomainName": "${DomainName}",
+                    "CertificateArn": "${CertificateArn}",
+                    "LaneName": "#{variables.LANE}",
+                    "DefaultLane": "default"
+                  }
+
+        - Name: DeployService
+          Actions:
+            - Name: CFNDeployService
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -180,7 +226,7 @@ Resources:
               Configuration:
                 ActionMode: CREATE_UPDATE
                 StackName: !Sub '${ServiceName}-#{variables.LANE}'
-                TemplatePath: !Sub 'SourceOut::${TemplatePath}'
+                TemplatePath: 'SourceOut::ci/ecs-service-stack.yaml'
                 TemplateConfiguration: 'BuildOut::cfn-params.json'
                 RoleArn: !Ref CloudFormationDeployRoleArn
                 Capabilities: 'CAPABILITY_IAM,CAPABILITY_NAMED_IAM'
@@ -188,8 +234,9 @@ Resources:
                   {
                     "ServiceBase": "${ServiceName}",
                     "AppEnv": "${AppEnv}",
-                    "Lane": "#{variables.LANE}",
-                    "SdRegistryArn": "arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdRegistryId}"
+                    "LaneName": "#{variables.LANE}",
+                    "SdRegistryArn": "arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/${SdRegistryId}",
+                    "NetworkStackName": "${ServiceName}-network"
                   }
 
       RestartExecutionOnUpdate: true
