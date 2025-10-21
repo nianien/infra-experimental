@@ -42,3 +42,17 @@ grpc:
       address: "cloud:///demo-user-rpc.test.local"
     order-service:
       address: "cloud:///demo-order-rpc.test.local"
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+grpc:
+  client:
+    user-service:
+      address: "cloud:///demo-user-rpc.dev.local"
+    order-service:
+      address: "cloud:///demo-order-rpc.dev.local"

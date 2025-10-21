@@ -36,3 +36,18 @@ grpc:
     user-service:
       # 部署在 ECS/Cloud Map 的地址
       address: "cloud:///demo-user-rpc.test.local"
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+grpc:
+  server:
+    port: 8081
+  client:
+    user-service:
+      # 部署在 ECS/Cloud Map 的地址
+      address: "cloud:///demo-user-rpc.dev.local"
