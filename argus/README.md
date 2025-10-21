@@ -302,10 +302,107 @@ grpc:
 - **透传失败**：确认入口是否正确注入 `traceparent`/`tracestate`，以及中间环节是否保留并传递了头部。
 - **Lane 信息丢失**：检查 `tracestate: ctx=lane:<laneName>` 是否正确注入和传递。
 
+### 部署架构问题
+- **栈冲突错误**：确认 Infrastructure Pipeline 已先部署，共享栈存在且健康
+- **ImportValue 失败**：检查共享栈的 Export 名称是否正确，确保栈名匹配
+- **Pipeline 执行失败**：确认 IAM 角色权限覆盖所有必要的 AWS 服务
+- **并发部署冲突**：使用独立的 Service Pipeline 避免多个服务同时更新共享栈
+
 ### 调试建议
 1. **检查 ECS 元数据**：访问 `http://169.254.170.2/v4/metadata` 确认容器信息
 2. **查看 Cloud Map 注册**：在 AWS 控制台检查服务实例的属性和健康状态
 3. **启用详细日志**：设置 `logging.level.com.ddm.argus=DEBUG` 查看详细执行流程
+4. **验证栈依赖**：确认 Infrastructure Pipeline 部署的共享栈状态正常
+5. **检查 Pipeline 状态**：在 AWS CodePipeline 控制台查看执行历史和错误信息
+
+---
+
+## 部署架构
+
+### 双 Pipeline 架构
+
+Argus 项目采用双 Pipeline 架构来支持多服务并发部署，避免共享基础设施的栈冲突：
+
+#### 1. Infrastructure Pipeline (`pipeline-infra.yaml`)
+管理所有共享的基础设施资源，一次性部署：
+- **Network Stack** (`network-shared-stack.yaml`) - VPC + Subnets + Security Groups
+- **Namespace Stack** (`namespace-shared-stack.yaml`) - Cloud Map Private DNS Namespace
+- **Service Discovery Stack** (`sd-shared-stack.yaml`) - Cloud Map Service
+- **Log Stack** (`log-shared-stack.yaml`) - CloudWatch Log Group
+- **ALB Stack** (`alb-shared-stack.yaml`) - Application Load Balancer
+
+#### 2. Service Pipeline (`pipeline-service.yaml`)
+管理业务服务部署，每个服务一个，支持并发：
+- **Source** - GitHub 代码拉取
+- **Build** - Docker 镜像构建
+- **DeployService** - ECS Service + Task Definition 部署
+
+### 部署流程
+
+#### 环境初始化（一次性）
+```bash
+# 部署基础设施 Pipeline
+aws cloudformation deploy \
+  --template-file infra/pipeline-infra.yaml \
+  --stack-name infra-pipeline-dev \
+  --parameter-overrides \
+    PipelineName=infra-pipeline-dev \
+    Env=dev \
+    CloudFormationDeployRoleArn=arn:aws:iam::ACCOUNT:role/CloudFormationDeployRole \
+    CodePipelineRoleArn=arn:aws:iam::ACCOUNT:role/CodePipelineRole \
+  --capabilities CAPABILITY_IAM
+
+# 手动触发基础设施部署
+aws codepipeline start-pipeline-execution --name infra-pipeline-dev
+```
+
+#### 业务服务部署（每个服务一个）
+```bash
+# 部署业务服务 Pipeline
+aws cloudformation deploy \
+  --template-file infra/pipeline-service.yaml \
+  --stack-name user-service-pipeline-dev \
+  --parameter-overrides \
+    PipelineName=user-service-pipeline-dev \
+    ServiceName=user-service \
+    RepoName=skyfalling/user-service \
+    Env=dev \
+    CloudFormationDeployRoleArn=arn:aws:iam::ACCOUNT:role/CloudFormationDeployRole \
+    CodePipelineRoleArn=arn:aws:iam::ACCOUNT:role/CodePipelineRole \
+    CodeBuildRoleArn=arn:aws:iam::ACCOUNT:role/CodeBuildRole \
+  --capabilities CAPABILITY_IAM
+```
+
+### 栈命名规范
+
+#### Infrastructure Stacks
+- `network-stack` - VPC + Subnets
+- `sd-namespace-shared` - Cloud Map Namespace  
+- `sd-service-shared-{Env}` - Cloud Map Service
+- `log-shared-{Env}` - CloudWatch Log Group
+- `alb-shared-{Env}` - Application Load Balancer
+
+#### Service Stacks
+- `app-{ServiceName}-{Env}-{Lane}` - ECS Service + Task Definition
+
+### 并发部署能力
+
+✅ **支持多服务并发部署**
+- 每个服务有独立的 Service Pipeline
+- 共享基础设施由 Infrastructure Pipeline 统一管理
+- 无栈并发更新冲突
+
+✅ **支持多环境并发部署**  
+- 每个环境有独立的 Infrastructure Pipeline
+- 环境间完全隔离
+
+### 关键优势
+
+1. **✅ 避免栈冲突** - 共享栈由独立 Pipeline 管理，业务 Pipeline 只部署应用栈
+2. **✅ 支持并发部署** - 多个服务可以同时部署到同一环境
+3. **✅ 清晰的职责分离** - Infrastructure vs Service 完全分离
+4. **✅ 简化的参数管理** - 去掉了所有 `init***` 条件参数
+5. **✅ 统一的命名规范** - 所有共享栈使用 `xxx-shared-stack.yaml` 格式
 
 ---
 
@@ -314,6 +411,8 @@ grpc:
 - Spring Boot 3.3.x
 - gRPC Spring Boot Starter 2.15.x（`net.devh.boot.grpc` 生态）
 - AWS ECS + Cloud Map（在云上启用 `cloud:///` 与泳道路由）
+- AWS CodePipeline + CodeBuild（CI/CD 部署）
+- AWS CloudFormation（基础设施即代码）
 
 ---
 
