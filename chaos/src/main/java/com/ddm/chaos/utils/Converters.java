@@ -154,9 +154,13 @@ public final class Converters {
             }
             
             // 兜底：尝试直接类型转换（通常用于字符串）
-            return type.cast(str);
+            if (type == String.class) {
+                return type.cast(str);
+            }
+            // 其他类型无法直接转换
+            return null;
             
-        } catch (Exception e) {
+        } catch (ClassCastException | IllegalArgumentException e) {
             log.debug("Type conversion failed: raw={}, targetType={}", str, type.getSimpleName(), e);
             return null;
         }
@@ -300,13 +304,17 @@ public final class Converters {
                 };
             }
             
-            // 兜底：再次尝试 ISO-8601（可能是不标准的格式）
-            return Duration.parse(input);
+            // 如果正则不匹配，尝试 ISO-8601 格式（可能是不标准的格式）
+            try {
+                return Duration.parse(input);
+            } catch (Exception ignored) {
+                // ISO-8601 解析也失败，返回 null
+            }
             
         } catch (Exception e) {
             log.debug("Failed to parse duration: {}", str, e);
-            return null;
         }
+        return null;
     }
     
     /**

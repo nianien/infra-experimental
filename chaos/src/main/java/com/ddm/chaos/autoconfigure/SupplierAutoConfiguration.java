@@ -124,7 +124,7 @@ public class SupplierAutoConfiguration {
     }
 
     /**
-     * 注册 SupplierFieldRegistrar，用于在属性注入前预注册缺失的 Supplier Bean。
+     * 注册 DataSupplierRegistrar，用于在属性注入前预注册缺失的 Supplier Bean。
      * 
      * <p>该后处理器在 {@code CommonAnnotationBeanPostProcessor} 之前执行，扫描所有 bean 的字段，
      * 对于 {@code Supplier<T>} 类型且带有 {@code @Resource(name=...)} 或 {@code @Qualifier} 注解的字段，
@@ -136,9 +136,19 @@ public class SupplierAutoConfiguration {
      *   <li>{@code @Qualifier("key")}</li>
      * </ul>
      * 
-     * @param beanFactory Spring Bean 工厂
-     * @param factoryProvider DataSupplierFactory 的提供者
-     * @return SupplierFieldRegistrar 实例
+     * <p><strong>工作原理：</strong>
+     * <ol>
+     *   <li>在 bean 实例化后、属性注入前，扫描所有字段</li>
+     *   <li>识别 {@code Supplier<T>} 类型且带有注解的字段</li>
+     *   <li>从注解中提取配置键（key）和目标类型（T）</li>
+     *   <li>如果容器中还没有该名称的 Bean，则通过 DataSupplierFactory 创建并注册</li>
+     *   <li>后续 Spring 的 {@code @Resource} 和 {@code @Autowired} 注入按正常流程进行</li>
+     * </ol>
+     * 
+     * @param beanFactory Spring Bean 工厂，必须是 DefaultListableBeanFactory 实例
+     * @param factoryProvider DataSupplierFactory 的提供者（延迟获取，避免初始化顺序问题）
+     * @return DataSupplierRegistrar 实例
+     * @throws IllegalStateException 如果 beanFactory 不是 DefaultListableBeanFactory 类型
      */
     @Bean
     public DataSupplierRegistrar dataSupplierRegistrar(
@@ -146,7 +156,9 @@ public class SupplierAutoConfiguration {
             ObjectProvider<DataSupplierFactory> factoryProvider) {
         
         if (!(beanFactory instanceof DefaultListableBeanFactory)) {
-            throw new IllegalStateException("Need DefaultListableBeanFactory");
+            throw new IllegalStateException(
+                    "DataSupplierRegistrar requires DefaultListableBeanFactory, but got: " + 
+                    beanFactory.getClass().getName());
         }
         return new DataSupplierRegistrar(
                 (DefaultListableBeanFactory) beanFactory, 

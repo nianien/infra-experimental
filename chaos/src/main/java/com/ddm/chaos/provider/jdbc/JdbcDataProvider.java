@@ -140,7 +140,11 @@ public class JdbcDataProvider implements DataProvider {
         String password = cfg.getOrDefault("password", "");
 
         // 创建 JDBC 数据源和模板
-        this.jdbc = new JdbcTemplate(new DriverManagerDataSource(url, username, password));
+        try {
+            this.jdbc = new JdbcTemplate(new DriverManagerDataSource(url, username, password));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to initialize JdbcTemplate for url: " + url, e);
+        }
 
         // 解析配置组名称列表
         var groups = Arrays.stream(cfg.getOrDefault("groups", "").split(","))
@@ -151,8 +155,10 @@ public class JdbcDataProvider implements DataProvider {
         if (!groups.isEmpty()) {
             this.groupNames = groups;
         }
-        String v = cfg.getOrDefault("init_sql", "").trim().toLowerCase();
-        var initSql = v.equals("true") || v.equals("1") || v.equals("yes") || v.equals("on");
+        boolean initSql = switch (cfg.getOrDefault("init_sql", "").trim().toLowerCase()) {
+            case "true", "1", "yes", "on" -> true;
+            default -> false;
+        };
         if (initSql) {
             ensureTables();
         }
@@ -215,7 +221,11 @@ public class JdbcDataProvider implements DataProvider {
                 // 将查询结果转换为 Map
                 Map<String, Object> result = new LinkedHashMap<>();
                 while (rs.next()) {
-                    result.put(rs.getString("cfg_key"), rs.getObject("cfg_value"));
+                    String key = rs.getString("cfg_key");
+                    Object value = rs.getObject("cfg_value");
+                    if (key != null) {
+                        result.put(key, value);
+                    }
                 }
                 return result;
             });
@@ -268,7 +278,8 @@ public class JdbcDataProvider implements DataProvider {
                             priority   INT NOT NULL DEFAULT 0,
                             remark     VARCHAR(512),
                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            INDEX idx_group_name (group_name)
                         )
                     """,
             "mysql:config_data", """
@@ -283,6 +294,7 @@ public class JdbcDataProvider implements DataProvider {
                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             UNIQUE KEY uk_cfg (cfg_key, group_id),
+                            INDEX idx_cfg_group_enabled (group_id, enabled),
                             FOREIGN KEY (group_id) REFERENCES config_group(id)
                         )
                     """
@@ -311,7 +323,10 @@ public class JdbcDataProvider implements DataProvider {
                 return;
             }
 
-            String url = dataSource.getConnection().getMetaData().getURL();
+            String url;
+            try (var connection = dataSource.getConnection()) {
+                url = connection.getMetaData().getURL();
+            }
             String dbType = detectDatabaseType(url);
 
             // 从 SQL 模板 Map 中取出对应数据库的 SQL 并执行
@@ -327,7 +342,7 @@ public class JdbcDataProvider implements DataProvider {
         } catch (Exception e) {
             // 表可能已存在，记录调试日志
             // 如果是其他错误，记录警告但继续（某些数据库可能不支持某些语法）
-            log.debug("Failed to ensure tables (may already exist): {}", e.getMessage());
+            log.warn("Failed to ensure tables (may already exist): {}", e.getMessage());
         }
     }
 
@@ -344,7 +359,7 @@ public class JdbcDataProvider implements DataProvider {
         } else if (lowerUrl.contains(":mysql:") || lowerUrl.contains(":mariadb:")) {
             return "mysql";
         }
-        // 默认使用 MySQL 语法（最常见）
+        // 默认使用 mysql 语法（最常见）
         return "mysql";
     }
 

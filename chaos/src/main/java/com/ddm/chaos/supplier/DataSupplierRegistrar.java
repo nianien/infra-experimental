@@ -1,14 +1,23 @@
 package com.ddm.chaos.supplier;
 
 import jakarta.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.PropertyValues;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessor;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.PriorityOrdered;
 import org.springframework.core.ResolvableType;
+import org.springframework.lang.NonNull;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -45,99 +54,120 @@ import java.util.function.Supplier;
  * @see DataSupplierFactory
  * @since 1.0
  */
-public class DataSupplierRegistrar implements InstantiationAwareBeanPostProcessor {
+public class DataSupplierRegistrar
+        implements InstantiationAwareBeanPostProcessor, PriorityOrdered {
+
+    private static final Logger log = LoggerFactory.getLogger(DataSupplierRegistrar.class);
 
     private final DefaultListableBeanFactory beanFactory;
     private final ObjectProvider<DataSupplierFactory> factoryProvider;
 
-    /**
-     * 构造函数。
-     *
-     * @param beanFactory     Spring Bean 工厂
-     * @param factoryProvider DataSupplierFactory 的提供者（延迟获取）
-     */
     public DataSupplierRegistrar(DefaultListableBeanFactory beanFactory,
                                  ObjectProvider<DataSupplierFactory> factoryProvider) {
         this.beanFactory = beanFactory;
         this.factoryProvider = factoryProvider;
     }
 
+    /**
+     * 确保本处理器优先于 CommonAnnotationBeanPostProcessor 执行
+     */
     @Override
-    public org.springframework.beans.PropertyValues postProcessProperties(
-            org.springframework.beans.PropertyValues pvs, Object bean, String beanName) throws BeansException {
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE;
+    }
 
-        Class<?> clazz = bean.getClass();
-        for (Field f : clazz.getDeclaredFields()) {
-            if (!Supplier.class.isAssignableFrom(f.getType())) {
-                continue;
-            }
+    @Override
+    public PropertyValues postProcessProperties(
+            @NonNull PropertyValues pvs,
+            @NonNull Object bean,
+            @NonNull String beanName) throws BeansException {
 
-            // 解析配置键：优先 @Qualifier，其次 @Resource(name)
+        for (Field f : allFields(bean.getClass())) {
+            // 只处理 Supplier<T> 字段
+            if (!Supplier.class.isAssignableFrom(f.getType())) continue;
+            // 忽略 static 字段
+            if (Modifier.isStatic(f.getModifiers())) continue;
+
+            // 解析 key：@Qualifier > @Resource
             String key = resolveKey(f);
-            if (key == null || key.isBlank()) {
-                continue;
-            }
+            if (isBlank(key)) continue;
 
-            // 解析泛型参数 T
-            ResolvableType rt = ResolvableType.forField(f);
-            Class<?> target = rt.getGeneric(0).resolve();
+            // 解析泛型 T
+            Class<?> target = ResolvableType.forField(f).getGeneric(0).resolve();
             if (target == null) {
+                log.debug("Skip field {}.{}: cannot resolve Supplier<T> generic type",
+                        f.getDeclaringClass().getSimpleName(), f.getName());
                 continue;
             }
 
-            // 约定：@Resource(name=...) 按名字注入 → beanName 必须等于 key
+            // 约定：按名注入 → beanName == key
             String supplierBeanName = key;
 
-            // 若容器中尚无该 bean，则注册单例 Supplier<?>（完全交给 Spring 托管）
-            if (!beanFactory.containsBean(supplierBeanName)) {
-                DataSupplierFactory factory = factoryProvider.getIfAvailable();
-                if (factory == null) {
-                    throw new IllegalStateException(
-                            "DataSupplierFactory not available yet while wiring field: " +
-                                    f.getDeclaringClass().getSimpleName() + "." + f.getName());
+            // 如果已经有同名 Bean，检查类型是否为 Supplier；否则跳过（交给后续流程）
+            if (beanFactory.containsBean(supplierBeanName)) {
+                Class<?> existingType = beanFactory.getType(supplierBeanName);
+                if (existingType != null && !Supplier.class.isAssignableFrom(existingType)) {
+                    log.warn("Bean name '{}' already exists but type {} is not a Supplier; field {}.{} will likely fail to inject.",
+                            supplierBeanName, existingType.getName(),
+                            f.getDeclaringClass().getSimpleName(), f.getName());
                 }
-
-                @SuppressWarnings({"rawtypes", "unchecked"})
-                Supplier<?> supplier = factory.getSupplier(key, (Class) target);
-
-                if (supplier != null) {
-                    beanFactory.registerSingleton(supplierBeanName, supplier);
-                }
+                continue;
             }
+
+            // 懒取工厂（只有确实需要注册时才获取）
+            DataSupplierFactory factory = factoryProvider.getIfAvailable();
+            if (factory == null) {
+                throw new IllegalStateException(
+                        "DataSupplierFactory not available while wiring field '%s.%s' with key '%s'"
+                                .formatted(f.getDeclaringClass().getSimpleName(), f.getName(), key));
+            }
+
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            Supplier<?> supplier = factory.getSupplier(key, (Class) target);
+            if (supplier == null) {
+                log.warn("Factory returned null Supplier for key='{}', type='{}'; skip registering.",
+                        key, target.getName());
+                continue;
+            }
+
+            beanFactory.registerSingleton(supplierBeanName, supplier);
+            log.debug("Registered Supplier bean '{}' for key='{}', type='{}'", supplierBeanName, key, target.getName());
         }
 
-        // 不篡改属性，让后续 @Resource/@Autowired 走正常流程
+        // 交回正常注入流程
         return pvs;
     }
 
+    /* -------------------- helpers -------------------- */
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
     /**
-     * 从字段注解中解析配置键。
-     *
-     * <p>支持的注解：
-     * <ul>
-     *   <li>{@link Qualifier @Qualifier}：使用 value 属性作为配置键</li>
-     *   <li>{@link Resource @Resource}：使用 name 属性作为配置键</li>
-     * </ul>
-     *
-     * <p>优先级：{@code @Qualifier} > {@code @Resource}
-     *
-     * @param field 字段对象
-     * @return 解析得到的配置键，如果无法解析则返回 null
+     * 解析注解上的 key：@Qualifier > @Resource
      */
     private static String resolveKey(Field field) {
-        // 优先检查 @Qualifier 注解
         Qualifier q = field.getAnnotation(Qualifier.class);
-        if (q != null && !q.value().isBlank()) {
-            return q.value();
-        }
+        if (q != null && !q.value().isBlank()) return q.value();
 
-        // 其次检查 @Resource 注解
         Resource r = field.getAnnotation(Resource.class);
-        if (r != null && !r.name().isBlank()) {
-            return r.name();
-        }
+        if (r != null && !r.name().isBlank()) return r.name();
 
         return null;
+    }
+
+    /**
+     * 递归收集继承链上的所有字段（含父类）
+     */
+    private static List<Field> allFields(Class<?> type) {
+        List<Field> list = new ArrayList<>();
+        Class<?> c = type;
+        while (c != null && c != Object.class) {
+            for (Field f : c.getDeclaredFields()) list.add(f);
+            c = c.getSuperclass();
+        }
+        return list;
     }
 }
 
