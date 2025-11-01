@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
+import javax.sql.DataSource;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -112,6 +113,15 @@ public class JdbcDataProvider implements DataProvider {
      * 配置组名称列表，默认包含 "default" 组。
      */
     private List<String> groupNames = List.of("default");
+
+    /**
+     * 获取 JDBC 数据源（用于测试和调试）。
+     *
+     * @return 数据源实例，如果未初始化则返回 null
+     */
+    public DataSource getDataSource() {
+        return jdbc != null ? jdbc.getDataSource() : null;
+    }
 
     /**
      * 初始化 JDBC 数据源和配置组。
@@ -272,7 +282,7 @@ public class JdbcDataProvider implements DataProvider {
                     """,
             // MySQL 数据库
             "mysql:config_group", """
-                    CREATE TABLE `config_group` (
+                    CREATE TABLE IF NOT EXISTS `config_group` (
                         `id` bigint NOT NULL AUTO_INCREMENT,
                         `group_name` varchar(128) NOT NULL,
                         `priority` int NOT NULL DEFAULT '0',
@@ -285,7 +295,7 @@ public class JdbcDataProvider implements DataProvider {
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                     """,
             "mysql:config_data", """
-                    CREATE TABLE `config_data` (
+                    CREATE TABLE IF NOT EXISTS `config_data` (
                         `id` BIGINT NOT NULL AUTO_INCREMENT,
                         `cfg_key` VARCHAR ( 255 ) NOT NULL,
                         `cfg_value` TEXT NOT NULL,
