@@ -32,6 +32,13 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{lane:--}] [%X{traceId:--}] %logger{36} - %msg%n"
 
+chaos:
+  supplier:
+    provider: com.ddm.chaos.provider.jdbc.JdbcDataProvider
+    ttl: 30S
+    config:
+      dummy: test
+
 
 ---
 

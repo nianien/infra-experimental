@@ -246,57 +246,60 @@ public class JdbcDataProvider implements DataProvider {
     private static final Map<String, String> SQL_TEMPLATES = Map.of(
             // H2 数据库
             "h2:config_group", """
-                        CREATE TABLE IF NOT EXISTS config_group (
-                            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                            group_name VARCHAR(128) NOT NULL UNIQUE,
-                            priority   INT NOT NULL DEFAULT 0,
-                            remark     VARCHAR(512),
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        )
+                    CREATE TABLE IF NOT EXISTS config_group (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        group_name VARCHAR(128) NOT NULL UNIQUE,
+                        priority   INT NOT NULL DEFAULT 0,
+                        remark     VARCHAR(512),
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
                     """,
             "h2:config_data", """
-                        CREATE TABLE IF NOT EXISTS config_data (
-                            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                            cfg_key   VARCHAR(255) NOT NULL,
-                            cfg_value TEXT         NOT NULL,
-                            cfg_type  VARCHAR(64)  DEFAULT 'string',
-                            enabled   BOOLEAN      DEFAULT TRUE,
-                            group_id  BIGINT       NOT NULL,
-                            remark    VARCHAR(512),
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            CONSTRAINT uk_cfg UNIQUE (cfg_key, group_id),
-                            FOREIGN KEY (group_id) REFERENCES config_group(id)
-                        )
+                    CREATE TABLE IF NOT EXISTS config_data (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        cfg_key   VARCHAR(255) NOT NULL,
+                        cfg_value TEXT         NOT NULL,
+                        cfg_type  VARCHAR(64)  DEFAULT 'string',
+                        enabled   BOOLEAN      DEFAULT TRUE,
+                        group_id  BIGINT       NOT NULL,
+                        remark    VARCHAR(512),
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uk_cfg UNIQUE (cfg_key, group_id),
+                        FOREIGN KEY (group_id) REFERENCES config_group(id)
+                    )
                     """,
             // MySQL 数据库
             "mysql:config_group", """
-                        CREATE TABLE IF NOT EXISTS config_group (
-                            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                            group_name VARCHAR(128) NOT NULL UNIQUE,
-                            priority   INT NOT NULL DEFAULT 0,
-                            remark     VARCHAR(512),
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            INDEX idx_group_name (group_name)
-                        )
+                    CREATE TABLE `config_group` (
+                        `id` bigint NOT NULL AUTO_INCREMENT,
+                        `group_name` varchar(128) NOT NULL,
+                        `priority` int NOT NULL DEFAULT '0',
+                        `remark` varchar(512) DEFAULT NULL,
+                        `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (`id`),
+                        UNIQUE KEY `group_name` (`group_name`),
+                        KEY `idx_group_name` (`group_name`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                     """,
             "mysql:config_data", """
-                        CREATE TABLE IF NOT EXISTS config_data (
-                            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                            cfg_key   VARCHAR(255) NOT NULL,
-                            cfg_value TEXT         NOT NULL,
-                            cfg_type  VARCHAR(64)  DEFAULT 'string',
-                            enabled   BOOLEAN      DEFAULT TRUE,
-                            group_id  BIGINT       NOT NULL,
-                            remark    VARCHAR(512),
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            UNIQUE KEY uk_cfg (cfg_key, group_id),
-                            INDEX idx_cfg_group_enabled (group_id, enabled),
-                            FOREIGN KEY (group_id) REFERENCES config_group(id)
-                        )
+                    CREATE TABLE `config_data` (
+                        `id` BIGINT NOT NULL AUTO_INCREMENT,
+                        `cfg_key` VARCHAR ( 255 ) NOT NULL,
+                        `cfg_value` TEXT NOT NULL,
+                        `cfg_type` VARCHAR ( 64 ) DEFAULT 'string',
+                        `enabled` TINYINT ( 1 ) DEFAULT '1',
+                        `group_id` BIGINT NOT NULL,
+                        `remark` VARCHAR ( 512 ) DEFAULT NULL,
+                        `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY ( `id` ),
+                        UNIQUE KEY `uk_cfg` ( `cfg_key`, `group_id` ),
+                        KEY `idx_cfg_group_enabled` ( `group_id`, `enabled` ),
+                        CONSTRAINT `fk_cfg_group` FOREIGN KEY ( `group_id` ) REFERENCES `config_group` ( `id` )
+                    ) ENGINE = INNODB DEFAULT CHARSET = utf8mb4;
                     """
     );
 

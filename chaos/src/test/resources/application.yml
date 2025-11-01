@@ -1,6 +1,6 @@
 chaos:
   supplier:
-    provider: com.ddm.chaos.demo.DemoBeanTest$TestDataProvider
+    provider: com.ddm.chaos.provider.jdbc.JdbcDataProvider
     ttl: PT30S
     config:
       dummy: test
