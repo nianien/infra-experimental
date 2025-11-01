@@ -1,7 +1,8 @@
-package com.ddm.rhea.demo;
+package com.ddm.chaos.demo;
 
 import jakarta.annotation.Resource;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.function.Supplier;
@@ -11,13 +12,14 @@ import java.util.function.Supplier;
  * @created : 2025/10/29, Wednesday
  * Copyright (c) 2004-2029 All Rights Reserved.
  **/
-@ConfigurationProperties("com.dd.demo")
 @Component
 public class DemoBean {
 
     @Resource(name = "com.dd.demo.name")
-    private Supplier<String> name;
-    private Supplier<Integer> age;
+    Supplier<String> name;
+
+    @Resource(name = "com.dd.demo.age")
+    Supplier<Integer> age;
 
 
     public void doSomething() {

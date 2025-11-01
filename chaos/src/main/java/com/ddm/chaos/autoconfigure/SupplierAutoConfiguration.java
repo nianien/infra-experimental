@@ -2,7 +2,7 @@ package com.ddm.chaos.autoconfigure;
 
 import com.ddm.chaos.provider.DataProvider;
 import com.ddm.chaos.supplier.*;
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -21,7 +21,7 @@ import java.util.ServiceLoader;
  *   <li>创建并配置 {@link DataSupplierFactory} Bean</li>
  *   <li>通过 SPI 机制加载指定的 {@link DataProvider} 实现</li>
  *   <li>初始化 DataProvider 并启动刷新任务</li>
- *   <li>注册 {@link DataSupplierResolver} 用于动态注入 Supplier</li>
+ *   <li>注册 {@link SupplierFieldRegistrar} 用于在属性注入前预注册 Supplier Bean</li>
  * </ol>
  * 
  * <p><strong>配置要求：</strong>
@@ -34,18 +34,18 @@ import java.util.ServiceLoader;
  * <p><strong>自动配置的 Bean：</strong>
  * <ul>
  *   <li>{@link DataSupplierFactory}：配置数据的 Supplier 工厂，支持定时刷新</li>
- *   <li>{@link BeanFactoryPostProcessor}：用于注册动态 Supplier 解析器</li>
+ *   <li>{@link SupplierFieldRegistrar}：用于在属性注入前预注册 Supplier Bean</li>
  * </ul>
  * 
  * @author liyifei
  * @since 1.0
  * @see DataSupplierProperties
  * @see DataSupplierFactory
- * @see DataSupplierResolver
+ * @see SupplierFieldRegistrar
  */
 @AutoConfiguration
 @EnableConfigurationProperties(DataSupplierProperties.class)
-public class DynamicSupplierAutoConfiguration {
+public class SupplierAutoConfiguration {
 
     /**
      * 创建 DataSupplierFactory Bean。
@@ -72,7 +72,7 @@ public class DynamicSupplierAutoConfiguration {
                 props.provider(), "chaos.supplier.provider must not be null");
 
         // 1. 通过 SPI 加载 DataProvider
-        DataProvider provider = loadProviderByFqcn(fqcn);
+        DataProvider provider = loadProvider(fqcn);
         
         // 2. 使用配置参数初始化 DataProvider
         Map<String, String> config = props.config();
@@ -106,54 +106,51 @@ public class DynamicSupplierAutoConfiguration {
      * com.ddm.chaos.provider.jdbc.JdbcDataProvider
      * </pre>
      * 
-     * @param fqcn DataProvider 实现类的全限定名（Fully Qualified Class Name）
+     * @param className DataProvider 实现类的全限定名（Fully Qualified Class Name）
      * @return 匹配的 DataProvider 实例
      * @throws IllegalStateException 如果找不到匹配的 DataProvider 实现
      */
-    private static DataProvider loadProviderByFqcn(String fqcn) {
+    private static DataProvider loadProvider(String className) {
         ServiceLoader<DataProvider> loader =
                 ServiceLoader.load(DataProvider.class, Thread.currentThread().getContextClassLoader());
         for (DataProvider p : loader) {
-            if (p.getClass().getName().equals(fqcn)) {
+            if (p.getClass().getName().equals(className)) {
                 return p;
             }
         }
         throw new IllegalStateException(
-                "No DataProvider found via SPI for: " + fqcn + 
+                "No DataProvider found via SPI for: " + className +
                 ". Please ensure the class is registered in META-INF/services/com.ddm.chaos.provider.DataProvider");
     }
 
     /**
-     * 创建 BeanFactoryPostProcessor，用于注册动态 Supplier 解析器。
+     * 注册 SupplierFieldRegistrar，用于在属性注入前预注册缺失的 Supplier Bean。
      * 
-     * <p>该方法注册 {@link DataSupplierResolver}，使其能够：
+     * <p>该后处理器在 {@code CommonAnnotationBeanPostProcessor} 之前执行，扫描所有 bean 的字段，
+     * 对于 {@code Supplier<T>} 类型且带有 {@code @Resource(name=...)} 或 {@code @Qualifier} 注解的字段，
+     * 在属性注入前预先注册对应的 Supplier Bean，使得 {@code @Resource} 注入能够成功。
+     * 
+     * <p><strong>支持的注解：</strong>
      * <ul>
-     *   <li>在依赖注入阶段拦截 {@code Supplier<T>} 类型的依赖</li>
-     *   <li>根据 {@code @Qualifier} 或 {@code @Resource(name=...)} 注解解析配置键</li>
-     *   <li>动态创建并注册 Supplier Bean</li>
+     *   <li>{@code @Resource(name="key")}</li>
+     *   <li>{@code @Qualifier("key")}</li>
      * </ul>
      * 
-     * <p><strong>使用示例：</strong>
-     * <pre>{@code
-     * @Component
-     * public class MyService {
-     *     @Resource(name = "app.name")
-     *     private Supplier<String> appName;
-     *     
-     *     public void useConfig() {
-     *         String name = appName.get();
-     *     }
-     * }
-     * }</pre>
-     * 
-     * @return BeanFactoryPostProcessor 实例，用于注册动态解析器
+     * @param beanFactory Spring Bean 工厂
+     * @param factoryProvider DataSupplierFactory 的提供者
+     * @return SupplierFieldRegistrar 实例
      */
     @Bean
-    public static BeanFactoryPostProcessor dynamicSupplierResolverPostProcessor() {
-        return (ConfigurableListableBeanFactory bf) -> {
-            if (bf instanceof DefaultListableBeanFactory dlbf) {
-                dlbf.setAutowireCandidateResolver(new DataSupplierResolver(dlbf));
-            }
-        };
+    public SupplierFieldRegistrar supplierFieldRegistrar(
+            ConfigurableListableBeanFactory beanFactory,
+            ObjectProvider<DataSupplierFactory> factoryProvider) {
+        
+        if (!(beanFactory instanceof DefaultListableBeanFactory)) {
+            throw new IllegalStateException("Need DefaultListableBeanFactory");
+        }
+        return new SupplierFieldRegistrar(
+                (DefaultListableBeanFactory) beanFactory, 
+                factoryProvider);
     }
+
 }
