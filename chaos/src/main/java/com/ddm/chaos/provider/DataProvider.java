@@ -1,4 +1,4 @@
-package com.ddm.chaos.supplier;
+package com.ddm.chaos.provider;
 
 import java.util.Map;
 

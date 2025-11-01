@@ -1,5 +1,6 @@
 package com.ddm.chaos.supplier;
 
+import com.ddm.chaos.provider.DataProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

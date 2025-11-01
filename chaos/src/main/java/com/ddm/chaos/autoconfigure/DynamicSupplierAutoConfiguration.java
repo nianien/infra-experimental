@@ -1,5 +1,6 @@
 package com.ddm.chaos.autoconfigure;
 
+import com.ddm.chaos.provider.DataProvider;
 import com.ddm.chaos.supplier.*;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
