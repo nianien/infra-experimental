@@ -21,7 +21,7 @@ import java.util.ServiceLoader;
  *   <li>创建并配置 {@link DataSupplierFactory} Bean</li>
  *   <li>通过 SPI 机制加载指定的 {@link DataProvider} 实现</li>
  *   <li>初始化 DataProvider 并启动刷新任务</li>
- *   <li>注册 {@link SupplierFieldRegistrar} 用于在属性注入前预注册 Supplier Bean</li>
+ *   <li>注册 {@link DataSupplierRegistrar} 用于在属性注入前预注册 Supplier Bean</li>
  * </ol>
  * 
  * <p><strong>配置要求：</strong>
@@ -34,14 +34,14 @@ import java.util.ServiceLoader;
  * <p><strong>自动配置的 Bean：</strong>
  * <ul>
  *   <li>{@link DataSupplierFactory}：配置数据的 Supplier 工厂，支持定时刷新</li>
- *   <li>{@link SupplierFieldRegistrar}：用于在属性注入前预注册 Supplier Bean</li>
+ *   <li>{@link DataSupplierRegistrar}：用于在属性注入前预注册 Supplier Bean</li>
  * </ul>
  * 
  * @author liyifei
  * @since 1.0
  * @see DataSupplierProperties
  * @see DataSupplierFactory
- * @see SupplierFieldRegistrar
+ * @see DataSupplierRegistrar
  */
 @AutoConfiguration
 @EnableConfigurationProperties(DataSupplierProperties.class)
@@ -72,7 +72,7 @@ public class SupplierAutoConfiguration {
                 props.provider(), "chaos.supplier.provider must not be null");
 
         // 1. 通过 SPI 加载 DataProvider
-        DataProvider provider = loadProvider(fqcn);
+        DataProvider provider = loadDataProvider(fqcn);
         
         // 2. 使用配置参数初始化 DataProvider
         Map<String, String> config = props.config();
@@ -110,7 +110,7 @@ public class SupplierAutoConfiguration {
      * @return 匹配的 DataProvider 实例
      * @throws IllegalStateException 如果找不到匹配的 DataProvider 实现
      */
-    private static DataProvider loadProvider(String className) {
+    private static DataProvider loadDataProvider(String className) {
         ServiceLoader<DataProvider> loader =
                 ServiceLoader.load(DataProvider.class, Thread.currentThread().getContextClassLoader());
         for (DataProvider p : loader) {
@@ -141,14 +141,14 @@ public class SupplierAutoConfiguration {
      * @return SupplierFieldRegistrar 实例
      */
     @Bean
-    public SupplierFieldRegistrar supplierFieldRegistrar(
+    public DataSupplierRegistrar dataSupplierRegistrar(
             ConfigurableListableBeanFactory beanFactory,
             ObjectProvider<DataSupplierFactory> factoryProvider) {
         
         if (!(beanFactory instanceof DefaultListableBeanFactory)) {
             throw new IllegalStateException("Need DefaultListableBeanFactory");
         }
-        return new SupplierFieldRegistrar(
+        return new DataSupplierRegistrar(
                 (DefaultListableBeanFactory) beanFactory, 
                 factoryProvider);
     }

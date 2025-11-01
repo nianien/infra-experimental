@@ -45,7 +45,7 @@ import java.util.function.Supplier;
  * @see DataSupplierFactory
  * @since 1.0
  */
-public class SupplierFieldRegistrar implements InstantiationAwareBeanPostProcessor {
+public class DataSupplierRegistrar implements InstantiationAwareBeanPostProcessor {
 
     private final DefaultListableBeanFactory beanFactory;
     private final ObjectProvider<DataSupplierFactory> factoryProvider;
@@ -56,8 +56,8 @@ public class SupplierFieldRegistrar implements InstantiationAwareBeanPostProcess
      * @param beanFactory     Spring Bean 工厂
      * @param factoryProvider DataSupplierFactory 的提供者（延迟获取）
      */
-    public SupplierFieldRegistrar(DefaultListableBeanFactory beanFactory,
-                                  ObjectProvider<DataSupplierFactory> factoryProvider) {
+    public DataSupplierRegistrar(DefaultListableBeanFactory beanFactory,
+                                 ObjectProvider<DataSupplierFactory> factoryProvider) {
         this.beanFactory = beanFactory;
         this.factoryProvider = factoryProvider;
     }
