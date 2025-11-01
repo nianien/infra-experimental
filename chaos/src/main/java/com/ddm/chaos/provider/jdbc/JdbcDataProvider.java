@@ -51,6 +51,9 @@ import java.util.stream.Collectors;
  *   <li>{@code username}（可选）：数据库用户名，默认为空字符串</li>
  *   <li>{@code password}（可选）：数据库密码，默认为空字符串</li>
  *   <li>{@code groups}（可选）：配置组名称列表，逗号分隔，默认为 "default"</li>
+ *   <li>{@code init_sql}（可选）：是否执行默认的表初始化，默认值为 {@code false}。
+ *       只有当设置为 {@code "true"}/{@code "1"}/{@code "yes"}/{@code "on"} 时，才会自动创建表结构。
+ *       如果未配置或设置为其他值，将跳过自动创建表结构。</li>
  * </ul>
  *
  * <p><strong>查询逻辑：</strong>
@@ -70,11 +73,21 @@ import java.util.stream.Collectors;
  *
  * <p><strong>使用示例：</strong>
  * <pre>{@code
+ * // 示例 1：使用默认表创建逻辑
  * Map<String, String> config = Map.of(
  *     "url", "jdbc:mysql://localhost:3306/config_center",
  *     "username", "root",
  *     "password", "root",
  *     "groups", "default,prod"
+ * );
+ *
+ * // 示例 2：启用自动表初始化
+ * Map<String, String> config2 = Map.of(
+ *     "url", "jdbc:mysql://localhost:3306/config_center",
+ *     "username", "root",
+ *     "password", "root",
+ *     "groups", "default,prod",
+ *     "init_sql", "true"  // 启用自动创建表结构
  * );
  *
  * JdbcDataProvider provider = new JdbcDataProvider();
@@ -108,10 +121,16 @@ public class JdbcDataProvider implements DataProvider {
      *   <li>从配置中获取数据库连接参数（url、username、password）</li>
      *   <li>创建 JdbcTemplate 实例</li>
      *   <li>解析配置组名称列表（从 {@code groups} 配置项）</li>
-     *   <li>确保数据库表结构存在（如果不存在则自动创建）</li>
+     *   <li>表结构初始化：
+     *     <ul>
+     *       <li>只有当 {@code init_sql} 明确设置为 {@code "true"}/{@code "1"}/{@code "yes"}/{@code "on"} 时，才会执行表创建</li>
+     *       <li>默认情况下（未配置或为其他值），跳过表创建</li>
+     *     </ul>
+     *   </li>
      * </ol>
      *
-     * @param cfg 配置参数 Map，必须包含 "url"，可选包含 "username"、"password"、"groups"
+     * @param cfg 配置参数 Map，必须包含 "url"，
+     *            可选包含 "username"、"password"、"groups"、"init_sql"
      * @throws IllegalArgumentException 如果缺少必需的配置参数（如 url）
      */
     @Override
@@ -124,21 +143,22 @@ public class JdbcDataProvider implements DataProvider {
         this.jdbc = new JdbcTemplate(new DriverManagerDataSource(url, username, password));
 
         // 解析配置组名称列表
-        if (cfg.containsKey("groups")) {
-            var parsed = Arrays.stream(cfg.get("groups").split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .distinct()
-                    .collect(Collectors.toList());
-            if (!parsed.isEmpty()) {
-                this.groupNames = parsed;
-            }
+        var groups = Arrays.stream(cfg.getOrDefault("groups", "").split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+        if (!groups.isEmpty()) {
+            this.groupNames = groups;
         }
-
-        // 确保表结构存在
-        ensureTables();
+        String v = cfg.getOrDefault("init_sql", "").trim().toLowerCase();
+        var initSql = v.equals("true") || v.equals("1") || v.equals("yes") || v.equals("on");
+        if (initSql) {
+            ensureTables();
+        }
         log.info("JdbcDataProvider initialized: url={}, groups={}", url, groupNames);
     }
+
 
     /**
      * 从数据库加载所有配置数据。
@@ -206,17 +226,42 @@ public class JdbcDataProvider implements DataProvider {
     }
 
     /**
-     * 确保数据库表结构存在（幂等执行）。
+     * 各数据库的完整 SQL 模板映射。
      *
-     * <p>该方法会自动创建 {@code config_group} 和 {@code config_data} 表（如果不存在）。
-     * 使用 {@code CREATE TABLE IF NOT EXISTS} 语句，确保幂等性。
+     * <p>Key 格式：{dbType}:{tableName}，如 "h2:config_group"、"mysql:config_data"
+     * Value：完整的 CREATE TABLE 语句
      *
-     * <p>如果表已存在或创建失败，会记录调试日志但不抛出异常，不影响主流程。
+     * <p>支持扩展：只需添加新的 Key-Value 对即可支持更多数据库类型。
      */
-    private void ensureTables() {
-        try {
-            // 创建 config_group 表
-            jdbc.execute("""
+    private static final Map<String, String> SQL_TEMPLATES = Map.of(
+            // H2 数据库
+            "h2:config_group", """
+                        CREATE TABLE IF NOT EXISTS config_group (
+                            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                            group_name VARCHAR(128) NOT NULL UNIQUE,
+                            priority   INT NOT NULL DEFAULT 0,
+                            remark     VARCHAR(512),
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """,
+            "h2:config_data", """
+                        CREATE TABLE IF NOT EXISTS config_data (
+                            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                            cfg_key   VARCHAR(255) NOT NULL,
+                            cfg_value TEXT         NOT NULL,
+                            cfg_type  VARCHAR(64)  DEFAULT 'string',
+                            enabled   BOOLEAN      DEFAULT TRUE,
+                            group_id  BIGINT       NOT NULL,
+                            remark    VARCHAR(512),
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            CONSTRAINT uk_cfg UNIQUE (cfg_key, group_id),
+                            FOREIGN KEY (group_id) REFERENCES config_group(id)
+                        )
+                    """,
+            // MySQL 数据库
+            "mysql:config_group", """
                         CREATE TABLE IF NOT EXISTS config_group (
                             id BIGINT AUTO_INCREMENT PRIMARY KEY,
                             group_name VARCHAR(128) NOT NULL UNIQUE,
@@ -225,10 +270,8 @@ public class JdbcDataProvider implements DataProvider {
                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                         )
-                    """);
-
-            // 创建 config_data 表
-            jdbc.execute("""
+                    """,
+            "mysql:config_data", """
                         CREATE TABLE IF NOT EXISTS config_data (
                             id BIGINT AUTO_INCREMENT PRIMARY KEY,
                             cfg_key   VARCHAR(255) NOT NULL,
@@ -242,11 +285,67 @@ public class JdbcDataProvider implements DataProvider {
                             UNIQUE KEY uk_cfg (cfg_key, group_id),
                             FOREIGN KEY (group_id) REFERENCES config_group(id)
                         )
-                    """);
+                    """
+    );
+
+    /**
+     * 确保数据库表结构存在（幂等执行）。
+     *
+     * <p>该方法会自动创建 {@code config_group} 和 {@code config_data} 表（如果不存在）。
+     * 使用 {@code CREATE TABLE IF NOT EXISTS} 语句，确保幂等性。
+     *
+     * <p>支持的数据库类型：
+     * <ul>
+     *   <li>H2（用于测试）</li>
+     *   <li>MySQL</li>
+     * </ul>
+     *
+     * <p>如果表已存在或创建失败，会记录调试日志但不抛出异常，不影响主流程。
+     */
+    private void ensureTables() {
+        try {
+            // 获取数据库 URL 来判断数据库类型
+            var dataSource = jdbc.getDataSource();
+            if (dataSource == null) {
+                log.warn("DataSource is null, cannot detect database type");
+                return;
+            }
+
+            String url = dataSource.getConnection().getMetaData().getURL();
+            String dbType = detectDatabaseType(url);
+
+            // 从 SQL 模板 Map 中取出对应数据库的 SQL 并执行
+            String groupTableSql = SQL_TEMPLATES.get(dbType + ":config_group");
+            String dataTableSql = SQL_TEMPLATES.get(dbType + ":config_data");
+
+            if (groupTableSql != null && dataTableSql != null) {
+                jdbc.execute(groupTableSql);
+                jdbc.execute(dataTableSql);
+            } else {
+                log.warn("Unsupported database type: {}, table creation skipped", dbType);
+            }
         } catch (Exception e) {
-            // 表可能已存在或创建失败，记录日志但不影响主流程
+            // 表可能已存在，记录调试日志
+            // 如果是其他错误，记录警告但继续（某些数据库可能不支持某些语法）
             log.debug("Failed to ensure tables (may already exist): {}", e.getMessage());
         }
+    }
+
+    /**
+     * 根据数据库 URL 检测数据库类型。
+     *
+     * @param url 数据库连接 URL
+     * @return 数据库类型（h2、mysql），如果无法识别则返回 "mysql" 作为默认值
+     */
+    private static String detectDatabaseType(String url) {
+        String lowerUrl = url.toLowerCase();
+        if (lowerUrl.contains(":h2:")) {
+            return "h2";
+        } else if (lowerUrl.contains(":mysql:") || lowerUrl.contains(":mariadb:")) {
+            return "mysql";
+        }
+        // 默认使用 MySQL 语法（最常见）
+        return "mysql";
     }
 
     /**
