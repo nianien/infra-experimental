@@ -1,0 +1,7 @@
+chaos:
+  supplier:
+    provider: com.ddm.chaos.demo.DemoBeanTest$TestDataProvider
+    ttl: PT30S
+    config:
+      dummy: test
+
