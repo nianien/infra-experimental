@@ -2,6 +2,8 @@ package com.ddm.chaos.autoconfigure;
 
 import com.ddm.chaos.provider.DataProvider;
 import com.ddm.chaos.supplier.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -47,6 +49,8 @@ import java.util.ServiceLoader;
 @EnableConfigurationProperties(DataSupplierProperties.class)
 public class SupplierAutoConfiguration {
 
+    private static final Logger log = LoggerFactory.getLogger(SupplierAutoConfiguration.class);
+
     /**
      * 创建 DataSupplierFactory Bean。
      * 
@@ -72,12 +76,14 @@ public class SupplierAutoConfiguration {
                 props.provider(), "chaos.supplier.provider must not be null");
 
         // 1. 通过 SPI 加载 DataProvider
+        log.debug("Loading DataProvider: {}", fqcn);
         DataProvider provider = loadDataProvider(fqcn);
         
         // 2. 使用配置参数初始化 DataProvider
         Map<String, String> config = props.config();
         try {
             provider.initialize(config);
+            log.debug("DataProvider '{}' initialized successfully", fqcn);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to initialize provider: " + fqcn, e);
         }
@@ -86,6 +92,8 @@ public class SupplierAutoConfiguration {
         DefaultDataSupplierFactory factory = new DefaultDataSupplierFactory(provider);
         factory.setRefreshInterval(props.ttl());
         factory.startRefresh();
+        log.info("DataSupplierFactory created with provider: {}, refresh interval: {}", 
+                fqcn, props.ttl());
         return factory;
     }
 

@@ -230,7 +230,7 @@ public class JdbcDataProvider implements DataProvider {
                 return result;
             });
         } catch (Exception e) {
-            log.error("Failed to load configs from database: {}", e.getMessage(), e);
+            log.error("Failed to load configs from database", e);
             return Map.of();
         }
     }
@@ -342,7 +342,7 @@ public class JdbcDataProvider implements DataProvider {
         } catch (Exception e) {
             // 表可能已存在，记录调试日志
             // 如果是其他错误，记录警告但继续（某些数据库可能不支持某些语法）
-            log.warn("Failed to ensure tables (may already exist): {}", e.getMessage());
+            log.warn("Failed to ensure tables (may already exist).", e);
         }
     }
 

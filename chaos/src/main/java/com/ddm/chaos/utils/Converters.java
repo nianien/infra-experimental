@@ -161,7 +161,8 @@ public final class Converters {
             return null;
             
         } catch (ClassCastException | IllegalArgumentException e) {
-            log.debug("Type conversion failed: raw={}, targetType={}", str, type.getSimpleName(), e);
+            log.debug("Type convert failed: raw='{}', targetType='{}': {}",
+                    str, type.getSimpleName(), e.getMessage());
             return null;
         }
     }
@@ -251,8 +252,6 @@ public final class Converters {
         }
     }
     
-    /* ===================== 时间类型解析方法 ===================== */
-    
     /**
      * 解析 Duration 字符串。
      * 
@@ -312,7 +311,7 @@ public final class Converters {
             }
             
         } catch (Exception e) {
-            log.debug("Failed to parse duration: {}", str, e);
+            log.debug("Failed to parse duration '{}': {}", str, e.getMessage());
         }
         return null;
     }

@@ -95,7 +95,7 @@ public class DataSupplierRegistrar
             // 解析泛型 T
             Class<?> target = ResolvableType.forField(f).getGeneric(0).resolve();
             if (target == null) {
-                log.debug("Skip field {}.{}: cannot resolve Supplier<T> generic type",
+                log.debug("Skip field {}.{}: cannot resolve Supplier<T> generic parameter",
                         f.getDeclaringClass().getSimpleName(), f.getName());
                 continue;
             }
@@ -107,8 +107,8 @@ public class DataSupplierRegistrar
             if (beanFactory.containsBean(supplierBeanName)) {
                 Class<?> existingType = beanFactory.getType(supplierBeanName);
                 if (existingType != null && !Supplier.class.isAssignableFrom(existingType)) {
-                    log.warn("Bean name '{}' already exists but type {} is not a Supplier; field {}.{} will likely fail to inject.",
-                            supplierBeanName, existingType.getName(),
+                    log.warn("Bean '{}' exists but type {} is not Supplier; field {}.{} may fail to inject",
+                            supplierBeanName, existingType.getSimpleName(),
                             f.getDeclaringClass().getSimpleName(), f.getName());
                 }
                 continue;
@@ -125,13 +125,14 @@ public class DataSupplierRegistrar
             @SuppressWarnings({"rawtypes", "unchecked"})
             Supplier<?> supplier = factory.getSupplier(key, (Class) target);
             if (supplier == null) {
-                log.warn("Factory returned null Supplier for key='{}', type='{}'; skip registering.",
-                        key, target.getName());
+                log.warn("Factory returned null Supplier for key='{}', type='{}'; skip registering",
+                        key, target.getSimpleName());
                 continue;
             }
 
             beanFactory.registerSingleton(supplierBeanName, supplier);
-            log.debug("Registered Supplier bean '{}' for key='{}', type='{}'", supplierBeanName, key, target.getName());
+            log.debug("Registered Supplier bean '{}' for key='{}', type='{}'", 
+                    supplierBeanName, key, target.getSimpleName());
         }
 
         // 交回正常注入流程
