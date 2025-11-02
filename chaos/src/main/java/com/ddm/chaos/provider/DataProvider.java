@@ -1,7 +1,6 @@
 package com.ddm.chaos.provider;
 
-import com.ddm.chaos.provider.jdbc.JdbcDataProvider;
-
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -10,7 +9,6 @@ import java.util.Map;
  * <p>该接口定义了配置数据的获取抽象，实现类需要：
  * <ul>
  *   <li>通过 {@link #initialize(Map)} 方法初始化数据源连接</li>
- *   <li>通过 {@link #loadData()} 方法获取全量配置快照</li>
  *   <li>实现 {@link #close()} 方法释放资源</li>
  * </ul>
  *
@@ -36,12 +34,10 @@ import java.util.Map;
  * <p><strong>注意事项：</strong>
  * <ul>
  *   <li>实现类应该保证线程安全性</li>
- *   <li>{@link #loadData()} 方法应返回不可变或只读的 Map，避免外部修改</li>
  *   <li>异常情况下应返回空 Map 而不是抛出异常，以保证系统可用性</li>
  * </ul>
  *
  * @author liyifei
- * @see JdbcDataProvider
  * @since 1.0
  */
 public interface DataProvider extends AutoCloseable {
@@ -61,7 +57,7 @@ public interface DataProvider extends AutoCloseable {
      * @param config 配置参数 Map，包含数据源所需的配置（如 url、username、password 等）
      * @throws Exception 如果初始化失败，抛出异常
      */
-    void initialize(Map<String, String> config) throws Exception;
+    void initialize(ProviderConfig config) throws Exception;
 
     /**
      * 拉取全量配置快照。
@@ -84,7 +80,7 @@ public interface DataProvider extends AutoCloseable {
      * @throws Exception 如果拉取过程中发生严重错误，可以抛出异常
      *                   但建议捕获异常并返回空 Map，保证系统可用性
      */
-    Map<String, Object> loadData(String namespace, String groups, String tag) throws Exception;
+    Map<String, Object> loadData() throws Exception;
 
     /**
      * 关闭数据提供者，释放相关资源。
@@ -103,5 +99,26 @@ public interface DataProvider extends AutoCloseable {
     @Override
     default void close() throws Exception {
         // 默认无操作，由具体实现类重写
+    }
+
+    /**
+     * provider.* 节点
+     */
+    record ProviderConfig(
+            /** 提供者类型（jdbc / redis / git / api 等） */
+            String type,
+
+            /** 命名空间（可选） */
+            String namespace,
+
+            /** 分组名称（可选） */
+            String group,
+
+            /** 标签（如 gray、hotfix、beta 等） */
+            List<String> tags,
+
+            /** provider.config.* 动态参数映射 */
+            Map<String, String> config
+    ) {
     }
 }

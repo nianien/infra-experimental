@@ -1,6 +1,7 @@
 package com.ddm.chaos.config;
 
 import com.ddm.chaos.provider.DataProvider;
+import com.ddm.chaos.provider.DataProvider.ProviderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,9 +133,10 @@ public final class DefaultDataConfigFactory implements DataConfigFactory {
 
     private void init() throws Exception {
         // 加载 Provider
-        String type = Objects.requireNonNull(props.provider(), "chaos.supplier.provider must not be null");
+        ProviderConfig pcfg = props.provider();
+        String type = Objects.requireNonNull(pcfg.type(), "chaos.supplier.provider must not be null");
         this.provider = loadDataProvider(type);
-        provider.initialize(props.config());
+        provider.initialize(pcfg);
         this.startRefresh();
     }
 
@@ -277,7 +279,7 @@ public final class DefaultDataConfigFactory implements DataConfigFactory {
 
         try {
             // 从数据源加载新的配置数据
-            Map<String, Object> newRaw = provider.loadData(props.namespace(), props.groups(), props.tags());
+            Map<String, Object> newRaw = provider.loadData();
 
             // 验证数据有效性
             if (newRaw == null || newRaw.isEmpty()) {

@@ -3,7 +3,7 @@ package com.ddm.chaos.demo;
 import com.ddm.chaos.autoconfigure.SupplierAutoConfiguration;
 import com.ddm.chaos.config.DataConfigFactory;
 import com.ddm.chaos.config.DefaultDataConfigFactory;
-import com.ddm.chaos.provider.jdbc.JdbcDataProvider;
+import com.ddm.chaos.provider.JdbcDataProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +51,6 @@ class DemoBeanTest {
 
         // 获取 JdbcTemplate 并插入测试数据
         if (dataSupplierFactory != null) {
-
             try {
                 if (dataSupplierFactory instanceof DefaultDataConfigFactory df) {
                     var p = df.getProvider();

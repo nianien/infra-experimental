@@ -143,12 +143,13 @@ public class JdbcDataProvider implements DataProvider {
      *   </li>
      * </ol>
      *
-     * @param cfg 配置参数 Map，必须包含 "url"，
-     *            可选包含 "username"、"password"、"groups"、"init_sql"
+     * @param pcfg 配置参数 Map，必须包含 "url"，
+     *             可选包含 "username"、"password"、"groups"、"init_sql"
      * @throws IllegalArgumentException 如果缺少必需的配置参数（如 url）
      */
     @Override
-    public void initialize(Map<String, String> cfg) {
+    public void initialize(ProviderConfig pcfg) {
+        Map<String, String> cfg = pcfg.config();
         String url = must(cfg, "url");
         String username = cfg.getOrDefault("username", "");
         String password = cfg.getOrDefault("password", "");
@@ -198,12 +199,11 @@ public class JdbcDataProvider implements DataProvider {
      * 如果无配置或查询失败，返回空 Map（不返回 null）
      */
     @Override
-    public Map<String, Object> loadData(String namespace, String groups, String tag) {
+    public Map<String, Object> loadData() {
         if (groupNames.isEmpty()) {
             log.warn("No group names specified; skip loading configs");
             return Map.of();
         }
-
         // 使用窗口函数确保每个 cfg_key 只取优先级最高的一条记录
         // 排序规则：priority DESC（优先级越高越优先），id DESC（同优先级时取最新的）
         String sql = """
