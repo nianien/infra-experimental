@@ -6,6 +6,8 @@ import io.grpc.StatusRuntimeException;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,23 +17,63 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Web控制器
- * <p>
- * 提供HTTP接口调用gRPC服务
+ * Web API 控制器，提供 HTTP RESTful 接口封装 gRPC 服务调用。
+ * 
+ * <p>该控制器提供以下功能：
+ * <ul>
+ *   <li>用户管理：获取用户信息、创建用户</li>
+ *   <li>订单管理：获取订单信息、创建订单、查询用户订单列表</li>
+ *   <li>健康检查：检查服务状态和 gRPC 服务连接</li>
+ * </ul>
+ * 
+ * <p><strong>异常处理：</strong>
+ * <ul>
+ *   <li>{@link StatusRuntimeException}：gRPC 调用失败，返回 400 Bad Request</li>
+ *   <li>其他异常：返回 500 Internal Server Error</li>
+ * </ul>
+ * 
+ * <p><strong>API 端点：</strong>
+ * <ul>
+ *   <li>{@code GET /api/}：首页，返回 API 信息</li>
+ *   <li>{@code GET /api/health}：健康检查</li>
+ *   <li>{@code GET /api/users/{userId}}：获取用户信息</li>
+ *   <li>{@code POST /api/users}：创建用户</li>
+ *   <li>{@code GET /api/orders/{orderId}}：获取订单信息</li>
+ *   <li>{@code POST /api/orders}：创建订单</li>
+ *   <li>{@code GET /api/users/{userId}/orders}：获取用户订单列表</li>
+ *   <li>{@code GET /api/config}：获取动态配置信息（ConfigBean）</li>
+ * </ul>
+ * 
+ * @author liyifei
+ * @since 1.0
  */
 @RestController
 @RequestMapping("/api")
 public class WebController {
-    private static final Logger logger = LoggerFactory.getLogger(WebController.class);
+    private static final Logger log = LoggerFactory.getLogger(WebController.class);
 
+    /**
+     * 用户服务 gRPC 客户端 Stub。
+     */
     @GrpcClient("user-service")
     private UserServiceGrpc.UserServiceBlockingStub userServiceStub;
 
+    /**
+     * 订单服务 gRPC 客户端 Stub。
+     */
     @GrpcClient("order-service")
     private OrderServiceGrpc.OrderServiceBlockingStub orderServiceStub;
 
     /**
-     * 首页
+     * 配置 Bean，用于测试动态配置注入。
+     */
+    @Autowired(required = false)
+    private ConfigBean configBean;
+
+    /**
+     * 首页，返回 API 基本信息。
+     * 
+     * @return API 信息 Map，包含服务名称、版本、描述和端点列表
      */
     @GetMapping("/")
     public Map<String, Object> home() {
@@ -42,13 +84,19 @@ public class WebController {
         response.put("endpoints", Map.of(
                 "users", "/api/users",
                 "orders", "/api/orders",
-                "health", "/api/health"
+                "health", "/api/health",
+                "config", "/api/config"
         ));
         return response;
     }
 
     /**
-     * 健康检查
+     * 健康检查接口，检查服务状态和 gRPC 服务连接。
+     * 
+     * <p>该接口会尝试调用 user-service 和 order-service 进行连通性测试。
+     * 即使 gRPC 调用失败，也会返回健康状态，只是标记对应的服务为 DOWN。
+     * 
+     * @return 健康状态 Map，包含整体状态、时间戳和各个服务的状态
      */
     @GetMapping("/health")
     public Map<String, Object> health() {
@@ -56,36 +104,58 @@ public class WebController {
         response.put("status", "UP");
         response.put("timestamp", System.currentTimeMillis());
 
-        // 测试gRPC服务连接
+        // 测试 gRPC 服务连接
         Map<String, String> services = new HashMap<>();
-        try {
-            GetUserRequest request = GetUserRequest.newBuilder().setUserId("health-check").build();
+        
+        // 检查用户服务
+        services.put("user-service", checkServiceHealth("user-service", () -> {
+            GetUserRequest request = GetUserRequest.newBuilder()
+                    .setUserId("health-check")
+                    .build();
             userServiceStub.getUser(request);
-            services.put("user-service", "UP");
-        } catch (Exception e) {
-            services.put("user-service", "DOWN: " + e.getMessage());
-        }
-
-        try {
-            GetOrderRequest request = GetOrderRequest.newBuilder().setOrderId("health-check").build();
+        }));
+        
+        // 检查订单服务
+        services.put("order-service", checkServiceHealth("order-service", () -> {
+            GetOrderRequest request = GetOrderRequest.newBuilder()
+                    .setOrderId("health-check")
+                    .build();
             orderServiceStub.getOrder(request);
-            services.put("order-service", "UP");
-        } catch (Exception e) {
-            services.put("order-service", "DOWN: " + e.getMessage());
-        }
+        }));
 
         response.put("services", services);
         return response;
     }
+    
+    /**
+     * 检查单个 gRPC 服务的健康状态。
+     * 
+     * @param serviceName 服务名称
+     * @param healthCheck 健康检查逻辑（Runnable）
+     * @return 服务状态字符串，"UP" 表示正常，"DOWN: {error}" 表示异常
+     */
+    private String checkServiceHealth(String serviceName, Runnable healthCheck) {
+        try {
+            healthCheck.run();
+            return "UP";
+        } catch (Exception e) {
+            log.debug("Health check failed for service '{}': {}", serviceName, e.getMessage());
+            return "DOWN: " + e.getMessage();
+        }
+    }
 
     /**
-     * 获取用户信息
+     * 获取用户信息。
+     * 
+     * @param userId 用户 ID
+     * @return 用户信息 Map，包含 userId、name、email、isActive
+     * @throws StatusRuntimeException 如果 gRPC 调用失败
      */
     @GetMapping("/users/{userId}")
     public ResponseEntity<Map<String, Object>> getUser(@PathVariable String userId) {
-        try {
-            logger.info("HTTP API: Getting user {} ", userId);
-
+        log.debug("Getting user: {}", userId);
+        
+        return executeGrpcCall(() -> {
             GetUserRequest request = GetUserRequest.newBuilder()
                     .setUserId(userId)
                     .build();
@@ -96,35 +166,31 @@ public class WebController {
             result.put("name", response.getName());
             result.put("email", response.getEmail());
             result.put("isActive", response.getIsActive());
-
-            return ResponseEntity.ok(result);
-        } catch (StatusRuntimeException e) {
-            logger.warn("gRPC call failed: {}", e.getStatus());
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "gRPC服务调用失败");
-            error.put("status", e.getStatus().getCode().name());
-            error.put("message", e.getStatus().getDescription());
-            return ResponseEntity.badRequest().body(error);
-        } catch (Exception e) {
-            logger.error("Unexpected error", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "服务内部错误");
-            error.put("message", e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
+            return result;
+        }, "获取用户信息失败: userId=" + userId);
     }
 
     /**
-     * 创建用户
+     * 创建用户。
+     * 
+     * @param userRequest 用户请求 Map，必须包含 name 和 email 字段
+     * @return 创建结果 Map，包含 userId、success、message
      */
     @PostMapping("/users")
     public ResponseEntity<Map<String, Object>> createUser(@RequestBody Map<String, String> userRequest) {
-        try {
-            String name = userRequest.get("name");
-            String email = userRequest.get("email");
-
-            logger.info("HTTP API: Creating user {} ({})", name, email);
-
+        String name = userRequest.get("name");
+        String email = userRequest.get("email");
+        
+        if (name == null || name.isBlank()) {
+            return ResponseEntity.badRequest().body(createErrorResponse("参数错误", "name 不能为空"));
+        }
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(createErrorResponse("参数错误", "email 不能为空"));
+        }
+        
+        log.debug("Creating user: name={}, email={}", name, email);
+        
+        return executeGrpcCall(() -> {
             CreateUserRequest request = CreateUserRequest.newBuilder()
                     .setName(name)
                     .setEmail(email)
@@ -135,32 +201,21 @@ public class WebController {
             result.put("userId", response.getUserId());
             result.put("success", response.getSuccess());
             result.put("message", response.getMessage());
-
-            return ResponseEntity.ok(result);
-        } catch (StatusRuntimeException e) {
-            logger.warn("gRPC call failed: {}", e.getStatus());
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "gRPC服务调用失败");
-            error.put("status", e.getStatus().getCode().name());
-            error.put("message", e.getStatus().getDescription());
-            return ResponseEntity.badRequest().body(error);
-        } catch (Exception e) {
-            logger.error("Unexpected error", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "服务内部错误");
-            error.put("message", e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
+            return result;
+        }, "创建用户失败: name=" + name + ", email=" + email);
     }
 
     /**
-     * 获取订单信息
+     * 获取订单信息。
+     * 
+     * @param orderId 订单 ID
+     * @return 订单信息 Map，包含 orderId、userId、productName、amount、quantity、status、createdAt
      */
     @GetMapping("/orders/{orderId}")
     public ResponseEntity<Map<String, Object>> getOrder(@PathVariable String orderId) {
-        try {
-            logger.info("HTTP API: Getting order {}", orderId);
-
+        log.debug("Getting order: {}", orderId);
+        
+        return executeGrpcCall(() -> {
             GetOrderRequest request = GetOrderRequest.newBuilder()
                     .setOrderId(orderId)
                     .build();
@@ -174,77 +229,74 @@ public class WebController {
             result.put("quantity", response.getQuantity());
             result.put("status", response.getStatus());
             result.put("createdAt", response.getCreatedAt());
-
-            return ResponseEntity.ok(result);
-        } catch (StatusRuntimeException e) {
-            logger.warn("gRPC call failed: {}", e.getStatus());
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "gRPC服务调用失败");
-            error.put("status", e.getStatus().getCode().name());
-            error.put("message", e.getStatus().getDescription());
-            return ResponseEntity.badRequest().body(error);
-        } catch (Exception e) {
-            logger.error("Unexpected error", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "服务内部错误");
-            error.put("message", e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
-        }
+            return result;
+        }, "获取订单信息失败: orderId=" + orderId);
     }
 
     /**
-     * 创建订单
+     * 创建订单。
+     * 
+     * @param orderRequest 订单请求 Map，必须包含 userId、productName、amount，可选包含 quantity（默认 1）
+     * @return 创建结果 Map，包含 orderId、success、message
      */
     @PostMapping("/orders")
     public ResponseEntity<Map<String, Object>> createOrder(@RequestBody Map<String, Object> orderRequest) {
         try {
             String userId = (String) orderRequest.get("userId");
             String productName = (String) orderRequest.get("productName");
-            Double amount = ((Number) orderRequest.get("amount")).doubleValue();
-            Integer quantity = orderRequest.containsKey("quantity") ?
+            Object amountObj = orderRequest.get("amount");
+            
+            // 参数校验
+            if (userId == null || userId.isBlank()) {
+                return ResponseEntity.badRequest().body(createErrorResponse("参数错误", "userId 不能为空"));
+            }
+            if (productName == null || productName.isBlank()) {
+                return ResponseEntity.badRequest().body(createErrorResponse("参数错误", "productName 不能为空"));
+            }
+            if (amountObj == null) {
+                return ResponseEntity.badRequest().body(createErrorResponse("参数错误", "amount 不能为空"));
+            }
+            
+            double amount = ((Number) amountObj).doubleValue();
+            int quantity = orderRequest.containsKey("quantity") ?
                     ((Number) orderRequest.get("quantity")).intValue() : 1;
 
-            logger.info("HTTP API: Creating order for user {} - {} x{} ({})",
+            log.debug("Creating order: userId={}, productName={}, quantity={}, amount={}", 
                     userId, productName, quantity, amount);
 
-            CreateOrderRequest request = CreateOrderRequest.newBuilder()
-                    .setUserId(userId)
-                    .setProductName(productName)
-                    .setAmount(amount)
-                    .setQuantity(quantity)
-                    .build();
-            CreateOrderResponse response = orderServiceStub.createOrder(request);
+            return executeGrpcCall(() -> {
+                CreateOrderRequest request = CreateOrderRequest.newBuilder()
+                        .setUserId(userId)
+                        .setProductName(productName)
+                        .setAmount(amount)
+                        .setQuantity(quantity)
+                        .build();
+                CreateOrderResponse response = orderServiceStub.createOrder(request);
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("orderId", response.getOrderId());
-            result.put("success", response.getSuccess());
-            result.put("message", response.getMessage());
-
-            return ResponseEntity.ok(result);
-        } catch (StatusRuntimeException e) {
-            logger.warn("gRPC call failed: {}", e.getStatus());
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "gRPC服务调用失败");
-            error.put("status", e.getStatus().getCode().name());
-            error.put("message", e.getStatus().getDescription());
-            return ResponseEntity.badRequest().body(error);
-        } catch (Exception e) {
-            logger.error("Unexpected error", e);
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "服务内部错误");
-            error.put("message", e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
+                Map<String, Object> result = new HashMap<>();
+                result.put("orderId", response.getOrderId());
+                result.put("success", response.getSuccess());
+                result.put("message", response.getMessage());
+                return result;
+            }, "创建订单失败: userId=" + userId + ", productName=" + productName);
+        } catch (ClassCastException e) {
+            log.warn("Invalid request parameter provider", e);
+            return ResponseEntity.badRequest()
+                    .body(createErrorResponse("参数类型错误", "amount 或 quantity 必须是数字类型"));
         }
     }
 
     /**
-     * 获取用户订单列表
+     * 获取用户订单列表。
+     * 
+     * @param userId 用户 ID
+     * @return 订单列表 Map，包含 userId、orders 数组和 totalOrders
      */
     @GetMapping("/users/{userId}/orders")
     public ResponseEntity<Map<String, Object>> getUserOrders(@PathVariable String userId) {
-        try {
-            logger.info("HTTP API: Getting orders for user {}", userId);
-
+        log.debug("Getting orders for user: {}", userId);
+        
+        return executeGrpcCall(() -> {
             GetUserOrdersRequest request = GetUserOrdersRequest.newBuilder()
                     .setUserId(userId)
                     .build();
@@ -265,21 +317,103 @@ public class WebController {
             result.put("userId", userId);
             result.put("orders", orders);
             result.put("totalOrders", orders.size());
+            return result;
+        }, "获取用户订单列表失败: userId=" + userId);
+    }
+
+    /**
+     * 获取动态配置信息（ConfigBean）。
+     * 
+     * <p>该接口返回通过 {@code @Resource} 注入的 Supplier 配置值。
+     * 如果 ConfigBean 不存在或 Supplier 返回 null，会在响应中标记。
+     * 
+     * @return 配置信息 Map，包含 name 和 age 的值
+     */
+    @GetMapping("/config")
+    public ResponseEntity<Map<String, Object>> getConfig() {
+        log.debug("Getting config from ConfigBean");
+        
+        if (configBean == null) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "ConfigBean not found");
+            error.put("message", "ConfigBean is not available in Spring context");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+        }
+        
+        try {
+            Map<String, Object> result = new HashMap<>();
+            
+            // 获取 name 配置值
+            String name = configBean.getName().get() != null ? configBean.getName().get() : null;
+            result.put("name", name);
+
+            // 获取 age 配置值
+            Integer age = configBean.getAge().get() != null ? configBean.getAge().get() : null;
+            result.put("age", age);
 
             return ResponseEntity.ok(result);
-        } catch (StatusRuntimeException e) {
-            logger.warn("gRPC call failed: {}", e.getStatus());
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "gRPC服务调用失败");
-            error.put("status", e.getStatus().getCode().name());
-            error.put("message", e.getStatus().getDescription());
-            return ResponseEntity.badRequest().body(error);
         } catch (Exception e) {
-            logger.error("Unexpected error", e);
+            log.error("Failed to get config values from ConfigBean", e);
             Map<String, Object> error = new HashMap<>();
-            error.put("error", "服务内部错误");
+            error.put("error", "获取配置失败");
             error.put("message", e.getMessage());
-            return ResponseEntity.internalServerError().body(error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
+    }
+
+    /* ===================== 辅助方法 ===================== */
+
+    /**
+     * 执行 gRPC 调用并统一处理异常。
+     * 
+     * @param grpcCall gRPC 调用逻辑，返回结果 Map
+     * @param errorContext 错误上下文描述，用于日志记录
+     * @return ResponseEntity，成功返回 200 OK，失败返回错误响应
+     */
+    private ResponseEntity<Map<String, Object>> executeGrpcCall(
+            java.util.function.Supplier<Map<String, Object>> grpcCall,
+            String errorContext) {
+        try {
+            Map<String, Object> result = grpcCall.get();
+            return ResponseEntity.ok(result);
+        } catch (StatusRuntimeException e) {
+            log.warn("gRPC call failed [{}]: status={}, description={}", 
+                    errorContext, e.getStatus().getCode(), e.getStatus().getDescription());
+            return ResponseEntity.badRequest()
+                    .body(createGrpcErrorResponse(e));
+        } catch (Exception e) {
+            log.error("Unexpected error [{}]", errorContext, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("服务内部错误", e.getMessage()));
+        }
+    }
+
+    /**
+     * 创建 gRPC 错误响应。
+     * 
+     * @param e StatusRuntimeException 异常
+     * @return 错误响应 Map
+     */
+    private Map<String, Object> createGrpcErrorResponse(StatusRuntimeException e) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("error", "gRPC服务调用失败");
+        error.put("status", e.getStatus().getCode().name());
+        String description = e.getStatus().getDescription();
+        error.put("message", description != null ? description : e.getStatus().getCode().name());
+        return error;
+    }
+
+    /**
+     * 创建通用错误响应。
+     * 
+     * @param error 错误类型
+     * @param message 错误消息
+     * @return 错误响应 Map
+     */
+    private Map<String, Object> createErrorResponse(String error, String message) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", error);
+        response.put("message", message);
+        return response;
     }
 }

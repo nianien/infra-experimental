@@ -1,4 +1,4 @@
-package com.ddm.chaos.supplier;
+package com.ddm.chaos.config;
 
 import java.util.function.Supplier;
 
@@ -32,10 +32,12 @@ import java.util.function.Supplier;
  * </ul>
  *
  * @author liyifei
- * @see com.ddm.chaos.supplier.DefaultDataSupplierFactory
+ * @see DefaultDataConfigFactory
  * @since 1.0
  */
-public interface DataSupplierFactory extends AutoCloseable {
+public interface DataConfigFactory extends AutoCloseable {
+    record TypedKey(String name, String value, Class<?> type) {
+    }
 
     /**
      * 根据配置键和目标类型获取对应的 Supplier。
@@ -57,14 +59,13 @@ public interface DataSupplierFactory extends AutoCloseable {
      *   <li>JSON 对象：通过 Jackson 反序列化为 POJO</li>
      * </ul>
      *
-     * @param <T>        目标类型
-     * @param key        唯一配置键（对应配置数据中的 key）
-     * @param targetType 希望返回的类型（如 String.class、Integer.class、自定义 POJO.class 等）
+     * @param <T> 目标类型
+     * @param key 唯一配置键（对应配置数据中的 key）
      * @return 可安全调用的 Supplier&lt;T&gt;，永不返回 null
      * 调用其 get() 方法获取配置值，如果配置不存在或转换失败则返回 null
      * @throws NullPointerException 如果 key 或 targetType 为 null
      */
-    <T> Supplier<T> getSupplier(String key, Class<T> targetType);
+    <T> Supplier<T> getSupplier(TypedKey key);
 
     /**
      * 关闭工厂，释放相关资源。

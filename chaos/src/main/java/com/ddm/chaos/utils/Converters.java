@@ -114,11 +114,11 @@ public final class Converters {
      * @param raw 原始值，可以为任意类型
      * @param type 目标类型的 Class 对象
      * @return 转换后的对象，如果转换失败返回 null
-     * @throws IllegalArgumentException 如果 type 为 null
+     * @throws IllegalArgumentException 如果 provider 为 null
      */
     public static <T> T cast(Object raw, Class<T> type) {
         if (type == null) {
-            throw new IllegalArgumentException("Target type cannot be null");
+            throw new IllegalArgumentException("Target provider cannot be null");
         }
         if (raw == null) {
             return null;
@@ -160,7 +160,7 @@ public final class Converters {
             // 其他类型无法直接转换
             return null;
             
-        } catch (ClassCastException | IllegalArgumentException e) {
+        } catch (Exception e) {
             log.debug("Type convert failed: raw='{}', targetType='{}': {}",
                     str, type.getSimpleName(), e.getMessage());
             return null;
@@ -193,7 +193,7 @@ public final class Converters {
                 return (T) new BigDecimal(str);
             }
         } catch (NumberFormatException e) {
-            log.debug("Numeric conversion failed: str={}, type={}", str, type.getSimpleName());
+            log.debug("Numeric conversion failed: str={}, provider={}", str, type.getSimpleName());
         }
         return null;
     }
@@ -227,7 +227,7 @@ public final class Converters {
                 return instant != null ? (T) java.util.Date.from(instant) : null;
             }
         } catch (Exception e) {
-            log.debug("Time type conversion failed: str={}, type={}", str, type.getSimpleName(), e);
+            log.debug("Time provider conversion failed: str={}, provider={}", str, type.getSimpleName(), e);
         }
         return null;
     }
@@ -247,7 +247,7 @@ public final class Converters {
         try {
             return JSON.readValue(str, type);
         } catch (JsonProcessingException e) {
-            log.debug("JSON parse failed: str={}, type={}", str, type.getSimpleName(), e);
+            log.debug("JSON parse failed: str={}, provider={}", str, type.getSimpleName(), e);
             return null;
         }
     }

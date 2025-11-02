@@ -1,8 +1,6 @@
 package com.ddm.chaos.demo;
 
-import jakarta.annotation.Resource;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
+import com.ddm.chaos.annotation.Conf;
 import org.springframework.stereotype.Component;
 
 import java.util.function.Supplier;
@@ -15,19 +13,10 @@ import java.util.function.Supplier;
 @Component
 public class DemoBean {
 
-    @Resource(name = "com.dd.demo.name")
-    Supplier<String> name;
-
-    @Resource(name = "com.dd.demo.age")
-    Supplier<Integer> age;
-
-
-    public void doSomething() {
-        String name = this.name.get();
-        Integer age = this.age.get();
-        System.out.println(String.format("name=%s,age=%d", name, age));
-    }
-
+    @Conf(key = "demo.name", value = "savin")
+    public Supplier<String> name;
+    @Conf(key = "demo.age", value = "42")
+    public Supplier<Integer> age;
 }
 
 

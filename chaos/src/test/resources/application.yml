@@ -1,7 +1,13 @@
 chaos:
-  supplier:
-    provider: com.ddm.chaos.provider.jdbc.JdbcDataProvider
-    ttl: PT30S
+  config:
+    provider: jdbc
+    namespace: com.ddm
+    group: cfd
+    tags: [ "gray", "hotfix" ]
+    ttl: 30S
     config:
-      dummy: test
+      url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+      username: sa
+      password: ""
+      init_sql: "true"
 

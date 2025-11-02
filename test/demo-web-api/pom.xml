@@ -28,6 +28,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Chaos dynamic configuration starter -->
+        <dependency>
+            <groupId>com.ddm</groupId>
+            <artifactId>chaos</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- ==================== Spring Boot Dependencies ==================== -->
 
         <!-- Spring Boot Web Starter (includes web, tomcat, jackson, etc.) -->
@@ -36,12 +43,23 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- MySQL Driver for JdbcDataProvider -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+        </dependency>
+
         <!-- ==================== gRPC Dependencies ==================== -->
 
         <!-- gRPC Netty Transport -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

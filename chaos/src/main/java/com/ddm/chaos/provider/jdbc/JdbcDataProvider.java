@@ -123,6 +123,11 @@ public class JdbcDataProvider implements DataProvider {
         return jdbc != null ? jdbc.getDataSource() : null;
     }
 
+    @Override
+    public String type() {
+        return "jdbc";
+    }
+
     /**
      * 初始化 JDBC 数据源和配置组。
      *
@@ -194,7 +199,7 @@ public class JdbcDataProvider implements DataProvider {
      * 如果无配置或查询失败，返回空 Map（不返回 null）
      */
     @Override
-    public Map<String, Object> loadAll() {
+    public Map<String, Object> loadData(String namespace, String groups, String tag) {
         if (groupNames.isEmpty()) {
             log.warn("No group names specified; skip loading configs");
             return Map.of();
@@ -332,7 +337,7 @@ public class JdbcDataProvider implements DataProvider {
             // 获取数据库 URL 来判断数据库类型
             var dataSource = jdbc.getDataSource();
             if (dataSource == null) {
-                log.warn("DataSource is null, cannot detect database type");
+                log.warn("DataSource is null, cannot detect database provider");
                 return;
             }
 
@@ -350,7 +355,7 @@ public class JdbcDataProvider implements DataProvider {
                 jdbc.execute(groupTableSql);
                 jdbc.execute(dataTableSql);
             } else {
-                log.warn("Unsupported database type: {}, table creation skipped", dbType);
+                log.warn("Unsupported database provider: {}, table creation skipped", dbType);
             }
         } catch (Exception e) {
             // 表可能已存在，记录调试日志

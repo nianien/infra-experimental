@@ -1,23 +1,22 @@
 package com.ddm.chaos.demo;
 
 import com.ddm.chaos.autoconfigure.SupplierAutoConfiguration;
-import com.ddm.chaos.provider.DataProvider;
-import com.ddm.chaos.supplier.DataSupplierFactory;
+import com.ddm.chaos.config.DataConfigFactory;
+import com.ddm.chaos.config.DefaultDataConfigFactory;
+import com.ddm.chaos.provider.jdbc.JdbcDataProvider;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Supplier;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * DemoBean 的 Spring Boot 集成测试。
- * 
+ *
  * <p>该测试验证：
  * <ul>
  *   <li>Spring Boot 应用上下文能够正常启动</li>
@@ -26,90 +25,75 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>Supplier 能够正常返回配置值</li>
  * </ul>
  */
-@SpringBootTest(classes = {
-        SupplierAutoConfiguration.class,
-        DemoBean.class
-})
+@SpringBootTest(
+        classes = {
+                SupplierAutoConfiguration.class,
+                DemoBean.class,
+        }
+)
 @ComponentScan(basePackages = "com.ddm.chaos.demo")
-@TestPropertySource(properties = {
-        "chaos.supplier.provider=com.ddm.chaos.demo.DemoBeanTest$TestDataProvider",
-        "chaos.supplier.ttl=30s",
-        "chaos.supplier.config.dummy=test"
-})
+@TestConfiguration
 class DemoBeanTest {
+
 
     @Autowired
     private DemoBean demoBean;
 
     @Autowired
-    private DataSupplierFactory dataSupplierFactory;
-
-    @Test
-    void testDemoBeanInjection() {
-        // 验证 DemoBean 已正确注入
-        assertNotNull(demoBean, "DemoBean should be injected");
-    }
-
-    @Test
-    void testSupplierValues() {
-        // 验证 Supplier 能够返回正确的配置值
-        assertNotNull(demoBean, "DemoBean should be injected");
-        
-        // 调用 doSomething() 验证 Supplier 能正常工作
-        assertDoesNotThrow(() -> demoBean.doSomething(), "doSomething should not throw exception");
-        
-        // 直接验证 Supplier 返回的值
-        String name = demoBean.name.get();
-        Integer age = demoBean.age.get();
-        
-        assertEquals("TestUser", name, "Name should match configured value");
-        assertEquals(25, age, "Age should match configured value");
-    }
-
-    @Test
-    void testDataSupplierFactory() {
-        // 验证 DataSupplierFactory 已正确创建
-        assertNotNull(dataSupplierFactory, "DataSupplierFactory should be created");
-        
-        // 验证可以通过工厂获取 Supplier
-        Supplier<String> nameSupplier = dataSupplierFactory.getSupplier("com.dd.demo.name", String.class);
-        Supplier<Integer> ageSupplier = dataSupplierFactory.getSupplier("com.dd.demo.age", Integer.class);
-        
-        assertNotNull(nameSupplier, "Name supplier should not be null");
-        assertNotNull(ageSupplier, "Age supplier should not be null");
-        
-        assertEquals("TestUser", nameSupplier.get(), "Name should match");
-        assertEquals(25, ageSupplier.get(), "Age should match");
-    }
+    private DataConfigFactory dataSupplierFactory;
 
 
     /**
-     * 测试用的 DataProvider 实现。
-     * 
-     * <p>使用内存 Map 存储配置数据，支持 DemoBean 测试。
-     * 
-     * <p>注意：必须是 public static 类，以便 ServiceLoader 能够实例化。
+     * 在测试前准备数据库数据（备用方案，如果 TestConfiguration 中的数据初始化失败）。
      */
-    public static class TestDataProvider implements DataProvider {
-        
-        private Map<String, Object> data = new HashMap<>();
+    @BeforeEach
+    void setUp() {
 
-        @Override
-        public void initialize(Map<String, String> cfg) {
-            // 初始化测试数据
-            data.put("com.dd.demo.name", "TestUser");
-            data.put("com.dd.demo.age", "25");
-        }
+        // 获取 JdbcTemplate 并插入测试数据
+        if (dataSupplierFactory != null) {
 
-        @Override
-        public Map<String, Object> loadAll() {
-            return new HashMap<>(data);
-        }
+            try {
+                if (dataSupplierFactory instanceof DefaultDataConfigFactory df) {
+                    var p = df.getProvider();
+                    if (p instanceof JdbcDataProvider jp) {
+                        var dataSource = jp.getDataSource();
+                        if (dataSource != null) {
+                            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+                            // 插入配置组（H2 使用 MERGE）
+                            jdbc.update("MERGE INTO config_group (group_name, priority) KEY(group_name) VALUES (?, ?)",
+                                    "default", 0);
+                            // 获取组 ID
+                            Long groupId = jdbc.queryForObject(
+                                    "SELECT id FROM config_group WHERE group_name = ?", Long.class, "default");
 
-        @Override
-        public void close() {
-            data.clear();
+                            if (groupId != null) {
+                                // 插入测试配置数据（H2 使用 MERGE）
+                                // 使用与 DemoBean 中 @Conf 注解匹配的 key
+                                jdbc.update("MERGE INTO config_data (cfg_key, cfg_value, group_id, enabled) KEY(cfg_key, group_id) VALUES (?, ?, ?, ?)",
+                                        "demo.name", "TestUser", groupId, true);
+                                jdbc.update("MERGE INTO config_data (cfg_key, cfg_value, group_id, enabled) KEY(cfg_key, group_id) VALUES (?, ?, ?, ?)",
+                                        "demo.age", "25", groupId, true);
+                            }
+                        }
+                    }
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
+
+
+    @Test
+    void testDataSupplierFactory() {
+        if (dataSupplierFactory instanceof DefaultDataConfigFactory df) {
+            df.refreshAll();
+        }
+        assertEquals("TestUser", demoBean.name.get(), "Name should match");
+        assertEquals(25, demoBean.age.get(), "Age should match");
+    }
+
+
 }
 

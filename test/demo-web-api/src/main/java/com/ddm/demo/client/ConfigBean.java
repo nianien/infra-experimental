@@ -1,13 +1,18 @@
 package com.ddm.demo.client;
 
-import jakarta.annotation.Resource;
+import com.ddm.chaos.annotation.Conf;
+import lombok.Getter;
 import org.springframework.stereotype.Component;
 
 import java.util.function.Supplier;
 
 @Component
-public record ConfigBean(
-        @Resource(name = "com.dd.demo.name") Supplier<String> name,
-        @Resource(name = "com.dd.demo.age") Supplier<Integer> age
-) {
+@Getter
+public class ConfigBean {
+    @Conf(key = "demo.name")
+    private Supplier<String> name;
+    @Conf(key = "demo.age")
+    private Supplier<Integer> age;
+
+
 }
