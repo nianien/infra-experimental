@@ -90,7 +90,7 @@ public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolv
             int idx = desc.getMethodParameter().getParameterIndex();
             if (idx >= 0) {
                 for (Annotation ann : ctor.getParameterAnnotations()[idx]) {
-                    if (ann instanceof Conf c) return new TypedKey(c.key(), c.value(), type);
+                    if (ann instanceof Conf c) return new TypedKey(c.name(), c.value(), type);
                     if (ann instanceof Qualifier q && !q.value().isBlank())
                         return new TypedKey(q.value(), null, type);
                 }
@@ -101,7 +101,7 @@ public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolv
             int idx = desc.getMethodParameter().getParameterIndex();
             if (idx >= 0) {
                 for (Annotation ann : m.getParameterAnnotations()[idx]) {
-                    if (ann instanceof Conf c) return new TypedKey(c.key(), c.value(), type);
+                    if (ann instanceof Conf c) return new TypedKey(c.name(), c.value(), type);
                     if (ann instanceof Qualifier q && !q.value().isBlank())
                         return new TypedKey(q.value(), null, type);
                 }
@@ -112,7 +112,7 @@ public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolv
         // 字段：直接合并查找
         Conf c =
                 AnnotatedElementUtils.findMergedAnnotation(element, Conf.class);
-        if (c != null) return new TypedKey(c.key(), c.value(), type);
+        if (c != null) return new TypedKey(c.name(), c.value(), type);
 
         Qualifier q =
                 AnnotatedElementUtils.findMergedAnnotation(element, Qualifier.class);

@@ -30,11 +30,11 @@ import java.lang.annotation.*;
 public @interface Conf {
 
     /**
-     * 配置项 key，对应配置中心中的完整键名。
-     * 会透传给 @Qualifier("key")。
+     * 配置项，对应配置中心中的完整键名。
+     * 会透传给 @Qualifier("name")。
      */
     @AliasFor(annotation = Qualifier.class, attribute = "value")
-    String key() default "";
+    String name() default "";
 
     /**
      * 当配置中心未找到该 key 时使用的默认值。
