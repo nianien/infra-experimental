@@ -1,6 +1,9 @@
 spring:
   application:
     name: web-app
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 
 # Web 服务配置
 server:
@@ -34,10 +37,14 @@ logging:
 
 chaos:
   supplier:
-    provider: com.ddm.chaos.provider.jdbc.JdbcDataProvider
+    provider: com.ddm.chaos.provider.JdbcDataProvider
     ttl: 30S
     config:
-      dummy: test
+      url: jdbc:mysql://localhost:3306/test
+      username: root
+      password: root
+      groups: default
+      init_sql: false
 
 
 ---

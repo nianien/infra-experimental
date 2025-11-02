@@ -1,6 +1,5 @@
-package com.ddm.chaos.provider.jdbc;
+package com.ddm.chaos.provider;
 
-import com.ddm.chaos.provider.DataProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;

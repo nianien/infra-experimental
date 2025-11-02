@@ -32,7 +32,7 @@ import java.util.function.Supplier;
  * </ul>
  *
  * @author liyifei
- * @see com.ddm.chaos.supplier.DefaultDataSupplierFactory
+ * @see DefaultDataSupplierFactory
  * @since 1.0
  */
 public interface DataSupplierFactory extends AutoCloseable {

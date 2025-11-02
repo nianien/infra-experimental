@@ -1,5 +1,6 @@
 package com.ddm.chaos.supplier;
 
+import com.ddm.chaos.provider.DataProvider;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -16,7 +17,7 @@ import java.util.Map;
  * chaos:
  *   supplier:
  *     ttl: 60s                    # 缓存刷新间隔，支持 60s、5m、1h 等格式，0 表示禁用自动刷新
- *     provider: com.ddm.chaos.provider.jdbc.JdbcDataProvider  # DataProvider 实现类全限定名
+ *     provider: com.ddm.chaos.provider.JdbcDataProvider  # DataProvider 实现类全限定名
  *     config:                     # DataProvider 初始化参数
  *       url: jdbc:mysql://localhost:3306/config_center
  *       username: root
@@ -67,18 +68,18 @@ public record DataSupplierProperties(
          * 
          * <p>该类必须：
          * <ul>
-         *   <li>实现 {@link com.ddm.chaos.provider.DataProvider} 接口</li>
+         *   <li>实现 {@link DataProvider} 接口</li>
          *   <li>通过 SPI 机制注册（META-INF/services/com.ddm.chaos.provider.DataProvider）</li>
          * </ul>
          * 
-         * <p>示例：{@code com.ddm.chaos.provider.jdbc.JdbcDataProvider}
+         * <p>示例：{@code com.ddm.chaos.provider.JdbcDataProvider}
          */
         String provider,
 
         /**
          * Provider 初始化参数 Map。
          * 
-         * <p>该 Map 会传递给 DataProvider 的 {@link com.ddm.chaos.provider.DataProvider#initialize(Map)} 方法。
+         * <p>该 Map 会传递给 DataProvider 的 {@link DataProvider#initialize(Map)} 方法。
          * 具体需要哪些参数由 DataProvider 实现决定。
          * 
          * <p>常见参数示例：
