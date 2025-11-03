@@ -1,7 +1,7 @@
 package com.ddm.chaos.config;
 
 import com.ddm.chaos.annotation.Conf;
-import com.ddm.chaos.config.DataConfigFactory.TypedKey;
+import com.ddm.chaos.config.ConfigFactory.TypedKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,13 +25,13 @@ import java.util.function.Supplier;
  * - factory 未就绪时返回惰性 Supplier，避免初始化时序问题；
  * - 不做类型转换与运行时类型校验：存啥取啥（Supplier<?> 语义）。
  */
-public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolver {
+public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
 
-    private static final Logger log = LoggerFactory.getLogger(DataConfigResolver.class);
+    private static final Logger log = LoggerFactory.getLogger(ConfigResolver.class);
 
     private final DefaultListableBeanFactory beanFactory;
 
-    public DataConfigResolver(DefaultListableBeanFactory beanFactory) {
+    public ConfigResolver(DefaultListableBeanFactory beanFactory) {
         this.beanFactory = beanFactory;
     }
 
@@ -47,32 +47,41 @@ public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolv
 
         // 3) 解析泛型 T；不可解析则用 Object 作为通配（支持 Supplier<?>）
         Class<?> targetType = resolveSupplierGeneric(desc);
-
+        if (targetType == null) targetType = Object.class;
         // 4) 解析 @Conf/@Qualifier → TypedKey（参数/字段通用）
         TypedKey key = resolveKey(desc, targetType);
-        if (key == null) return null;
 
-        // 5) 取工厂；未就绪则返回惰性 Supplier
-        DataConfigFactory factory = getFactory();
-        if (factory == null) {
-            return (Supplier<?>) () -> {
-                DataConfigFactory late = getFactory();
-                if (late == null) return null;
-                Supplier<?> s = late.getSupplier(key);
-                return (s != null) ? s.get() : null;
-            };
-        }
-
-        // 6) 工厂可用：优先返回真实 Supplier，否则返回惰性代理
-        Supplier<?> s = factory.getSupplier(key);
-        if (s != null) return (Supplier<?>) s::get;
-
-        return (Supplier<?>) () -> {
-            Supplier<?> real = factory.getSupplier(key);
-            return (real != null) ? real.get() : null;
-        };
+        // 统一惰性 Supplier 实现
+        return getLazySupplier(key);
     }
 
+
+    private <T> Supplier<T> getLazySupplier(TypedKey<T> key) {
+        if (key == null) return null;
+        return new Supplier<>() {
+            private volatile Supplier<T> delegate;
+
+            @Override
+            public T get() {
+                Supplier<T> d = delegate;
+                if (d != null) return d.get();
+
+                synchronized (this) {
+                    d = delegate;
+                    if (d != null) return d.get();
+
+                    ConfigFactory f = getFactory();
+                    if (f == null) return null;
+
+                    Supplier<?> real = f.getSupplier(key);
+                    if (real == null) return null;
+
+                    delegate = d = (Supplier<T>) real; // 安全发布
+                }
+                return d.get();
+            }
+        };
+    }
 
     /**
      * 解析 Supplier<T> 的 T；解析不到返回 null（调用方用 Object 兜底）。
@@ -114,7 +123,6 @@ public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolv
                 TypedKey tk = resolveFromAnnotations(matrix[idx], targetType);
                 if (tk != null) return tk;
             }
-
             // 2) 统一“合并注解”解析（包含直挂与元注解）
             Parameter p = exec.getParameters()[idx];
             return resolveMergedOn(p, targetType);
@@ -132,11 +140,11 @@ public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolv
     @Nullable
     private static TypedKey resolveMergedOn(AnnotatedElement element, Class<?> targetType) {
         Conf c = AnnotatedElementUtils.findMergedAnnotation(element, Conf.class);
-        if (c != null) return new TypedKey(c.key(), c.defaultValue(), targetType);
+        if (c != null) return new TypedKey(c.key(), targetType, c.defaultValue());
 
         Qualifier q = AnnotatedElementUtils.findMergedAnnotation(element, Qualifier.class);
         if (q != null && notBlank(q.value())) {
-            return new TypedKey(q.value(), null, targetType);
+            return new TypedKey(q.value(), targetType, null);
         }
         return null;
     }
@@ -145,14 +153,14 @@ public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolv
      * 从“原生注解数组”解析 @Conf/@Qualifier（不展开元注解）。
      */
     @Nullable
-    private static TypedKey resolveFromAnnotations(Annotation[] anns, Class<?> targetType) {
+    private static <T> TypedKey<T> resolveFromAnnotations(Annotation[] anns, Class<T> targetType) {
         if (anns == null || anns.length == 0) return null;
         for (Annotation ann : anns) {
             if (ann instanceof Conf c) {
-                return new TypedKey(c.key(), c.defaultValue(), targetType);
+                return TypedKey.of(c.key(), targetType, c.defaultValue());
             }
             if (ann instanceof Qualifier q && notBlank(q.value())) {
-                return new TypedKey(q.value(), null, targetType);
+                return TypedKey.of(q.value(), targetType, null);
             }
         }
         return null;
@@ -166,11 +174,13 @@ public class DataConfigResolver extends ContextAnnotationAutowireCandidateResolv
      * 工厂可为空，避免初始化时序死锁。
      */
     @Nullable
-    private DataConfigFactory getFactory() {
+    private ConfigFactory getFactory() {
         try {
-            return beanFactory.getBeanProvider(DataConfigFactory.class).getIfAvailable();
+            return beanFactory.getBeanProvider(ConfigFactory.class).getIfAvailable();
         } catch (Throwable ignore) {
             return null;
         }
     }
+
+
 }

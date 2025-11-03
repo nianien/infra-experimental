@@ -1,5 +1,8 @@
 package com.ddm.chaos.config;
 
+import com.ddm.chaos.utils.Converters;
+
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -32,11 +35,40 @@ import java.util.function.Supplier;
  * </ul>
  *
  * @author liyifei
- * @see DefaultDataConfigFactory
+ * @see DefaultConfigFactory
  * @since 1.0
  */
-public interface DataConfigFactory extends AutoCloseable {
-    record TypedKey(String name, String value, Class<?> type) {
+public interface ConfigFactory extends AutoCloseable {
+
+
+    record TypedKey<T>(String name, Class<T> type, T defaultValue) {
+
+        public TypedKey {
+            Objects.requireNonNull(name, "name must not be null");
+            Objects.requireNonNull(type, "type must not be null");
+        }
+
+
+        public static <T> TypedKey<T> of(String name, Class<T> type, String defaultString) {
+            T parsed = null;
+            if (defaultString != null && !defaultString.isBlank()) {
+                parsed = Converters.cast(defaultString, type);
+            }
+            return new TypedKey<>(name, type, parsed);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof TypedKey<?> other)) return false;
+            return Objects.equals(name, other.name)
+                    && Objects.equals(type, other.type);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, type);
+        }
     }
 
     /**
@@ -65,7 +97,7 @@ public interface DataConfigFactory extends AutoCloseable {
      * 调用其 get() 方法获取配置值，如果配置不存在或转换失败则返回 null
      * @throws NullPointerException 如果 key 或 targetType 为 null
      */
-    <T> Supplier<T> getSupplier(TypedKey key);
+    <T> Supplier<T> getSupplier(TypedKey<T> key);
 
     /**
      * 关闭工厂，释放相关资源。

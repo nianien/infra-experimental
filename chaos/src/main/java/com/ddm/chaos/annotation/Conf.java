@@ -13,7 +13,7 @@ import java.lang.annotation.*;
  *
  * <p>语义：
  * <ul>
- *   <li>{@code key}：配置中心中的完整键名，并透传给 {@code @Qualifier.value}</li>
+ *   <li>{@code key}：配置中心中的完整键名，并透传给 {@code @Qualifier.defaultValue}</li>
  *   <li>{@code defaultValue}：当配置中心未找到该 {@code key} 时使用的默认值（可选）</li>
  *   <li>{@code required}：是否为必需依赖；{@code false} 表示注入可为空或走 fallback</li>
  * </ul>

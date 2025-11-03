@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  * <p><strong>使用示例：</strong>
  * <pre>{@code
  * // 数值转换
- * Integer value = Converters.cast("123", Integer.class);  // 123
+ * Integer defaultValue = Converters.cast("123", Integer.class);  // 123
  * Long epoch = Converters.cast("1699000000000", Long.class);
  * 
  * // 时间类型转换
