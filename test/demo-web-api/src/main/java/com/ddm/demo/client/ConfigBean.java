@@ -9,9 +9,9 @@ import java.util.function.Supplier;
 @Component
 @Getter
 public class ConfigBean {
-    @Conf(name = "demo.name")
+    @Conf(key = "demo.name")
     private Supplier<String> name;
-    @Conf(name = "demo.age")
+    @Conf(key = "demo.age")
     private Supplier<Integer> age;
 
 

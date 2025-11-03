@@ -346,7 +346,7 @@ public final class DefaultDataConfigFactory implements DataConfigFactory {
             log.debug("Failed to close provider", e);
         }
 
-        log.info("DefaultDataSupplierFactory closed successfully");
+        log.info("DataConfigFactory [{}] closed successfully", provider.type());
     }
 
 

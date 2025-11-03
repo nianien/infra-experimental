@@ -13,9 +13,9 @@ import java.util.function.Supplier;
 @Component
 public class DemoBean {
 
-    @Conf(name = "demo.name", value = "savin")
+    @Conf(key = "demo.name", defaultValue = "savin")
     public Supplier<String> name;
-    @Conf(name = "demo.age", value = "42")
+    @Conf(key = "demo.age", defaultValue = "42")
     public Supplier<Integer> age;
 }
 
