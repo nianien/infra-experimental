@@ -10,25 +10,26 @@ import java.util.List;
  *
  * <p>该接口定义了配置数据的获取抽象，实现类需要：
  * <ul>
- *   <li>通过 {@link #init(ProviderConfig)} 方法初始化数据源连接</li>
+ *   <li>通过 {@link #init(ConfigProperties)} 方法初始化数据源连接</li>
  *   <li>实现 {@link #close()} 方法释放资源</li>
  * </ul>
  *
  * <p><strong>实现示例：</strong>
  * <pre>{@code
  * public class JdbcDataProvider implements DataProvider {
- *     private JdbcTemplate jdbc;
+ *     private NamedParameterJdbcTemplate jdbc;
  *
  *     @Override
- *     public void initialize(ProviderConfig options) {
- *         String url = options.get("url");
- *         this.jdbc = new JdbcTemplate(...);
+ *     public void init(ConfigProperties config) throws Exception {
+ *         String url = config.provider().options().get("jdbc-url");
+ *         DataSource ds = new DriverManagerDataSource(url, ...);
+ *         this.jdbc = new NamedParameterJdbcTemplate(ds);
  *     }
  *
  *     @Override
- *     public Map<String, Object> loadData() {
+ *     public List<ConfigItem> loadData() throws Exception {
  *         // 从数据库查询配置并返回
- *         return jdbc.query(...);
+ *         return jdbc.query(sql, params, rowMapper);
  *     }
  * }
  * }</pre>
@@ -36,7 +37,7 @@ import java.util.List;
  * <p><strong>注意事项：</strong>
  * <ul>
  *   <li>实现类应该保证线程安全性</li>
- *   <li>异常情况下应返回空 Map 而不是抛出异常，以保证系统可用性</li>
+ *   <li>异常情况下应返回空 List 而不是抛出异常，以保证系统可用性</li>
  * </ul>
  *
  * @author liyifei
@@ -64,23 +65,26 @@ public interface DataProvider extends AutoCloseable {
     /**
      * 拉取全量配置快照。
      *
-     * <p>该方法从数据源获取所有配置项，返回一个 Map，其中：
+     * <p>该方法从数据源获取所有配置项，返回一个 {@link ConfigItem} 列表。
+     * <p>每个 {@link ConfigItem} 包含：
      * <ul>
-     *   <li>Key：配置项的键（String 类型）</li>
-     *   <li>Value：配置项的值（可以是 String、Number、JSON 字符串等原始类型）</li>
+     *   <li>配置键（key）</li>
+     *   <li>默认值（value）</li>
+     *   <li>变体配置（variant，JSON 字符串）</li>
+     *   <li>标签（tags）</li>
+     *   <li>已解析的生效值（resolvedValue）</li>
      * </ul>
      *
      * <p><strong>实现要求：</strong>
      * <ul>
-     *   <li>返回的 Map 应该只包含有效的配置项（已启用、未过期等）</li>
-     *   <li>如果数据源为空或查询失败，应返回空 Map 而不是 null</li>
-     *   <li>建议返回不可变或只读的 Map，防止外部修改</li>
+     *   <li>返回的 List 应该只包含有效的配置项（已启用、未过期等）</li>
+     *   <li>如果数据源为空或查询失败，应返回空 List 而不是 null</li>
+     *   <li>建议返回不可变或只读的 List，防止外部修改</li>
      * </ul>
      *
-     * @return 配置键值对的 Map，Key 为配置键，Value 为配置的原始值
-     * 如果无配置或查询失败，返回空 Map（不返回 null）
+     * @return 配置项列表，如果无配置或查询失败，返回空 List（不返回 null）
      * @throws Exception 如果拉取过程中发生严重错误，可以抛出异常
-     *                   但建议捕获异常并返回空 Map，保证系统可用性
+     *                   但建议捕获异常并返回空 List，保证系统可用性
      */
     List<ConfigItem> loadData() throws Exception;
 

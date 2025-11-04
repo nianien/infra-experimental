@@ -8,22 +8,24 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 /**
- * chaos.options.* 配置绑定类
- * <p>
- * 对应 YAML:
+ * 配置中心主配置绑定类，对应属性前缀：{@code chaos.config-center.*}
+ *
+ * <p>示例 YAML 配置：
+ *
+ * <pre>{@code
  * chaos:
- * options:
- * provider:
- * type: jdbc
- * namespace: com.ddm
- * group: cfd
- * tags: [ "gray", "hotfix" ]
- * options:
- * url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
- * username: sa
- * password: ""
- * init_sql: "true"
- * ttl: 30S
+ *   config-center:
+ *     namespace: com.ddm
+ *     groups: [ "cfd" ]
+ *     tags: [ "gray", "hotfix" ]
+ *     ttl: 30S
+ *     provider:
+ *       type: jdbc
+ *       options:
+ *         jdbc-url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+ *         username: sa
+ *         password: ""
+ * }</pre>
  */
 @ConfigurationProperties(prefix = "chaos.config-center")
 public record ConfigProperties(

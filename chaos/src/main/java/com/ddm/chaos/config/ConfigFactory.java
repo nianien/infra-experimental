@@ -19,11 +19,13 @@ import java.util.function.Supplier;
  * <p><strong>使用示例：</strong>
  * <pre>{@code
  * // 获取 String 类型的配置
- * Supplier<String> nameSupplier = factory.getSupplier("app.name", String.class);
+ * Supplier<String> nameSupplier = factory.getSupplier(
+ *     TypedKey.of("app.name", String.class, "defaultName"));
  * String appName = nameSupplier.get();
  *
  * // 获取 Integer 类型的配置
- * Supplier<Integer> portSupplier = factory.getSupplier("app.port", Integer.class);
+ * Supplier<Integer> portSupplier = factory.getSupplier(
+ *     TypedKey.of("app.port", Integer.class, "8080"));
  * Integer port = portSupplier.get();
  * }</pre>
  *
@@ -92,10 +94,10 @@ public interface ConfigFactory extends AutoCloseable {
      * </ul>
      *
      * @param <T> 目标类型
-     * @param key 唯一配置键（对应配置数据中的 key）
+     * @param key 配置键，包含键名、目标类型、默认值，不能为 null
      * @return 可安全调用的 Supplier&lt;T&gt;，永不返回 null
-     * 调用其 get() 方法获取配置值，如果配置不存在或转换失败则返回 null
-     * @throws NullPointerException 如果 key 或 targetType 为 null
+     * 调用其 get() 方法获取配置值，如果配置不存在或转换失败则返回 {@code key.defaultValue()}
+     * @throws NullPointerException 如果 key 为 null
      */
     <T> Supplier<T> getSupplier(TypedKey<T> key);
 

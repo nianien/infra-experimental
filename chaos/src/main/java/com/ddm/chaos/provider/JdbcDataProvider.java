@@ -11,6 +11,20 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import javax.sql.DataSource;
 import java.util.*;
 
+/**
+ * 基于 JDBC 的数据提供者实现。
+ * <p>从关系型数据库（MySQL、H2 等）中读取配置数据。
+ * <p>支持的配置表结构：
+ * <ul>
+ *   <li>config_namespace：命名空间表</li>
+ *   <li>config_group：分组表</li>
+ *   <li>config_item：配置项表（包含 key、value、variant 字段）</li>
+ * </ul>
+ *
+ * @author liyifei
+ * @see DataProvider
+ * @since 1.0
+ */
 public class JdbcDataProvider implements DataProvider {
 
     private static final Logger log = LoggerFactory.getLogger(JdbcDataProvider.class);
@@ -38,6 +52,19 @@ public class JdbcDataProvider implements DataProvider {
         return "jdbc";
     }
 
+    /**
+     * 初始化 JDBC 数据源。
+     * <p>从配置中读取：
+     * <ul>
+     *   <li>命名空间（namespace）：必填</li>
+     *   <li>分组（groups）：可选，为空则查询所有分组</li>
+     *   <li>标签（tags）：可选，用于配置项变体计算</li>
+     *   <li>数据库连接信息（jdbc-url、username、password）：从 provider.options 中读取</li>
+     * </ul>
+     *
+     * @param pros 配置属性，不能为 null
+     * @throws IllegalArgumentException 如果必填配置缺失
+     */
     @Override
     public void init(ConfigProperties pros) {
         this.namespace = mustNotBlank(pros.namespace(), "namespace");

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.annotation.ContextAnnotationAutowireCandidateResolver;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 
 import java.lang.annotation.Annotation;
@@ -19,11 +20,14 @@ import java.lang.reflect.Parameter;
 import java.util.function.Supplier;
 
 /**
- * 支持 @Conf / @Qualifier 的 Supplier<T> 动态注入解析器。
- * - 仅拦截 Supplier<T> / Supplier<?> 注入点；
- * - 解析 @Conf/@Qualifier → TypedKey，从 DataConfigFactory 获取 Supplier；
- * - factory 未就绪时返回惰性 Supplier，避免初始化时序问题；
- * - 不做类型转换与运行时类型校验：存啥取啥（Supplier<?> 语义）。
+ * 支持 @Conf / @Qualifier 的 Supplier&lt;T&gt; 动态注入解析器。
+ * <p>
+ * <ul>
+ *   <li>仅拦截 Supplier&lt;T&gt; / Supplier&lt;?&gt; 注入点</li>
+ *   <li>解析 @Conf/@Qualifier → TypedKey，从 {@link ConfigFactory} 获取 Supplier</li>
+ *   <li>factory 未就绪时返回惰性 Supplier，避免初始化时序问题</li>
+ *   <li>不做类型转换与运行时类型校验：存啥取啥（Supplier&lt;?&gt; 语义）</li>
+ * </ul>
  */
 public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
 
@@ -37,7 +41,7 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
 
     @Override
     @Nullable
-    public Object getSuggestedValue(DependencyDescriptor desc) {
+    public Object getSuggestedValue(@NonNull DependencyDescriptor desc) {
         // 1) 保留父类能力（@Value / SpEL）
         Object suggested = super.getSuggestedValue(desc);
         if (suggested != null) return suggested;
@@ -49,13 +53,20 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
         Class<?> targetType = resolveSupplierGeneric(desc);
         if (targetType == null) targetType = Object.class;
         // 4) 解析 @Conf/@Qualifier → TypedKey（参数/字段通用）
-        TypedKey key = resolveKey(desc, targetType);
+        TypedKey<?> key = resolveKey(desc, targetType);
 
         // 统一惰性 Supplier 实现
         return getLazySupplier(key);
     }
 
 
+    /**
+     * 获取惰性 Supplier，延迟获取工厂实例。
+     *
+     * @param key 配置键
+     * @param <T> 目标类型
+     * @return Supplier 实例，如果 key 为 null 则返回 null
+     */
     private <T> Supplier<T> getLazySupplier(TypedKey<T> key) {
         if (key == null) return null;
         return new Supplier<>() {
@@ -94,24 +105,32 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
 
     /**
      * 统一解析注入点上的 @Conf/@Qualifier（参数优先，其次字段）。
+     *
+     * @param desc 依赖描述符
+     * @param targetType 目标类型
+     * @return TypedKey 实例，如果解析失败返回 null
      */
     @Nullable
-    private static TypedKey resolveKey(DependencyDescriptor desc, Class<?> targetType) {
-        // —— 参数注入路径（构造器 / 方法参数）
+    private static TypedKey<?> resolveKey(DependencyDescriptor desc, Class<?> targetType) {
+        // 参数注入（构造器 / 方法参数）
         if (desc.getMethodParameter() != null && desc.getMethodParameter().getParameterIndex() >= 0) {
-            TypedKey tk = resolveOnParameter(desc, targetType);
+            TypedKey<?> tk = resolveOnParameter(desc, targetType);
             if (tk != null) return tk;
         }
-        // —— 字段注入路径
+        // 字段注入
         AnnotatedElement element = desc.getAnnotatedElement();
         return (element != null) ? resolveMergedOn(element, targetType) : null;
     }
 
     /**
-     * 参数注入解析：先读原生矩阵，再走统一的“合并注解”解析（避免重复代码）。
+     * 参数注入解析：先读原生矩阵，再走统一的"合并注解"解析（避免重复代码）。
+     *
+     * @param desc 依赖描述符
+     * @param targetType 目标类型
+     * @return TypedKey 实例，如果解析失败返回 null
      */
     @Nullable
-    private static TypedKey resolveOnParameter(DependencyDescriptor desc, Class<?> targetType) {
+    private static TypedKey<?> resolveOnParameter(DependencyDescriptor desc, Class<?> targetType) {
         try {
             int idx = desc.getMethodParameter().getParameterIndex();
             Executable exec = desc.getMethodParameter().getExecutable(); // Spring 5.3+/6
@@ -120,7 +139,7 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
             // 1) 原生注解矩阵（对构造器最稳）
             Annotation[][] matrix = exec.getParameterAnnotations();
             if (idx < matrix.length) {
-                TypedKey tk = resolveFromAnnotations(matrix[idx], targetType);
+                TypedKey<?> tk = resolveFromAnnotations(matrix[idx], targetType);
                 if (tk != null) return tk;
             }
             // 2) 统一“合并注解”解析（包含直挂与元注解）
@@ -135,22 +154,31 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
     }
 
     /**
-     * 在任意 AnnotatedElement 上做“合并注解”解析（支持元注解）。
+     * 在任意 AnnotatedElement 上做"合并注解"解析（支持元注解）。
+     *
+     * @param element 注解元素
+     * @param targetType 目标类型
+     * @return TypedKey 实例，如果解析失败返回 null
      */
     @Nullable
-    private static TypedKey resolveMergedOn(AnnotatedElement element, Class<?> targetType) {
+    private static TypedKey<?> resolveMergedOn(AnnotatedElement element, Class<?> targetType) {
         Conf c = AnnotatedElementUtils.findMergedAnnotation(element, Conf.class);
-        if (c != null) return new TypedKey(c.key(), targetType, c.defaultValue());
+        if (c != null) return TypedKey.of(c.key(), targetType, c.defaultValue());
 
         Qualifier q = AnnotatedElementUtils.findMergedAnnotation(element, Qualifier.class);
         if (q != null && notBlank(q.value())) {
-            return new TypedKey(q.value(), targetType, null);
+            return TypedKey.of(q.value(), targetType, null);
         }
         return null;
     }
 
     /**
-     * 从“原生注解数组”解析 @Conf/@Qualifier（不展开元注解）。
+     * 从"原生注解数组"解析 @Conf/@Qualifier（不展开元注解）。
+     *
+     * @param anns 注解数组
+     * @param targetType 目标类型
+     * @param <T> 目标类型参数
+     * @return TypedKey 实例，如果解析失败返回 null
      */
     @Nullable
     private static <T> TypedKey<T> resolveFromAnnotations(Annotation[] anns, Class<T> targetType) {

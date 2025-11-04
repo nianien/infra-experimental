@@ -7,8 +7,8 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
+import org.springframework.lang.NonNull;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -24,11 +24,11 @@ import static com.ddm.chaos.utils.Converters.cast;
  * <ul>
  *   <li><strong>两层缓存架构</strong>：
  *     <ol>
- *       <li><strong>rawCache</strong>：保存原始配置值的全量快照，使用 {@code volatile} 引用实现无锁读取</li>
+ *       <li><strong>baseCache</strong>：保存 {@link ConfigItem} 的全量快照，使用 {@code volatile} 引用实现无锁读取</li>
  *       <li><strong>typedCache</strong>：保存类型化转换结果，按需懒构建，避免不必要的类型转换</li>
  *     </ol>
  *   </li>
- *   <li><strong>写时复制（Copy-on-Write）</strong>：刷新时整体替换 {@code rawCache} 引用，保证读路径零锁</li>
+ *   <li><strong>写时复制（Copy-on-Write）</strong>：刷新时整体替换 {@code baseCache} 引用，保证读路径零锁</li>
  *   <li><strong>惰性类型化</strong>：只在第一次调用 {@code Supplier.get()} 时进行类型转换，后续直接返回缓存结果</li>
  *   <li><strong>可用性优先</strong>：刷新失败时保留旧数据，保证系统可用性，不会因为刷新失败导致服务不可用</li>
  * </ul>
@@ -44,7 +44,7 @@ import static com.ddm.chaos.utils.Converters.cast;
  * <ul>
  *   <li>启动时立即同步刷新一次，保证数据可用</li>
  *   <li>支持定时刷新，刷新间隔由 {@link ConfigProperties#ttl()} 配置</li>
- *   <li>刷新时先原子替换 {@code rawCache}，再清空 {@code typedCache}（不逐条清除，避免全表写入和竞争）</li>
+ *   <li>刷新时先原子替换 {@code baseCache}，再清空 {@code typedCache}（不逐条清除，避免全表写入和竞争）</li>
  *   <li>刷新失败时保留旧镜像，不中断读路径，保证服务可用性</li>
  * </ul>
  *
@@ -52,11 +52,11 @@ import static com.ddm.chaos.utils.Converters.cast;
  * <pre>{@code
  * // 通过 Spring Boot 自动配置使用（推荐）
  * @Autowired
- * private DataConfigFactory factory;
+ * private ConfigFactory factory;
  *
  * // 获取配置 Supplier
  * Supplier<String> nameSupplier = factory.getSupplier(
- *     new TypedKey("demo.name", "defaultName", String.class));
+ *     TypedKey.of("demo.name", String.class, "defaultName"));
  * String appName = nameSupplier.get();
  *
  * // 或在字段上使用 @Conf 注解
@@ -68,12 +68,13 @@ import static com.ddm.chaos.utils.Converters.cast;
  * @see ConfigFactory
  * @see ConfigProperties
  * @see DataProvider
+ * @see ConfigItem
  * @since 1.0
  */
 public final class DefaultConfigFactory implements ConfigFactory, ApplicationListener<ApplicationReadyEvent> {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultConfigFactory.class);
-    private ApplicationContext ctx;
+
     /**
      * 上游数据提供者，负责从数据源（数据库、HTTP API 等）拉取原始配置数据。
      * <p>通过 SPI 机制加载，类型由 {@link ConfigProperties#provider()} 指定。
@@ -93,14 +94,15 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
     private final ReentrantLock refreshLock = new ReentrantLock();
 
     /**
-     * 第一层缓存：原始配置值的全量快照。
-     * <p>Key 为配置键名（String），Value 为原始配置值（Object）。
+     * 第一层缓存：配置项的全量快照。
+     * <p>Key 为配置键名（String），Value 为 {@link ConfigItem}（包含键名、默认值、变体、标签和已解析值）。
      * <p>特点：
      * <ul>
      *   <li>使用 {@code volatile} 关键字保证可见性</li>
      *   <li>刷新时整体替换引用，实现写时复制（Copy-on-Write）</li>
      *   <li>初始化为空 Map（不可变）</li>
      *   <li>读操作完全无锁，性能优异</li>
+     *   <li>使用 {@link LinkedHashMap} 保持插入顺序</li>
      * </ul>
      */
     private volatile Map<String, ConfigItem> baseCache = Map.of();
@@ -110,13 +112,13 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
      * <p>Key 为 {@link TypedKey}，Value 为已转换的对象或 {@link #NULL} 哨兵值。
      * <p>特点：
      * <ul>
-     *   <li>Key：由配置键名、默认值、目标类型组成</li>
+     *   <li>Key：由配置键名、目标类型、默认值组成</li>
      *   <li>Value：已转换的对象或 {@link #NULL} 哨兵值</li>
      *   <li>按需懒构建：只在第一次请求时进行类型转换</li>
-     *   <li>刷新后清空：丢弃旧容器，强制基于新的 {@code rawCache} 重新构建</li>
+     *   <li>刷新后清空：丢弃旧容器，强制基于新的 {@code baseCache} 重新构建</li>
      * </ul>
      */
-    private volatile ConcurrentMap<TypedKey, Object> typedCache = new ConcurrentHashMap<>();
+    private volatile ConcurrentMap<TypedKey<?>, Object> typedCache = new ConcurrentHashMap<>();
 
     /**
      * NULL 哨兵值，用于在 {@code ConcurrentHashMap} 中表示 {@code null} 值。
@@ -133,12 +135,34 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
     private ScheduledExecutorService scheduler;
 
     /**
-     * @param props
+     * 构造函数。
+     * <p>工厂通过 Spring 容器管理，初始化分为两个阶段：
+     * <ol>
+     *   <li>{@code @PostConstruct}：加载并初始化 DataProvider</li>
+     *   <li>{@link ApplicationListener}：应用就绪后启动刷新任务</li>
+     * </ol>
+     *
+     * @param props 配置属性，不能为 null
+     * @throws NullPointerException 如果 props 为 null
      */
     public DefaultConfigFactory(ConfigProperties props) {
         this.props = Objects.requireNonNull(props, "props cannot be null");
     }
 
+    /**
+     * 初始化工厂：加载并初始化 DataProvider。
+     * <p>该方法在 Spring Bean 初始化后通过 {@code @PostConstruct} 调用。
+     * <p>执行流程：
+     * <ol>
+     *   <li>读取 Provider 配置（类型、选项等）</li>
+     *   <li>通过 SPI 机制加载指定类型的 DataProvider</li>
+     *   <li>初始化 DataProvider（建立连接、验证配置等）</li>
+     * </ol>
+     *
+     * @throws NullPointerException  如果配置中的 provider 或 type 为 null
+     * @throws IllegalStateException 如果找不到指定类型的 DataProvider（通过 SPI）
+     * @throws Exception             如果 DataProvider 初始化失败
+     */
     @PostConstruct
     public void init() throws Exception {
         // 1) 读取 ProviderConfig
@@ -190,10 +214,10 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
                     refreshIntervalMs,
                     TimeUnit.MILLISECONDS
             );
-            log.info("DefaultDataConfigFactory [{}] started with refresh interval: {}ms ({}s)",
+            log.info("DefaultConfigFactory [{}] started with refresh interval: {}ms ({}s)",
                     provider.type(), refreshIntervalMs, refreshIntervalMs / 1000.0);
         } else {
-            log.info("DefaultDataConfigFactory [{}] started without scheduler (one-time load only)",
+            log.info("DefaultConfigFactory [{}] started without scheduler (one-time load only)",
                     provider.type());
         }
     }
@@ -210,17 +234,22 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
      * <p><strong>转换流程：</strong>
      * <ol>
      *   <li>检查 {@code typedCache} 中是否存在该 {@code TypedKey} 的缓存</li>
-     *   <li>如果不存在，从 {@code rawCache} 获取原始值</li>
-     *   <li>如果原始值为空，使用 {@code TypedKey.defaultValue()}（默认值）</li>
+     *   <li>如果不存在，从 {@code baseCache} 获取 {@link ConfigItem}</li>
+     *   <li>从 {@code ConfigItem.resolvedValue()} 获取已解析的值（已考虑变体和标签）</li>
+     *   <li>如果配置不存在或解析值为空，返回 {@code TypedKey.defaultValue()}（默认值）</li>
      *   <li>使用 {@link com.ddm.chaos.utils.Converters#cast(Object, Class)} 进行类型转换</li>
      *   <li>将转换结果缓存到 {@code typedCache} 中</li>
-     *   <li>返回转换后的值（如果转换失败或配置不存在，返回 {@code null}）</li>
      * </ol>
+     * <p><strong>返回值说明：</strong>
+     * <ul>
+     *   <li>如果配置存在且转换成功，返回转换后的值</li>
+     *   <li>如果配置不存在、解析值为空或转换失败，返回 {@code TypedKey.defaultValue()}</li>
+     * </ul>
      *
      * @param <T> 目标类型
-     * @param key 配置键，包含键名、默认值、目标类型，不能为 null
+     * @param key 配置键，包含键名、目标类型、默认值，不能为 null
      * @return {@code Supplier<T>} 实例，永不返回 null。调用其 {@code get()} 方法获取配置值，
-     * 如果配置不存在或转换失败则返回 {@code null}
+     * 如果配置不存在或转换失败则返回 {@code key.defaultValue()}
      * @throws NullPointerException 如果 key 为 null
      */
     @Override
@@ -259,10 +288,11 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
      * 刷新配置数据（两阶段原子替换）。
      * <p><strong>刷新流程：</strong>
      * <ol>
-     *   <li>从 {@link DataProvider} 加载新的全量配置数据</li>
+     *   <li>从 {@link DataProvider} 加载新的全量配置数据（{@code List<ConfigItem>}）</li>
+     *   <li>构建新的快照（{@code Map<String, ConfigItem>}），过滤无效项（null、空键等）</li>
      *   <li>如果数据有效（非空），执行两阶段替换：
      *     <ul>
-     *       <li><strong>阶段1</strong>：原子替换 {@code rawCache} 引用（使用不可变 Map）</li>
+     *       <li><strong>阶段1</strong>：原子替换 {@code baseCache} 引用（使用 {@link LinkedHashMap} 保持顺序）</li>
      *       <li><strong>阶段2</strong>：清空 {@code typedCache}，丢弃旧容器</li>
      *     </ul>
      *   </li>
@@ -355,7 +385,7 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
     @Override
     public void close() {
         String providerType = (provider != null) ? provider.type() : "unknown";
-        log.debug("Closing DefaultDataConfigFactory [{}]", providerType);
+        log.debug("Closing DefaultConfigFactory [{}]", providerType);
 
         // 停止调度器
         ScheduledExecutorService sch = this.scheduler;
@@ -392,7 +422,7 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
             }
         }
 
-        log.info("DefaultDataConfigFactory [{}] closed successfully", providerType);
+        log.info("DefaultConfigFactory [{}] closed successfully", providerType);
     }
 
 
@@ -433,8 +463,15 @@ public final class DefaultConfigFactory implements ConfigFactory, ApplicationLis
                         type, typesList));
     }
 
+    /**
+     * 应用就绪后启动刷新任务。
+     * <p>实现了 {@link ApplicationListener}，在 Spring 应用完全启动后触发。
+     * 此时所有 Bean 都已初始化完成，可以安全地启动定时刷新任务。
+     *
+     * @param event 应用就绪事件，不能为 null
+     */
     @Override
-    public void onApplicationEvent(ApplicationReadyEvent event) {
+    public void onApplicationEvent(@NonNull ApplicationReadyEvent event) {
         this.start();
     }
 

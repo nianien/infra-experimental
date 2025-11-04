@@ -9,13 +9,16 @@ import java.util.Map;
 /**
  * 不可变配置项（record 版）
  * <p>
- * key: 配置键（非空）
- * defaultValue: 默认值（字符串）
- * variant: 变体 JSON 字符串，如 {"gray":"...", "blue":"..."}（各值也为字符串）
- * tags: lane 顺序（运行期固定，按传入数组使用，不做拷贝）
+ * <ul>
+ *   <li><strong>key</strong>：配置键（非空）</li>
+ *   <li><strong>value</strong>：默认值（字符串）</li>
+ *   <li><strong>variant</strong>：变体 JSON 字符串，如 {"gray":"...", "blue":"..."}（各值也为字符串）</li>
+ *   <li><strong>tags</strong>：标签顺序（运行期固定，按传入数组使用，不做拷贝）</li>
+ *   <li><strong>resolvedValue</strong>：已解析的生效值（字符串），在构造时计算并缓存</li>
+ * </ul>
  * <p>
- * 生效值计算：firstNonNull(variant[tag1], variant[tag2], ...) else defaultValue
- * 在构造时计算并缓存到 resolvedValue；不做类型转换。
+ * <strong>生效值计算规则：</strong>firstNonNull(variant[tag1], variant[tag2], ...) else value
+ * <p>在构造时计算并缓存到 resolvedValue；不做类型转换。
  */
 public record ConfigItem(
         String key,
