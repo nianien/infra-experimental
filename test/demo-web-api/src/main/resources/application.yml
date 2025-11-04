@@ -36,16 +36,20 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{lane:--}] [%X{traceId:--}] %logger{36} - %msg%n"
 
 chaos:
-  supplier:
-    provider: com.ddm.chaos.provider.JdbcDataProvider
+  config-center:
+    namespace: com.ddm
+    groups: [ "cfd" ]
+    tags: [ "gray", "hotfix" ]
     ttl: 30S
-    config:
-      url: jdbc:mysql://localhost:3306/test
-      username: root
-      password: root
-      groups: default
-      init_sql: false
-
+    provider:
+      type: jdbc
+      options:
+        jdbc-url: jdbc:mysql://localhost:3306/test
+        username: root
+        password: root
+        hikari:
+          maximum-pool-size: 10
+          connection-timeout: 3000
 
 ---
 

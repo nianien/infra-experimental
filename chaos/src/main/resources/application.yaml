@@ -1,8 +1,0 @@
-chaos:
-  supplier:
-    ttl: 60s #刷新时间间隔,0代表不刷新
-    provider: com.ddm.chaos.dataconf.provider.jdbc.JdbcDataProvider #DataProvider实现类
-    config: #DataProvider init参数
-      url: jdbc:mysql://localhost:3306/test
-      username: root
-      password: root

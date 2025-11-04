@@ -13,7 +13,7 @@ VALUES (
        )
     ON DUPLICATE KEY UPDATE `description`='Default test group';
 
-INSERT INTO `config_data` (`namespace_id`, `group_id`, `key`, `value`, `enabled`)
+INSERT INTO `config_item` (`namespace_id`, `group_id`, `key`, `value`, `enabled`)
 VALUES (
            (SELECT `id` FROM `config_namespace` WHERE `name`='com.ddm'),
            (SELECT `id` FROM `config_group` WHERE `name`='cfd' AND `namespace_id`=(SELECT `id` FROM `config_namespace` WHERE `name`='com.ddm')),
@@ -23,7 +23,7 @@ VALUES (
        )
     ON DUPLICATE KEY UPDATE `value`='TestUser';
 
-INSERT INTO `config_data` (`namespace_id`, `group_id`, `key`, `value`, `enabled`)
+INSERT INTO `config_item` (`namespace_id`, `group_id`, `key`, `value`, `enabled`)
 VALUES (
            (SELECT `id` FROM `config_namespace` WHERE `name`='com.ddm'),
            (SELECT `id` FROM `config_group` WHERE `name`='cfd' AND `namespace_id`=(SELECT `id` FROM `config_namespace` WHERE `name`='com.ddm')),

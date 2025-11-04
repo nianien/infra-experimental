@@ -41,7 +41,7 @@ import java.util.Map;
  *   <li>{@code GET /api/orders/{orderId}}：获取订单信息</li>
  *   <li>{@code POST /api/orders}：创建订单</li>
  *   <li>{@code GET /api/users/{userId}/orders}：获取用户订单列表</li>
- *   <li>{@code GET /api/config}：获取动态配置信息（ConfigBean）</li>
+ *   <li>{@code GET /api/options}：获取动态配置信息（ConfigBean）</li>
  * </ul>
  * 
  * @author liyifei
@@ -85,7 +85,7 @@ public class WebController {
                 "users", "/api/users",
                 "orders", "/api/orders",
                 "health", "/api/health",
-                "config", "/api/config"
+                "options", "/api/options"
         ));
         return response;
     }
@@ -331,7 +331,7 @@ public class WebController {
      */
     @GetMapping("/config")
     public ResponseEntity<Map<String, Object>> getConfig() {
-        log.debug("Getting config from ConfigBean");
+        log.debug("Getting options from ConfigBean");
         
         if (configBean == null) {
             Map<String, Object> error = new HashMap<>();
@@ -353,7 +353,7 @@ public class WebController {
 
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("Failed to get config values from ConfigBean", e);
+            log.error("Failed to get options values from ConfigBean", e);
             Map<String, Object> error = new HashMap<>();
             error.put("error", "获取配置失败");
             error.put("message", e.getMessage());

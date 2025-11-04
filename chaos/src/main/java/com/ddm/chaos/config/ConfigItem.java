@@ -45,12 +45,6 @@ public record ConfigItem(
         this(key, value, variant, tags, resolve(value, variant, tags));
     }
 
-    /**
-     * 返回当前生效值（构造期已计算并缓存）
-     */
-    public String resolved() {
-        return resolvedValue;
-    }
 
     private static String resolve(String value, String variant, String[] tags) {
         String result = value;

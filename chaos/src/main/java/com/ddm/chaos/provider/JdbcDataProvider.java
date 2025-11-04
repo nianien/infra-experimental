@@ -57,7 +57,7 @@ public class JdbcDataProvider implements DataProvider {
 
         String sql = hasGroups ? """
                 SELECT d.`key` , d.`value` , d.`variant` 
-                FROM   `config_data` d
+                FROM   `config_item` d
                 JOIN   `config_group` g      ON d.`group_id`     = g.`id`
                 JOIN   `config_namespace` n  ON g.`namespace_id` = n.`id`
                 WHERE  n.`name` = :ns
@@ -65,7 +65,7 @@ public class JdbcDataProvider implements DataProvider {
                 AND  g.`name` IN (:groups)
                 """ : """
                 SELECT d.`key` , d.`value` , d.`variant` 
-                FROM   `config_data` d
+                FROM   `config_item` d
                 JOIN   `config_group` g      ON d.`group_id`     = g.`id`
                 JOIN   `config_namespace` n  ON g.`namespace_id` = n.`id`
                 WHERE  n.`name` = :ns
