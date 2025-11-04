@@ -16,7 +16,7 @@ chaos:
   config-center:
     namespace: com.ddm
     groups: [ "cfd" ]
-    tags: [ "gray", "hotfix" ]
+    tags: [ gray, hotfix ]
     ttl: 30S
     provider:
       type: jdbc
