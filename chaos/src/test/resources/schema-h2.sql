@@ -35,7 +35,7 @@ CREATE TABLE `config_group` (
 -- ==========================================================
 -- 配置项表：核心数据表
 -- ==========================================================
-CREATE TABLE `config_data` (
+CREATE TABLE `config_item` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '配置项 ID',
     `namespace_id` BIGINT NOT NULL COMMENT '命名空间 ID（为唯一约束冗余存储）',
     `group_id` BIGINT NOT NULL COMMENT '所属分组 ID',
