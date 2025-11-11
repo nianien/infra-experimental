@@ -26,13 +26,4 @@ public record ConfDesc(ConfRef ref, Object defaultValue, Type type) {
         this(ref, (Object) Converters.cast(defaultValue, type), type);
     }
 
-    /**
-     * 获取缓存键。
-     * <p>缓存键由配置引用和类型组成，忽略默认值。
-     *
-     * @return 缓存键
-     */
-    public ConfSlot slot() {
-        return new ConfSlot(ref, type);
-    }
 }

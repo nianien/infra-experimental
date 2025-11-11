@@ -1,14 +1,16 @@
 package com.ddm.chaos.config;
 
 import com.ddm.chaos.defined.ConfDesc;
-import com.ddm.chaos.defined.ConfSlot;
+import com.ddm.chaos.defined.ConfRef;
 import com.ddm.chaos.provider.ConfItem;
 import com.ddm.chaos.utils.Converters;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -30,7 +32,7 @@ public final class ConfigData {
 
     private final ConfItem item;
     private final String resolvedValue;
-    private final Map<ConfSlot, Object> resolvedValues = new ConcurrentHashMap<>();
+    private final Map<ConfKey, Object> resolvedValues = new ConcurrentHashMap<>();
 
     public ConfigData(ConfItem item, String[] tags) {
         this.item = item;
@@ -64,7 +66,7 @@ public final class ConfigData {
      */
     @SuppressWarnings("unchecked")
     public <T> T getValue(ConfDesc desc) {
-        Object res = resolvedValues.computeIfAbsent(desc.slot(), key -> {
+        Object res = resolvedValues.computeIfAbsent(new ConfKey(desc.ref(), desc.type()), key -> {
             try {
                 Object cast = Converters.cast(resolvedValue, key.type());
                 if (cast != null) {
@@ -97,5 +99,29 @@ public final class ConfigData {
         }
     }
 
+    record ConfKey(ConfRef ref, Type type) {
+        public ConfKey(ConfRef ref, Type type) {
+            this.ref = Objects.requireNonNull(ref, "ref cannot be null");
+            this.type = Objects.requireNonNull(type, "type cannot be null");
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ConfKey k)) return false;
+            return Objects.equals(ref, k.ref)
+                    && Objects.equals(typeName(type), typeName(k.type));
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(ref, typeName(type));
+        }
+
+        private static String typeName(Type t) {
+            return (t == null) ? "null" : t.getTypeName();
+        }
+
+    }
 
 }

@@ -2,8 +2,6 @@ package com.ddm.chaos.demo;
 
 import com.ddm.chaos.SpringTestApplication;
 import com.ddm.chaos.autoconfigure.ChaosAutoConfiguration;
-import com.ddm.chaos.config.ConfigFactory;
-import com.ddm.chaos.config.DefaultConfigFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
