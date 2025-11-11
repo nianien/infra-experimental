@@ -1,9 +1,9 @@
 package com.ddm.chaos.provider;
 
-import com.ddm.chaos.config.ConfigItem;
 import com.ddm.chaos.config.ConfigProperties;
+import com.ddm.chaos.defined.ConfInfo;
 
-import java.util.List;
+import java.util.Map;
 
 /**
  * 数据提供者接口，负责从数据源（数据库、Redis、HTTP API 等）拉取配置数据。
@@ -57,16 +57,16 @@ public interface DataProvider extends AutoCloseable {
      *   <li>初始化必要的资源</li>
      * </ul>
      *
-     * @param config 配置参数 Map，包含数据源所需的配置（如 url、username、password 等）
+     * @param options 配置参数 Map，包含数据源所需的配置（如 url、username、password 等）
      * @throws Exception 如果初始化失败，抛出异常
      */
-    void init(ConfigProperties config) throws Exception;
+    void init(Map<String, String> options);
 
     /**
      * 拉取全量配置快照。
      *
-     * <p>该方法从数据源获取所有配置项，返回一个 {@link ConfigItem} 列表。
-     * <p>每个 {@link ConfigItem} 包含：
+     * <p>该方法从数据源获取所有配置项，返回一个 {@link ConfItem} 列表。
+     * <p>每个 {@link ConfItem} 包含：
      * <ul>
      *   <li>配置键（key）</li>
      *   <li>默认值（value）</li>
@@ -86,7 +86,8 @@ public interface DataProvider extends AutoCloseable {
      * @throws Exception 如果拉取过程中发生严重错误，可以抛出异常
      *                   但建议捕获异常并返回空 List，保证系统可用性
      */
-    List<ConfigItem> loadData() throws Exception;
+
+    ConfItem loadData(ConfInfo info);
 
     /**
      * 关闭数据提供者，释放相关资源。

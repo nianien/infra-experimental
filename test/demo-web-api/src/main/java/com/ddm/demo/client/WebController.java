@@ -11,6 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.ddm.chaos.annotation.Conf;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -324,44 +328,135 @@ public class WebController {
     /**
      * 获取动态配置信息（ConfigBean）。
      * 
-     * <p>该接口返回通过 {@code @Resource} 注入的 Supplier 配置值。
-     * 如果 ConfigBean 不存在或 Supplier 返回 null，会在响应中标记。
+     * <p>该接口返回通过 {@code @Conf} 注解注入的 Supplier 配置值。
+     * 返回结构化的配置信息，包含配置键、当前值、默认值和元数据。
      * 
-     * @return 配置信息 Map，包含 name 和 age 的值
+     * <p>返回格式：
+     * <pre>{@code
+     * {
+     *   "timestamp": 1234567890,
+     *   "configs": [
+     *     {
+     *       "key": "demo.name",
+     *       "value": "当前值",
+     *       "defaultValue": "这是默认值",
+     *       "usingDefault": false,
+     *       "type": "String"
+     *     },
+     *     {
+     *       "key": "demo.age",
+     *       "value": 25,
+     *       "defaultValue": "-1",
+     *       "usingDefault": false,
+     *       "type": "Integer"
+     *     }
+     *   ],
+     *   "summary": {
+     *     "total": 2,
+     *     "usingDefault": 0,
+     *     "usingCustom": 2
+     *   }
+     * }
+     * }</pre>
+     * 
+     * @return 配置信息 Map，包含配置列表、摘要和时间戳
      */
     @GetMapping("/config")
     public ResponseEntity<Map<String, Object>> getConfig() {
-        log.debug("Getting options from ConfigBean");
+        log.debug("Getting configuration from ConfigBean");
         
         if (configBean == null) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "ConfigBean not found");
             error.put("message", "ConfigBean is not available in Spring context");
+            error.put("timestamp", System.currentTimeMillis());
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
         }
         
         try {
             Map<String, Object> result = new HashMap<>();
-            
-            // 获取 name 配置值
-            String name = configBean.getName().get() != null ? configBean.getName().get() : null;
-            result.put("name", name);
+            result.put("timestamp", System.currentTimeMillis());
 
-            // 获取 age 配置值
-            Integer age = configBean.getAge().get() != null ? configBean.getAge().get() : null;
-            result.put("age", age);
+            List<Map<String, Object>> configs = new ArrayList<>();
+            int usingDefaultCount = 0;
+            int usingCustomCount = 0;
+
+            // 通过反射遍历 ConfigBean 中的 @Conf Supplier 字段，动态打印
+            for (Field field : ConfigBean.class.getDeclaredFields()) {
+                Conf conf = field.getAnnotation(Conf.class);
+                if (conf == null) {
+                    continue;
+                }
+                if (!java.util.function.Supplier.class.isAssignableFrom(field.getType())) {
+                    continue;
+                }
+
+                field.setAccessible(true);
+                Object valueObj = null;
+                try {
+                    @SuppressWarnings("unchecked")
+                    java.util.function.Supplier<Object> supplier = (java.util.function.Supplier<Object>) field.get(configBean);
+                    if (supplier != null) {
+                        valueObj = supplier.get();
+                    }
+                } catch (Exception ex) {
+                    log.warn("Failed to get config value for key='{}'", conf.key(), ex);
+                }
+
+                String defaultValue = conf.defaultValue();
+                boolean usingDefault = (valueObj == null) || String.valueOf(valueObj).equals(defaultValue);
+                if (usingDefault) {
+                    usingDefaultCount++;
+                } else {
+                    usingCustomCount++;
+                }
+
+                // 解析字段泛型，推断类型名称
+                String typeName = "Object";
+                try {
+                    Type gtype = field.getGenericType();
+                    if (gtype instanceof ParameterizedType pt) {
+                        Type[] args = pt.getActualTypeArguments();
+                        if (args.length == 1) {
+                            String t = args[0].getTypeName();
+                            typeName =args[0].getTypeName();
+                        }
+                    } else if (valueObj != null) {
+                        typeName = valueObj.getClass().getSimpleName();
+                    }
+                } catch (Exception ignore) {
+                }
+
+                Map<String, Object> row = new HashMap<>();
+                row.put("key", conf.key());
+                row.put("value", valueObj);
+                row.put("defaultValue", defaultValue);
+                row.put("usingDefault", usingDefault);
+                row.put("type", typeName);
+                configs.add(row);
+            }
+
+            // 添加配置列表
+            result.put("configs", configs);
+
+            // 添加摘要信息
+            Map<String, Object> summary = new HashMap<>();
+            summary.put("total", configs.size());
+            summary.put("usingDefault", usingDefaultCount);
+            summary.put("usingCustom", usingCustomCount);
+            result.put("summary", summary);
 
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("Failed to get options values from ConfigBean", e);
+            log.error("Failed to get configuration values from ConfigBean", e);
             Map<String, Object> error = new HashMap<>();
             error.put("error", "获取配置失败");
             error.put("message", e.getMessage());
+            error.put("timestamp", System.currentTimeMillis());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
-    /* ===================== 辅助方法 ===================== */
 
     /**
      * 执行 gRPC 调用并统一处理异常。

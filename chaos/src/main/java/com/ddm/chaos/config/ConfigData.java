@@ -1,10 +1,15 @@
 package com.ddm.chaos.config;
 
+import com.ddm.chaos.defined.ConfDesc;
+import com.ddm.chaos.provider.ConfItem;
+import com.ddm.chaos.utils.Converters;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 不可变配置项（record 版）
@@ -20,38 +25,23 @@ import java.util.Map;
  * <strong>生效值计算规则：</strong>firstNonNull(variant[tag1], variant[tag2], ...) else value
  * <p>在构造时计算并缓存到 resolvedValue；不做类型转换。
  */
-public record ConfigItem(
-        String key,
-        String value,
-        String variant,
-        String[] tags,
-        String resolvedValue
-) {
+@Data
+public class ConfigData {
+
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final Object NULL = new Object();
+    private ConfItem item;
+    private String resolvedValue;
+    private Map<ConfDesc, Object> resolvedValues = new ConcurrentHashMap<>();
 
-    /**
-     * 主构造：用于完整字段初始化（已计算好的 resolvedValue）
-     */
-    public ConfigItem {
-        if (key == null || key.isBlank()) {
-            throw new IllegalArgumentException("key must not be blank");
-        }
-        if (tags == null) {
-            tags = new String[0];
-        }
+    public ConfigData(ConfItem item, String[] tags) {
+        this.item = item;
+        this.resolvedValue = resolve(tags);
     }
 
-    /**
-     * 重载构造：自动计算 resolvedValue
-     */
-    public ConfigItem(String key, String value, String variant, String... tags) {
-        this(key, value, variant, tags, resolve(value, variant, tags));
-    }
-
-
-    private static String resolve(String value, String variant, String[] tags) {
-        String result = value;
-        Map<String, String> vmap = parseVariants(variant);
+    private String resolve(String[] tags) {
+        String result = item.value();
+        Map<String, String> vmap = parseVariants(item.variant());
         if (!vmap.isEmpty() && tags.length > 0) {
             for (String t : tags) {
                 if (t == null || t.isBlank()) continue;
@@ -65,6 +55,21 @@ public record ConfigItem(
         return result;
     }
 
+    @SuppressWarnings("unchecked")
+    public <T> T getValue(ConfDesc desc) {
+        var res = resolvedValues.computeIfAbsent(desc, key -> {
+            try {
+                var cast = Converters.cast(resolvedValue, key.type());
+                if (cast != null) {
+                    return cast;
+                }
+            } catch (Exception e) {
+            }
+            return NULL;
+        });
+        return res == NULL ? (T)desc.defaultValue() : (T) res;
+    }
+
     private static Map<String, String> parseVariants(String json) {
         if (json == null || json.isBlank()) return Collections.emptyMap();
         try {
@@ -74,5 +79,6 @@ public record ConfigItem(
             return Collections.emptyMap();
         }
     }
+
 
 }

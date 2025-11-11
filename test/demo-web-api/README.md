@@ -11,7 +11,24 @@
 - ✅ **微服务架构** - 连接独立的 up-server 和 down-server
 
 ## 项目结构
+```mermaid
+quadrantChart
+    title Config Center Landscape
+    x-axis "业务语义强度 (Weak to Strong)"
+    y-axis "环境耦合度 (High to Low)"
+    quadrant-1 "环境中心型"
+    quadrant-2 "应用中心型"
+    quadrant-3 "通用底座型"
+    quadrant-4 "业务中心型"
 
+    "Spring Cloud Config": [0.25, 0.8]
+    "K8s ConfigMap": [0.2, 0.9]
+    "AWS AppConfig": [0.35, 0.7]
+    "Azure App Config": [0.35, 0.6]
+    "Apollo": [0.55, 0.45]
+    "Nacos": [0.7, 0.4]
+    "Consul / etcd": [0.65, 0.6]
+    "OpenFeature": [0.8, 0.3]
 ```
 atlas-demo-web/
 ├── src/main/

@@ -36,7 +36,7 @@ CREATE TABLE `config_item` (
     `group_id` BIGINT NOT NULL COMMENT '所属分组 ID',
     `key` VARCHAR(255) NOT NULL COMMENT '配置键（全局唯一）',
     `value` LONGTEXT NOT NULL COMMENT '默认配置值（JSON / 文本 / 数值均可）',
-    `variant` JSON DEFAULT NULL COMMENT '泳道覆盖配置，如 {"gray": "...", "blue": "..."}，不建索引',
+    `variant` JSON DEFAULT NULL COMMENT '泳道覆盖配置，如 {"gray": "...", "blue": "..."}',
     `type` VARCHAR(64) DEFAULT 'string' COMMENT '配置值类型（string/json/int 等）',
     `enabled` TINYINT(1) DEFAULT '1' COMMENT '是否启用，1=启用 0=禁用',
     `description` VARCHAR(512) DEFAULT NULL COMMENT '配置项描述',

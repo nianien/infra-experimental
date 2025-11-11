@@ -1,15 +1,14 @@
 package com.ddm.chaos.config;
 
 import com.ddm.chaos.annotation.Conf;
-import com.ddm.chaos.config.ConfigFactory.TypedKey;
+import com.ddm.chaos.defined.ConfDesc;
+import com.ddm.chaos.defined.ConfInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.DependencyDescriptor;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.annotation.ContextAnnotationAutowireCandidateResolver;
 import org.springframework.core.ResolvableType;
-import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 
@@ -17,7 +16,10 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
 import java.util.function.Supplier;
+
+import static org.springframework.core.annotation.AnnotatedElementUtils.findMergedAnnotation;
 
 /**
  * 支持 @Conf / @Qualifier 的 Supplier&lt;T&gt; 动态注入解析器。
@@ -50,25 +52,22 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
         if (!Supplier.class.isAssignableFrom(desc.getDependencyType())) return null;
 
         // 3) 解析泛型 T；不可解析则用 Object 作为通配（支持 Supplier<?>）
-        Class<?> targetType = resolveSupplierGeneric(desc);
-        if (targetType == null) targetType = Object.class;
+        Type targetType = resolveSupplierGeneric(desc);
         // 4) 解析 @Conf/@Qualifier → TypedKey（参数/字段通用）
-        TypedKey<?> key = resolveKey(desc, targetType);
-
+        Conf conf = resolveKey(desc);
+        if (conf == null) return null;
         // 统一惰性 Supplier 实现
-        return getLazySupplier(key);
+        return getLazySupplier(new ConfDesc(new ConfInfo(conf.namespace(), conf.group(), conf.key()), conf.defaultValue(), targetType));
     }
 
 
     /**
      * 获取惰性 Supplier，延迟获取工厂实例。
      *
-     * @param key 配置键
      * @param <T> 目标类型
      * @return Supplier 实例，如果 key 为 null 则返回 null
      */
-    private <T> Supplier<T> getLazySupplier(TypedKey<T> key) {
-        if (key == null) return null;
+    private <T> Supplier<T> getLazySupplier(ConfDesc desc) {
         return new Supplier<>() {
             private volatile Supplier<T> delegate;
 
@@ -84,7 +83,7 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
                     ConfigFactory f = getFactory();
                     if (f == null) return null;
 
-                    Supplier<?> real = f.getSupplier(key);
+                    Supplier<?> real = f.createSupplier(desc);
                     if (real == null) return null;
 
                     delegate = d = (Supplier<T>) real; // 安全发布
@@ -98,105 +97,91 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
      * 解析 Supplier<T> 的 T；解析不到返回 null（调用方用 Object 兜底）。
      */
     @Nullable
-    private static Class<?> resolveSupplierGeneric(DependencyDescriptor desc) {
+    private static Type resolveSupplierGeneric(DependencyDescriptor desc) {
         ResolvableType rt = desc.getResolvableType();
-        return (rt != null) ? rt.getGeneric(0).resolve() : null;
+        if (rt == null) return null;
+
+        // 确保按 Supplier 视角解析
+        ResolvableType asSupplier = rt.as(Supplier.class);
+        if (asSupplier == ResolvableType.NONE) return null;
+
+        // 关键：getType() 拿到的是 java.lang.reflect.Type（可能是 ParameterizedType）
+        return asSupplier.getGeneric(0).getType();
     }
 
     /**
      * 统一解析注入点上的 @Conf/@Qualifier（参数优先，其次字段）。
      *
      * @param desc 依赖描述符
-     * @param targetType 目标类型
      * @return TypedKey 实例，如果解析失败返回 null
      */
     @Nullable
-    private static TypedKey<?> resolveKey(DependencyDescriptor desc, Class<?> targetType) {
+    private static Conf resolveKey(DependencyDescriptor desc) {
         // 参数注入（构造器 / 方法参数）
         if (desc.getMethodParameter() != null && desc.getMethodParameter().getParameterIndex() >= 0) {
-            TypedKey<?> tk = resolveOnParameter(desc, targetType);
-            if (tk != null) return tk;
+            Conf conf = resolveOnParameter(desc);
+            if (conf != null) {
+                return conf;
+            }
         }
         // 字段注入
         AnnotatedElement element = desc.getAnnotatedElement();
-        return (element != null) ? resolveMergedOn(element, targetType) : null;
+        return (element != null) ? findMergedAnnotation(element, Conf.class) : null;
     }
 
     /**
      * 参数注入解析：先读原生矩阵，再走统一的"合并注解"解析（避免重复代码）。
      *
      * @param desc 依赖描述符
-     * @param targetType 目标类型
+     * @param desc 目标类型
      * @return TypedKey 实例，如果解析失败返回 null
      */
     @Nullable
-    private static TypedKey<?> resolveOnParameter(DependencyDescriptor desc, Class<?> targetType) {
+    private static Conf resolveOnParameter(DependencyDescriptor desc) {
         try {
             int idx = desc.getMethodParameter().getParameterIndex();
             Executable exec = desc.getMethodParameter().getExecutable(); // Spring 5.3+/6
-            if (exec == null || idx < 0 || idx >= exec.getParameterCount()) return null;
-
+            if (exec == null || idx < 0 || idx >= exec.getParameterCount()) {
+                return null;
+            }
             // 1) 原生注解矩阵（对构造器最稳）
             Annotation[][] matrix = exec.getParameterAnnotations();
             if (idx < matrix.length) {
-                TypedKey<?> tk = resolveFromAnnotations(matrix[idx], targetType);
-                if (tk != null) return tk;
+                Conf conf = resolveFromAnnotations(matrix[idx]);
+                if (conf != null) {
+                    return conf;
+                }
             }
             // 2) 统一“合并注解”解析（包含直挂与元注解）
             Parameter p = exec.getParameters()[idx];
-            return resolveMergedOn(p, targetType);
-        } catch (Throwable e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to resolve parameter annotations on {}", desc.getMethodParameter(), e);
+            Conf conf = findMergedAnnotation(p, Conf.class);
+            if (conf != null) {
+                return conf;
             }
-            return null;
-        }
-    }
-
-    /**
-     * 在任意 AnnotatedElement 上做"合并注解"解析（支持元注解）。
-     *
-     * @param element 注解元素
-     * @param targetType 目标类型
-     * @return TypedKey 实例，如果解析失败返回 null
-     */
-    @Nullable
-    private static TypedKey<?> resolveMergedOn(AnnotatedElement element, Class<?> targetType) {
-        Conf c = AnnotatedElementUtils.findMergedAnnotation(element, Conf.class);
-        if (c != null) return TypedKey.of(c.key(), targetType, c.defaultValue());
-
-        Qualifier q = AnnotatedElementUtils.findMergedAnnotation(element, Qualifier.class);
-        if (q != null && notBlank(q.value())) {
-            return TypedKey.of(q.value(), targetType, null);
+        } catch (Throwable e) {
+            log.warn("Failed to resolve parameter annotations on {}", desc.getMethodParameter(), e);
         }
         return null;
     }
+
 
     /**
      * 从"原生注解数组"解析 @Conf/@Qualifier（不展开元注解）。
      *
      * @param anns 注解数组
-     * @param targetType 目标类型
-     * @param <T> 目标类型参数
      * @return TypedKey 实例，如果解析失败返回 null
      */
     @Nullable
-    private static <T> TypedKey<T> resolveFromAnnotations(Annotation[] anns, Class<T> targetType) {
+    private static Conf resolveFromAnnotations(Annotation[] anns) {
         if (anns == null || anns.length == 0) return null;
         for (Annotation ann : anns) {
             if (ann instanceof Conf c) {
-                return TypedKey.of(c.key(), targetType, c.defaultValue());
-            }
-            if (ann instanceof Qualifier q && notBlank(q.value())) {
-                return TypedKey.of(q.value(), targetType, null);
+                return c;
             }
         }
         return null;
     }
 
-    private static boolean notBlank(@Nullable String s) {
-        return s != null && !s.isBlank();
-    }
 
     /**
      * 工厂可为空，避免初始化时序死锁。

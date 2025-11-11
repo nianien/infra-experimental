@@ -1,8 +1,7 @@
 package com.ddm.chaos.config;
 
-import com.ddm.chaos.utils.Converters;
+import com.ddm.chaos.defined.ConfDesc;
 
-import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -43,63 +42,7 @@ import java.util.function.Supplier;
 public interface ConfigFactory extends AutoCloseable {
 
 
-    record TypedKey<T>(String name, Class<T> type, T defaultValue) {
-
-        public TypedKey {
-            Objects.requireNonNull(name, "name must not be null");
-            Objects.requireNonNull(type, "type must not be null");
-        }
-
-
-        public static <T> TypedKey<T> of(String name, Class<T> type, String defaultString) {
-            T parsed = null;
-            if (defaultString != null && !defaultString.isBlank()) {
-                parsed = Converters.cast(defaultString, type);
-            }
-            return new TypedKey<>(name, type, parsed);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof TypedKey<?> other)) return false;
-            return Objects.equals(name, other.name)
-                    && Objects.equals(type, other.type);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(name, type);
-        }
-    }
-
-    /**
-     * 根据配置键和目标类型获取对应的 Supplier。
-     *
-     * <p>该方法返回的 Supplier 具有以下特性：
-     * <ul>
-     *   <li><strong>永不返回 null</strong>：该方法本身不会返回 null</li>
-     *   <li><strong>get() 可能返回 null</strong>：如果配置不存在或转换失败，get() 返回 null</li>
-     *   <li><strong>线程安全</strong>：返回的 Supplier 可以安全地在多线程环境中使用</li>
-     *   <li><strong>类型安全</strong>：自动将原始值转换为目标类型</li>
-     * </ul>
-     *
-     * <p><strong>类型转换支持：</strong>
-     * <ul>
-     *   <li>基础数值类型：Byte、Short、Integer、Long、Float、Double</li>
-     *   <li>大数类型：BigInteger、BigDecimal</li>
-     *   <li>时间类型：Duration、Instant、LocalDate、LocalDateTime 等</li>
-     *   <li>字符串类型：String</li>
-     *   <li>JSON 对象：通过 Jackson 反序列化为 POJO</li>
-     * </ul>
-     *
-     * @param <T> 目标类型
-     * @param key 配置键，包含键名、目标类型、默认值，不能为 null
-     * @return 可安全调用的 Supplier&lt;T&gt;，永不返回 null
-     * 调用其 get() 方法获取配置值，如果配置不存在或转换失败则返回 {@code key.defaultValue()}
-     * @throws NullPointerException 如果 key 为 null
-     */
-    <T> Supplier<T> getSupplier(TypedKey<T> key);
+    <T> Supplier<T> createSupplier(ConfDesc desc);
 
     /**
      * 关闭工厂，释放相关资源。

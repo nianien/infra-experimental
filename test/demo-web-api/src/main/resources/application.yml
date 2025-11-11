@@ -38,7 +38,7 @@ logging:
 chaos:
   config-center:
     namespace: com.ddm
-    groups: [ "cfd" ]
+    groups: [ "cfd","se","common" ] #"cfd>se"
     tags: [ "gray", "hotfix" ]
     ttl: 30S
     provider:

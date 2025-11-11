@@ -30,12 +30,6 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "chaos.config-center")
 public record ConfigProperties(
 
-        /** 命名空间（可选） */
-        String namespace,
-
-        /** 分组名称（可选） */
-        String[] groups,
-
         /** 标签（如 gray、hotfix、beta 等） */
         String[] tags,
 

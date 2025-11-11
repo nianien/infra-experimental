@@ -40,15 +40,9 @@ class DemoBeanTest {
     @Autowired
     private DemoBean demoBean;
 
-    @Autowired
-    private ConfigFactory dataSupplierFactory;
-
 
     @Test
     void testDataSupplierFactory() {
-        if (dataSupplierFactory instanceof DefaultConfigFactory df) {
-            df.refresh();
-        }
 
         assertEquals("TestUser", demoBean.name.get(), "Name should match");
         assertEquals(25, demoBean.age.get(), "Age should match");

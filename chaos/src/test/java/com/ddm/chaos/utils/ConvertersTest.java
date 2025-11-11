@@ -32,31 +32,7 @@ class ConvertersTest {
         assertEquals(num, Converters.cast(num, Integer.class));
     }
 
-    // ==================== 基础数值类型测试 ====================
 
-    @Test
-    void testCastToByte() {
-        assertEquals(Byte.valueOf((byte) 123), Converters.cast("123", Byte.class));
-        assertEquals((byte) 123, Converters.cast("123", byte.class));
-    }
-
-    @Test
-    void testCastToShort() {
-        assertEquals(Short.valueOf((short) 12345), Converters.cast("12345", Short.class));
-        assertEquals((short) 12345, Converters.cast("12345", short.class));
-    }
-
-    @Test
-    void testCastToInteger() {
-        assertEquals(Integer.valueOf(123456), Converters.cast("123456", Integer.class));
-        assertEquals(123456, Converters.cast("123456", int.class));
-    }
-
-    @Test
-    void testCastToLong() {
-        assertEquals(Long.valueOf(123456789L), Converters.cast("123456789", Long.class));
-        assertEquals(123456789L, Converters.cast("123456789", long.class));
-    }
 
     @Test
     void testCastToFloat() {

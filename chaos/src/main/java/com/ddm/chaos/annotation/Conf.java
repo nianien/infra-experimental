@@ -1,8 +1,6 @@
 package com.ddm.chaos.annotation;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.annotation.AliasFor;
 import org.springframework.stereotype.Indexed;
 
 import java.lang.annotation.*;
@@ -33,25 +31,31 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Autowired
-@Qualifier
 @Indexed
 public @interface Conf {
 
     /**
-     * 配置项键名；透传到 {@link Qualifier#value()}。
+     * 配置项
+     *
+     * @return
      */
-    @AliasFor(annotation = Qualifier.class, attribute = "value")
     String key() default "";
+
+    /**
+     * 命名空间
+     */
+    String namespace() default "";
+
+
+    /**
+     * 配置分组
+     */
+    String group() default "";
 
     /**
      * 未命中该 {@code key} 时使用的默认值（可选）。
      */
     String defaultValue() default "";
 
-    /**
-     * 是否为必需依赖；false 表示注入可为空或走 fallback。
-     * 透传到 {@link Autowired#required()}。
-     */
-    @AliasFor(annotation = Autowired.class, attribute = "required")
-    boolean required() default true;
+
 }
