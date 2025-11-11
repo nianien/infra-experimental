@@ -5,15 +5,34 @@ import com.ddm.chaos.utils.Converters;
 import java.lang.reflect.Type;
 
 /**
- * @author : liyifei
- * @created : 2025/11/5, Wednesday
- * Copyright (c) 2004-2029 All Rights Reserved.
- **/
-public record ConfDesc(ConfInfo info, Object defaultValue, Type type) {
+ * 配置描述符，表示开发者声明的配置注入信息。
+ * <p>
+ * 包含配置引用（{@code ConfRef}）、目标类型（{@code Type}）和默认值（{@code defaultValue}）。
+ * 用于从注解（{@code @Conf}）中提取配置信息。
+ *
+ * @author liyifei
+ */
+public record ConfDesc(ConfRef ref, Object defaultValue, Type type) {
 
-    public ConfDesc(ConfInfo info, String defaultValue, Type type) {
-        this(info, (Object) Converters.cast(defaultValue, type), type);
+    /**
+     * 使用字符串默认值构造配置描述符。
+     * <p>会自动将字符串默认值转换为目标类型。
+     *
+     * @param ref          配置引用
+     * @param defaultValue 默认值字符串
+     * @param type         目标类型
+     */
+    public ConfDesc(ConfRef ref, String defaultValue, Type type) {
+        this(ref, (Object) Converters.cast(defaultValue, type), type);
     }
 
-
+    /**
+     * 获取缓存键。
+     * <p>缓存键由配置引用和类型组成，忽略默认值。
+     *
+     * @return 缓存键
+     */
+    public ConfSlot slot() {
+        return new ConfSlot(ref, type);
+    }
 }

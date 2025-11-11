@@ -1,6 +1,6 @@
 package com.ddm.chaos.provider;
 
-import com.ddm.chaos.defined.ConfInfo;
+import com.ddm.chaos.defined.ConfRef;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -59,7 +59,7 @@ public class JdbcDataProvider implements DataProvider {
 
 
     @Override
-    public ConfItem loadData(ConfInfo info) {
+    public ConfItem loadData(ConfRef ref) {
         String sql = """
                 SELECT
                     n.`name` AS `namespace`,
@@ -76,9 +76,9 @@ public class JdbcDataProvider implements DataProvider {
                   AND g.`name` = :group;
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("key", info.key())
-                .addValue("namespace", info.namespace())
-                .addValue("group", info.group());
+                .addValue("key", ref.key())
+                .addValue("namespace", ref.namespace())
+                .addValue("group", ref.group());
         return jdbc.queryForObject(sql, params, this::mapRowToConfItem);
     }
     

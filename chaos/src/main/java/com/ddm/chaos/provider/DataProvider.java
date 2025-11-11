@@ -1,6 +1,6 @@
 package com.ddm.chaos.provider;
 
-import com.ddm.chaos.defined.ConfInfo;
+import com.ddm.chaos.defined.ConfRef;
 
 import java.util.Map;
 
@@ -26,7 +26,7 @@ import java.util.Map;
  *     }
  *
  *     @Override
- *     public ConfItem loadData(ConfInfo info) {
+     *     public ConfItem loadData(ConfRef ref) {
  *         // 从数据库查询配置并返回
  *         return jdbc.queryForObject(sql, params, rowMapper);
  *     }
@@ -86,7 +86,7 @@ public interface DataProvider extends AutoCloseable {
      *                   但建议捕获异常并返回空 List，保证系统可用性
      */
 
-    ConfItem loadData(ConfInfo info);
+    ConfItem loadData(ConfRef ref);
 
     /**
      * 关闭数据提供者，释放相关资源。

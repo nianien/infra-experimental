@@ -1,6 +1,7 @@
 package com.ddm.chaos.config;
 
 import com.ddm.chaos.defined.ConfDesc;
+import com.ddm.chaos.defined.ConfSlot;
 import com.ddm.chaos.provider.ConfItem;
 import com.ddm.chaos.utils.Converters;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -26,23 +27,16 @@ public final class ConfigData {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Object NULL = new Object();
-    
+
     private final ConfItem item;
     private final String resolvedValue;
-    private final Map<ConfDesc, Object> resolvedValues = new ConcurrentHashMap<>();
+    private final Map<ConfSlot, Object> resolvedValues = new ConcurrentHashMap<>();
 
     public ConfigData(ConfItem item, String[] tags) {
         this.item = item;
         this.resolvedValue = resolve(tags);
     }
-    
-    public ConfItem getItem() {
-        return item;
-    }
-    
-    public String getResolvedValue() {
-        return resolvedValue;
-    }
+
 
     private String resolve(String[] tags) {
         String result = item.value();
@@ -64,13 +58,13 @@ public final class ConfigData {
      * 获取类型化的配置值。
      * <p>如果转换失败或值为 null，则返回默认值。
      *
-     * @param <T> 目标类型
+     * @param <T>  目标类型
      * @param desc 配置描述符，包含类型和默认值信息
      * @return 转换后的配置值，如果转换失败则返回默认值
      */
     @SuppressWarnings("unchecked")
     public <T> T getValue(ConfDesc desc) {
-        Object res = resolvedValues.computeIfAbsent(desc, key -> {
+        Object res = resolvedValues.computeIfAbsent(desc.slot(), key -> {
             try {
                 Object cast = Converters.cast(resolvedValue, key.type());
                 if (cast != null) {
@@ -95,7 +89,8 @@ public final class ConfigData {
             return Collections.emptyMap();
         }
         try {
-            return JSON.readValue(json, new TypeReference<Map<String, String>>() {});
+            return JSON.readValue(json, new TypeReference<>() {
+            });
         } catch (Exception e) {
             // 解析失败时返回空 Map，不抛出异常
             return Collections.emptyMap();

@@ -2,7 +2,7 @@ package com.ddm.chaos.config;
 
 import com.ddm.chaos.config.ConfigProperties.Provider;
 import com.ddm.chaos.defined.ConfDesc;
-import com.ddm.chaos.defined.ConfInfo;
+import com.ddm.chaos.defined.ConfRef;
 import com.ddm.chaos.provider.ConfItem;
 import com.ddm.chaos.provider.DataProvider;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -31,7 +31,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
      */
     private final ExecutorService refreshPool;
 
-    private final LoadingCache<ConfInfo, ConfigData> cache;
+    private final LoadingCache<ConfRef, ConfigData> cache;
 
     private final DataProvider provider;
     private final ConfigProperties props;
@@ -58,8 +58,8 @@ public final class DefaultConfigFactory implements ConfigFactory {
     }
 
 
-    private ConfigData loadData(ConfInfo info) {
-        ConfItem item = provider.loadData(info);
+    private ConfigData loadData(ConfRef ref) {
+        ConfItem item = provider.loadData(ref);
         return new ConfigData(item, props.tags());
     }
 
@@ -67,7 +67,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
     @SuppressWarnings("unchecked")
     public <T> Supplier<T> createSupplier(ConfDesc desc) {
         Objects.requireNonNull(desc, "desc");
-        return () -> (T) cache.get(desc.info()).getValue(desc);
+        return () -> (T) cache.get(desc.ref()).getValue(desc);
     }
 
     /**

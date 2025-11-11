@@ -2,7 +2,7 @@ package com.ddm.chaos.config;
 
 import com.ddm.chaos.annotation.Conf;
 import com.ddm.chaos.defined.ConfDesc;
-import com.ddm.chaos.defined.ConfInfo;
+import com.ddm.chaos.defined.ConfRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.DependencyDescriptor;
@@ -57,7 +57,7 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
         Conf conf = resolveKey(desc);
         if (conf == null) return null;
         // 统一惰性 Supplier 实现
-        return getLazySupplier(new ConfDesc(new ConfInfo(conf.namespace(), conf.group(), conf.key()), conf.defaultValue(), targetType));
+        return getLazySupplier(new ConfDesc(new ConfRef(conf.namespace(), conf.group(), conf.key()), conf.defaultValue(), targetType));
     }
 
 
