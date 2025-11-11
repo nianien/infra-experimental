@@ -86,8 +86,10 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
                     Supplier<?> real = f.createSupplier(desc);
                     if (real == null) return null;
 
-                    delegate = (Supplier<T>) real;
-                    d = delegate;
+                    @SuppressWarnings("unchecked")
+                    Supplier<T> typed = (Supplier<T>) real;
+                    delegate = typed;
+                    d = typed;
                 }
                 return d.get();
             }

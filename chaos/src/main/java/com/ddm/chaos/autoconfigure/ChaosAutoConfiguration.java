@@ -52,10 +52,11 @@ public class ChaosAutoConfiguration {
     public static BeanFactoryPostProcessor registerConfigResolver() {
         return beanFactory -> {
             if (beanFactory instanceof DefaultListableBeanFactory dlbf) {
-                log.info("register ConfigResolver for dynamic @Conf injection");
+                log.info("Registering ConfigResolver for dynamic @Conf injection");
                 dlbf.setAutowireCandidateResolver(new ConfigResolver(dlbf));
             } else {
-                log.warn("BeanFactory is not DefaultListableBeanFactory, cannot register ConfigResolver");
+                log.warn("Skip ConfigResolver registration: BeanFactory is not DefaultListableBeanFactory (actual: {})",
+                        beanFactory.getClass().getName());
             }
         };
     }

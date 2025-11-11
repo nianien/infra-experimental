@@ -7,10 +7,11 @@ import java.util.Map;
 /**
  * 数据提供者接口，负责从数据源（数据库、Redis、HTTP API 等）拉取配置数据。
  *
- * <p>该接口定义了配置数据的获取抽象，实现类需要：
+ * <p><strong>职责：</strong>
  * <ul>
- *   <li>通过 {@link #init(Map)} 方法初始化数据源连接</li>
- *   <li>实现 {@link #close()} 方法释放资源</li>
+ *   <li>根据配置项引用（{@link ConfRef}）返回单条配置记录 {@link ConfItem}</li>
+ *   <li>管理数据源生命周期（初始化、关闭）</li>
+ *   <li>以 {@link #type()} 标识自身类型，便于 SPI 发现</li>
  * </ul>
  *
  * <p><strong>实现示例：</strong>
@@ -20,23 +21,26 @@ import java.util.Map;
  *
  *     @Override
  *     public void init(Map<String, String> options) {
- *         String url = options.get("jdbc-url");
- *         DataSource ds = new DriverManagerDataSource(url, ...);
+ *         String url = must(options, "jdbc-url");
+ *         DataSource ds = DataSourceBuilder.create()
+ *                 .url(url)
+ *                 .username(options.getOrDefault("username", ""))
+ *                 .password(options.getOrDefault("password", ""))
+ *                 .build();
  *         this.jdbc = new NamedParameterJdbcTemplate(ds);
  *     }
  *
  *     @Override
-     *     public ConfItem loadData(ConfRef ref) {
- *         // 从数据库查询配置并返回
- *         return jdbc.queryForObject(sql, params, rowMapper);
+ *     public ConfItem loadData(ConfRef ref) {
+ *         return jdbc.queryForObject(SQL, paramsFrom(ref), ROW_MAPPER);
  *     }
  * }
  * }</pre>
  *
  * <p><strong>注意事项：</strong>
  * <ul>
- *   <li>实现类应该保证线程安全性</li>
- *   <li>异常情况下应返回空 List 而不是抛出异常，以保证系统可用性</li>
+ *   <li>实现类应该是线程安全的</li>
+ *   <li>遇到网络或数据源异常时请抛出异常，具体处理由上层决定</li>
  * </ul>
  *
  * @author liyifei
@@ -62,30 +66,11 @@ public interface DataProvider extends AutoCloseable {
     void init(Map<String, String> options);
 
     /**
-     * 拉取全量配置快照。
+     * 根据配置引用加载对应的配置记录。
      *
-     * <p>该方法从数据源获取所有配置项，返回一个 {@link ConfItem} 列表。
-     * <p>每个 {@link ConfItem} 包含：
-     * <ul>
-     *   <li>配置键（key）</li>
-     *   <li>默认值（value）</li>
-     *   <li>变体配置（variant，JSON 字符串）</li>
-     *   <li>标签（tags）</li>
-     *   <li>已解析的生效值（resolvedValue）</li>
-     * </ul>
-     *
-     * <p><strong>实现要求：</strong>
-     * <ul>
-     *   <li>返回的 List 应该只包含有效的配置项（已启用、未过期等）</li>
-     *   <li>如果数据源为空或查询失败，应返回空 List 而不是 null</li>
-     *   <li>建议返回不可变或只读的 List，防止外部修改</li>
-     * </ul>
-     *
-     * @return 配置项列表，如果无配置或查询失败，返回空 List（不返回 null）
-     * @throws Exception 如果拉取过程中发生严重错误，可以抛出异常
-     *                   但建议捕获异常并返回空 List，保证系统可用性
+     * @param ref 配置项引用（命名空间 + 分组 + key），不会为 null
+     * @return 对应的配置项，如果不存在可抛出异常或返回 null（由实现决定）
      */
-
     ConfItem loadData(ConfRef ref);
 
     /**
