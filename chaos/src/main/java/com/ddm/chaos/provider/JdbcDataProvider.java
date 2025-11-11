@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -74,11 +75,28 @@ public class JdbcDataProvider implements DataProvider {
                   AND n.`name` = :namespace
                   AND g.`name` = :group;
                 """;
-        MapSqlParameterSource p = new MapSqlParameterSource()
+        MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("key", info.key())
                 .addValue("namespace", info.namespace())
                 .addValue("group", info.group());
-        return jdbc.queryForObject(sql, p, (rs, rowNum) -> new ConfItem(rs.getString("namespace"), rs.getString("group"), rs.getString("key"), rs.getString("value"), rs.getString("variant")));
+        return jdbc.queryForObject(sql, params, this::mapRowToConfItem);
+    }
+    
+    /**
+     * 将 ResultSet 行映射为 ConfItem 对象。
+     *
+     * @param rs ResultSet
+     * @param rowNum 行号（未使用）
+     * @return ConfItem 实例
+     */
+    private ConfItem mapRowToConfItem(java.sql.ResultSet rs, int rowNum) throws SQLException {
+        return new ConfItem(
+                rs.getString("namespace"),
+                rs.getString("group"),
+                rs.getString("key"),
+                rs.getString("value"),
+                rs.getString("variant")
+        );
     }
 
     private static String must(Map<String, String> cfg, String key) {

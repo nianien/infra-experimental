@@ -1,6 +1,5 @@
 package com.ddm.chaos.provider;
 
-import com.ddm.chaos.config.ConfigProperties;
 import com.ddm.chaos.defined.ConfInfo;
 
 import java.util.Map;
@@ -10,7 +9,7 @@ import java.util.Map;
  *
  * <p>该接口定义了配置数据的获取抽象，实现类需要：
  * <ul>
- *   <li>通过 {@link #init(ConfigProperties)} 方法初始化数据源连接</li>
+ *   <li>通过 {@link #init(Map)} 方法初始化数据源连接</li>
  *   <li>实现 {@link #close()} 方法释放资源</li>
  * </ul>
  *
@@ -20,16 +19,16 @@ import java.util.Map;
  *     private NamedParameterJdbcTemplate jdbc;
  *
  *     @Override
- *     public void init(ConfigProperties config) throws Exception {
- *         String url = config.provider().options().get("jdbc-url");
+ *     public void init(Map<String, String> options) {
+ *         String url = options.get("jdbc-url");
  *         DataSource ds = new DriverManagerDataSource(url, ...);
  *         this.jdbc = new NamedParameterJdbcTemplate(ds);
  *     }
  *
  *     @Override
- *     public List<ConfigItem> loadData() throws Exception {
+ *     public ConfItem loadData(ConfInfo info) {
  *         // 从数据库查询配置并返回
- *         return jdbc.query(sql, params, rowMapper);
+ *         return jdbc.queryForObject(sql, params, rowMapper);
  *     }
  * }
  * }</pre>

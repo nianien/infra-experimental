@@ -125,6 +125,7 @@ public final class Converters {
             return null;
         }
 
+        @SuppressWarnings("unchecked")
         Class<T> clazz = (Class<T>) getRawClass(type);
         // 如果已经是目标类型，直接转换返回
         if (clazz.isInstance(raw)) {

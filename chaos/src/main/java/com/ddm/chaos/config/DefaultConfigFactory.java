@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  * - 到期刷新：异步在后台执行，读路径始终返回旧值
  * - 刷新失败：永远回退旧值（旧值不失效）
  */
-public final class DefaultConfigFactory implements ConfigFactory, AutoCloseable {
+public final class DefaultConfigFactory implements ConfigFactory {
 
     /**
      * 仅用于异步刷新（reload）的执行器；load 仍在调用线程中同步执行
@@ -36,19 +36,18 @@ public final class DefaultConfigFactory implements ConfigFactory, AutoCloseable 
     private final DataProvider provider;
     private final ConfigProperties props;
 
+    /**
+     * 刷新线程池大小
+     */
+    private static final int REFRESH_POOL_SIZE = 2;
 
     public DefaultConfigFactory(ConfigProperties props) {
         Objects.requireNonNull(props.ttl(), "ttl");
+        Objects.requireNonNull(props.provider(), "provider");
         // 专用于 refresh 的后台线程（daemon）
         this.provider = loadDataProvider(props.provider());
         this.props = props;
-        this.refreshPool = Executors.newFixedThreadPool(
-                2, r -> {
-                    Thread t = new Thread(r, "config-refresh");
-                    t.setDaemon(true);
-                    return t;
-                }
-        );
+        this.refreshPool = createRefreshExecutor();
 
         this.cache = Caffeine.newBuilder()
                 // 读到期触发异步 reload，读路径返回旧值
@@ -71,10 +70,32 @@ public final class DefaultConfigFactory implements ConfigFactory, AutoCloseable 
         return () -> (T) cache.get(desc.info()).getValue(desc);
     }
 
+    /**
+     * 创建用于异步刷新的执行器。
+     *
+     * @return 守护线程执行器
+     */
+    private static ExecutorService createRefreshExecutor() {
+        return Executors.newFixedThreadPool(REFRESH_POOL_SIZE, r -> {
+            Thread t = new Thread(r, "config-refresh");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
     @PreDestroy
     @Override
     public void close() {
-        refreshPool.shutdownNow();
+        if (refreshPool != null) {
+            refreshPool.shutdownNow();
+        }
+        if (provider != null) {
+            try {
+                provider.close();
+            } catch (Exception e) {
+                // 忽略关闭异常
+            }
+        }
     }
 
     /**

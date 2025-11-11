@@ -86,7 +86,8 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
                     Supplier<?> real = f.createSupplier(desc);
                     if (real == null) return null;
 
-                    delegate = d = (Supplier<T>) real; // 安全发布
+                    delegate = (Supplier<T>) real;
+                    d = delegate;
                 }
                 return d.get();
             }
@@ -110,10 +111,10 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
     }
 
     /**
-     * 统一解析注入点上的 @Conf/@Qualifier（参数优先，其次字段）。
+     * 统一解析注入点上的 @Conf 注解（参数优先，其次字段）。
      *
      * @param desc 依赖描述符
-     * @return TypedKey 实例，如果解析失败返回 null
+     * @return Conf 注解实例，如果解析失败返回 null
      */
     @Nullable
     private static Conf resolveKey(DependencyDescriptor desc) {
@@ -133,8 +134,7 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
      * 参数注入解析：先读原生矩阵，再走统一的"合并注解"解析（避免重复代码）。
      *
      * @param desc 依赖描述符
-     * @param desc 目标类型
-     * @return TypedKey 实例，如果解析失败返回 null
+     * @return Conf 注解实例，如果解析失败返回 null
      */
     @Nullable
     private static Conf resolveOnParameter(DependencyDescriptor desc) {
@@ -166,10 +166,10 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
 
 
     /**
-     * 从"原生注解数组"解析 @Conf/@Qualifier（不展开元注解）。
+     * 从"原生注解数组"解析 @Conf 注解（不展开元注解）。
      *
      * @param anns 注解数组
-     * @return TypedKey 实例，如果解析失败返回 null
+     * @return Conf 注解实例，如果解析失败返回 null
      */
     @Nullable
     private static Conf resolveFromAnnotations(Annotation[] anns) {
