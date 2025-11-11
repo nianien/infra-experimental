@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置管理中心</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-tab:hover {
+            color: #667eea;
+        }
+
+        .nav-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-header h2 {
+            font-size: 20px;
+            color: #333;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            resize: vertical;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .modal-header h3 {
+            font-size: 22px;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-primary {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-start;
+            white-space: nowrap;
+        }
+
+        table tbody td:last-child {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .json-editor {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+        }
+
+        .view-content {
+            display: none;
+        }
+
+        .view-content.active {
+            display: block;
+        }
+
+        .clickable-row {
+            cursor: pointer;
+        }
+
+        .clickable-row:hover {
+            background-color: #f0f4ff !important;
+        }
+
+        .variant-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .variant-row input {
+            flex: 1;
+        }
+
+        .variant-row .variant-key {
+            flex: 0 0 150px;
+        }
+
+        .variant-row .variant-value {
+            flex: 1;
+        }
+
+        .variant-container {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            background-color: #fafafa;
+        }
+
+        .variant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .variant-header label {
+            margin: 0;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-header .title-info {
+            font-size: 14px;
+            color: #666;
+            font-weight: normal;
+            margin-left: 8px;
+        }
+
+        .card-header .title-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+
+        .card-header .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        table thead th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        table tbody tr {
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+
+        table tbody tr:hover {
+            background-color: #f8f9ff;
+        }
+
+        table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        table tbody td {
+            padding: 14px 16px;
+            font-size: 14px;
+            color: #333;
+            vertical-align: middle;
+        }
+
+        table tbody td.action-buttons-cell {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        table tbody td code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            color: #e83e8c;
+        }
+
+        table tbody td .badge {
+            font-size: 12px;
+            padding: 4px 10px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                padding: 20px;
+            }
+
+            table {
+                font-size: 14px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚙️ 配置管理中心</h1>
+        <p>管理配置命名空间、分组和配置项</p>
+    </div>
+
+    <div class="container">
+        <!-- 面包屑导航 -->
+        <div id="breadcrumb" style="margin-bottom: 20px; padding: 12px 16px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <span style="color: #666; margin-right: 8px;">📂</span>
+            <a href="javascript:void(0)" onclick="showNamespaces()" style="color: #667eea; text-decoration: none; font-weight: 500;">命名空间列表</a>
+            <span id="breadcrumb-separator1" style="display: none; color: #999; margin: 0 10px;">›</span>
+            <span id="breadcrumb-namespace" style="display: none;"></span>
+            <span id="breadcrumb-separator2" style="display: none; color: #999; margin: 0 10px;">›</span>
+            <span id="breadcrumb-group" style="display: none;"></span>
+        </div>
+
+        <!-- 命名空间视图 -->
+        <div id="view-namespaces" class="view-content active">
+            <div class="card">
+                <div class="card-header">
+                    <h2>命名空间</h2>
+                    <div class="actions">
+                        <button class="btn btn-secondary btn-sm" onclick="loadNamespaces()">刷新</button>
+                        <button class="btn btn-primary" onclick="showNamespaceModal()">新建命名空间</button>
+                    </div>
+                </div>
+                <div id="namespaces-loading" class="loading">加载中...</div>
+                <div id="namespaces-empty" class="empty-state" style="display: none;">
+                    <p>暂无命名空间</p>
+                    <button class="btn btn-primary" onclick="showNamespaceModal()">创建第一个命名空间</button>
+                </div>
+                <table id="namespaces-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名称</th>
+                            <th>描述</th>
+                            <th>负责人</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="namespaces-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 分组视图 -->
+        <div id="view-groups" class="view-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 id="groups-title">配置分组</h2>
+                    <div class="actions">
+                        <button class="btn btn-secondary btn-sm" onclick="showNamespaces()">返回</button>
+                        <button class="btn btn-secondary btn-sm" onclick="loadGroups()">刷新</button>
+                        <button class="btn btn-primary" onclick="showGroupModal()">新建分组</button>
+                    </div>
+                </div>
+                <div id="groups-loading" class="loading">加载中...</div>
+                <div id="groups-empty" class="empty-state" style="display: none;">
+                    <p>暂无配置分组</p>
+                    <button class="btn btn-primary" onclick="showGroupModal()">创建第一个分组</button>
+                </div>
+                <table id="groups-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名称</th>
+                            <th>描述</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groups-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 配置项视图 -->
+        <div id="view-items" class="view-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 id="items-title">配置项</h2>
+                    <div class="actions">
+                        <button class="btn btn-secondary btn-sm" id="items-back-btn" onclick="showGroups()">返回</button>
+                        <button class="btn btn-secondary btn-sm" onclick="loadItems()">刷新</button>
+                        <button class="btn btn-primary" onclick="showItemModal()">新建配置项</button>
+                    </div>
+                </div>
+                <div id="items-loading" class="loading">加载中...</div>
+                <div id="items-empty" class="empty-state" style="display: none;">
+                    <p>暂无配置项</p>
+                    <button class="btn btn-primary" onclick="showItemModal()">创建第一个配置项</button>
+                </div>
+                <table id="items-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>配置项</th>
+                            <th>默认值</th>
+                            <th>泳道值</th>
+                            <th>类型</th>
+                            <th>状态</th>
+                            <th>更新时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置项编辑模态框 -->
+    <div id="item-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="item-modal-title">新建配置项</h3>
+                <button class="close-btn" onclick="closeItemModal()">&times;</button>
+            </div>
+            <div id="item-alert"></div>
+            <form id="item-form">
+                <input type="hidden" id="item-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="item-namespace">命名空间 *</label>
+                        <input type="text" id="item-namespace" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                        <input type="hidden" id="item-namespace-id">
+                    </div>
+                    <div class="form-group">
+                        <label for="item-group">配置分组 *</label>
+                        <input type="text" id="item-group" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                        <input type="hidden" id="item-group-id">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="item-key">配置项 (Key) *</label>
+                        <input type="text" id="item-key" required placeholder="例如: demo.name">
+                    </div>
+                    <div class="form-group">
+                        <label for="item-type">类型</label>
+                        <select id="item-type">
+                            <option value="string">string</option>
+                            <option value="int">int</option>
+                            <option value="long">long</option>
+                            <option value="double">double</option>
+                            <option value="boolean">boolean</option>
+                            <option value="array">array</option>
+                            <option value="json">json</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="item-value">默认值 *</label>
+                    <textarea id="item-value" required placeholder="配置的默认值"></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="variant-container">
+                        <div class="variant-header">
+                            <label>泳道值</label>
+                            <button type="button" class="btn btn-success btn-sm" onclick="addVariantRow()">+ 添加泳道</button>
+                        </div>
+                        <div id="variant-rows">
+                            <!-- 动态添加的泳道值行 -->
+                        </div>
+                        <small style="color: #999; display: block; margin-top: 10px;">用于不同泳道的配置覆盖，例如：gray=gray-value, blue=blue-value</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="item-enabled" checked>
+                        <span>启用</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="item-description">描述</label>
+                    <textarea id="item-description" placeholder="配置项的描述信息"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeItemModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 分组编辑模态框 -->
+    <div id="group-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="group-modal-title">新建配置分组</h3>
+                <button class="close-btn" onclick="closeGroupModal()">&times;</button>
+            </div>
+            <div id="group-alert"></div>
+            <form id="group-form">
+                <input type="hidden" id="group-id">
+                <div class="form-group">
+                    <label for="group-namespace-id">命名空间 *</label>
+                    <input type="text" id="group-namespace-name" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                    <input type="hidden" id="group-namespace-id" required>
+                </div>
+                <div class="form-group">
+                    <label for="group-name">分组名称 *</label>
+                    <input type="text" id="group-name" required placeholder="例如: cfd">
+                </div>
+                <div class="form-group">
+                    <label for="group-description">描述</label>
+                    <textarea id="group-description" placeholder="分组的描述信息"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeGroupModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 命名空间编辑模态框 -->
+    <div id="namespace-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="namespace-modal-title">新建命名空间</h3>
+                <button class="close-btn" onclick="closeNamespaceModal()">&times;</button>
+            </div>
+            <div id="namespace-alert"></div>
+            <form id="namespace-form">
+                <input type="hidden" id="namespace-id">
+                <div class="form-group">
+                    <label for="namespace-name">命名空间名称 *</label>
+                    <input type="text" id="namespace-name" required placeholder="例如: com.ddm">
+                </div>
+                <div class="form-group">
+                    <label for="namespace-description">描述</label>
+                    <textarea id="namespace-description" placeholder="命名空间的描述信息"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="namespace-owner">负责人</label>
+                    <input type="text" id="namespace-owner" placeholder="负责人或创建者">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeNamespaceModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/config';
+
+        // 当前选中的命名空间和分组
+        let currentNamespace = null;
+        let currentGroup = null;
+        let currentView = 'namespaces'; // 当前视图：'namespaces', 'groups', 'items'
+
+        // 保存当前视图状态到 localStorage
+        function saveViewState() {
+            const state = {
+                view: currentView || 'namespaces',
+                namespace: currentNamespace ? { id: currentNamespace.id, name: currentNamespace.name } : null,
+                group: currentGroup ? { id: currentGroup.id, name: currentGroup.name } : null
+            };
+            localStorage.setItem('configViewState', JSON.stringify(state));
+        }
+
+        // 从 localStorage 恢复视图状态
+        function restoreViewState() {
+            try {
+                const stateStr = localStorage.getItem('configViewState');
+                if (!stateStr) {
+                    return null;
+                }
+                const state = JSON.parse(stateStr);
+                return state;
+            } catch (e) {
+                console.warn('恢复视图状态失败:', e);
+                return null;
+            }
+        }
+
+        // 显示命名空间视图
+        function showNamespaces() {
+            currentView = 'namespaces';
+            currentNamespace = null;
+            currentGroup = null;
+            updateBreadcrumb();
+            switchView('namespaces');
+            loadNamespaces();
+            saveViewState();
+        }
+
+        // 显示分组视图（从命名空间进入）
+        function showGroups(namespaceId, namespaceName) {
+            currentView = 'groups';
+            if (namespaceId && namespaceName) {
+                currentNamespace = { id: namespaceId, name: namespaceName };
+            }
+            currentGroup = null;
+            updateBreadcrumb();
+            switchView('groups');
+            loadGroups();
+            saveViewState();
+        }
+
+        // 显示配置项视图（从分组进入）
+        function showItems(groupId, groupName) {
+            if (!currentNamespace) {
+                alert('请先选择命名空间');
+                return;
+            }
+            currentView = 'items';
+            currentGroup = { id: groupId, name: groupName };
+            updateBreadcrumb();
+            switchView('items');
+            loadItems();
+            saveViewState();
+        }
+
+        // 切换视图
+        function switchView(viewName) {
+            document.querySelectorAll('.view-content').forEach(view => view.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+        }
+
+        // 更新面包屑导航
+        function updateBreadcrumb() {
+            const separator1 = document.getElementById('breadcrumb-separator1');
+            const separator2 = document.getElementById('breadcrumb-separator2');
+            const namespaceSpan = document.getElementById('breadcrumb-namespace');
+            const groupSpan = document.getElementById('breadcrumb-group');
+
+            if (currentNamespace) {
+                separator1.style.display = 'inline';
+                namespaceSpan.style.display = 'inline';
+                namespaceSpan.innerHTML = `<span style="color: #999; font-size: 13px; margin-right: 4px;">命名空间:</span><a href="javascript:void(0)" onclick="showGroups(${currentNamespace.id}, '${escapeHtml(currentNamespace.name)}')" style="color: #667eea; text-decoration: none; font-weight: 500;">${escapeHtml(currentNamespace.name)}</a>`;
+            } else {
+                separator1.style.display = 'none';
+                namespaceSpan.style.display = 'none';
+            }
+
+            if (currentGroup) {
+                separator2.style.display = 'inline';
+                groupSpan.style.display = 'inline';
+                groupSpan.innerHTML = `<span style="color: #999; font-size: 13px; margin-right: 4px;">分组:</span><span style="color: #333; font-weight: 500;">${escapeHtml(currentGroup.name)}</span>`;
+            } else {
+                separator2.style.display = 'none';
+                groupSpan.style.display = 'none';
+            }
+        }
+
+        // 加载配置项列表
+        async function loadItems() {
+            const loading = document.getElementById('items-loading');
+            const empty = document.getElementById('items-empty');
+            const table = document.getElementById('items-table');
+            const tbody = document.getElementById('items-tbody');
+            const title = document.getElementById('items-title');
+
+            if (!currentNamespace || !currentGroup) {
+                return;
+            }
+
+            loading.style.display = 'block';
+            empty.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const url = `${API_BASE}/items?namespaceId=${currentNamespace.id}&groupId=${currentGroup.id}`;
+                const response = await fetch(url);
+                const items = await response.json();
+
+                loading.style.display = 'none';
+
+                // 更新标题，显示分组名称和数量
+                const count = items.length;
+                title.innerHTML = `
+                    <span>配置项</span>
+                    <span class="title-info">${escapeHtml(currentGroup.name)}</span>
+                    ${count > 0 ? `<span class="title-badge">${count}</span>` : ''}
+                `;
+                
+                // 更新返回按钮的 onclick
+                const backBtn = document.getElementById('items-back-btn');
+                if (backBtn && currentNamespace) {
+                    backBtn.setAttribute('onclick', `showGroups(${currentNamespace.id}, '${escapeHtml(currentNamespace.name)}')`);
+                }
+
+                if (items.length === 0) {
+                    empty.style.display = 'block';
+                } else {
+                    table.style.display = 'table';
+                    tbody.innerHTML = items.map(item => {
+                        // 格式化变体配置显示
+                        let variantDisplay = '-';
+                        if (item.variant && item.variant.trim()) {
+                            try {
+                                // 尝试格式化 JSON
+                                const variantObj = JSON.parse(item.variant);
+                                variantDisplay = JSON.stringify(variantObj, null, 2);
+                            } catch (e) {
+                                // 如果不是有效的 JSON，直接显示原始内容
+                                variantDisplay = item.variant;
+                            }
+                        }
+                        
+                        return `
+                        <tr>
+                            <td style="color: #999; font-size: 13px;">#${item.id}</td>
+                            <td><code>${escapeHtml(item.key)}</code></td>
+                            <td>
+                                <code style="max-width: 200px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.value)}">${escapeHtml(item.value)}</code>
+                            </td>
+                            <td>
+                                ${variantDisplay !== '-' 
+                                    ? `<code style="max-width: 250px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: pre-wrap; font-size: 12px; background: #f5f5f5; padding: 4px 6px; border-radius: 3px;" title="${escapeHtml(variantDisplay)}">${escapeHtml(variantDisplay)}</code>`
+                                    : '<span style="color: #999; font-style: italic;">-</span>'}
+                            </td>
+                            <td><span class="badge badge-primary">${item.type || 'string'}</span></td>
+                            <td>${item.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-danger">禁用</span>'}</td>
+                            <td style="color: #666; font-size: 13px;">${item.updatedAt || '-'}</td>
+                            <td class="action-buttons-cell">
+                                <div class="action-buttons">
+                                    <button class="btn btn-primary btn-sm" onclick="editItem(${item.id})">编辑</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteItem(${item.id})">删除</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    }).join('');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                showAlert('items-alert', '加载失败: ' + error.message, 'error');
+            }
+        }
+
+        // 加载分组列表
+        async function loadGroups() {
+            const loading = document.getElementById('groups-loading');
+            const empty = document.getElementById('groups-empty');
+            const table = document.getElementById('groups-table');
+            const tbody = document.getElementById('groups-tbody');
+            const title = document.getElementById('groups-title');
+
+            if (!currentNamespace) {
+                return;
+            }
+
+            loading.style.display = 'block';
+            empty.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const url = `${API_BASE}/namespaces/${currentNamespace.id}/groups`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('加载失败: ' + response.statusText);
+                }
+                
+                const groups = await response.json();
+
+                loading.style.display = 'none';
+
+                // 更新标题，显示命名空间名称和数量
+                const count = groups.length;
+                title.innerHTML = `
+                    <span>配置分组</span>
+                    <span class="title-info">${escapeHtml(currentNamespace.name)}</span>
+                    ${count > 0 ? `<span class="title-badge">${count}</span>` : ''}
+                `;
+
+                if (groups.length === 0) {
+                    empty.style.display = 'block';
+                } else {
+                    table.style.display = 'table';
+                    tbody.innerHTML = groups.map(group => `
+                        <tr>
+                            <td style="color: #999; font-size: 13px;">#${group.id}</td>
+                            <td><strong style="color: #333; font-size: 15px;">${escapeHtml(group.name)}</strong></td>
+                            <td style="color: #666;">${escapeHtml(group.description || '-')}</td>
+                            <td style="color: #666; font-size: 13px;">${group.createdAt || '-'}</td>
+                            <td class="action-buttons-cell">
+                                <div class="action-buttons">
+                                    <button class="btn btn-success btn-sm" onclick="showItems(${group.id}, '${escapeHtml(group.name)}')">详情</button>
+                                    <button class="btn btn-primary btn-sm" onclick="editGroup(${group.id})">编辑</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                showAlert('groups-alert', '加载失败: ' + error.message, 'error');
+            }
+        }
+
+        // 加载命名空间列表
+        async function loadNamespaces() {
+            const loading = document.getElementById('namespaces-loading');
+            const empty = document.getElementById('namespaces-empty');
+            const table = document.getElementById('namespaces-table');
+            const tbody = document.getElementById('namespaces-tbody');
+            const titleElement = document.querySelector('#view-namespaces .card-header h2');
+
+            loading.style.display = 'block';
+            empty.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/namespaces`);
+                const namespaces = await response.json();
+
+                loading.style.display = 'none';
+
+                // 更新标题，显示数量
+                const count = namespaces.length;
+                if (titleElement) {
+                    titleElement.innerHTML = `
+                        <span>命名空间</span>
+                        ${count > 0 ? `<span class="title-badge">${count}</span>` : ''}
+                    `;
+                }
+
+                if (namespaces.length === 0) {
+                    empty.style.display = 'block';
+                } else {
+                    table.style.display = 'table';
+                    tbody.innerHTML = namespaces.map(ns => `
+                        <tr>
+                            <td style="color: #999; font-size: 13px;">#${ns.id}</td>
+                            <td><strong style="color: #333; font-size: 15px;">${escapeHtml(ns.name)}</strong></td>
+                            <td style="color: #666;">${escapeHtml(ns.description || '-')}</td>
+                            <td style="color: #666;">${escapeHtml(ns.owner || '-')}</td>
+                            <td style="color: #666; font-size: 13px;">${ns.createdAt || '-'}</td>
+                            <td class="action-buttons-cell">
+                                <div class="action-buttons">
+                                    <button class="btn btn-success btn-sm" onclick="showGroups(${ns.id}, '${escapeHtml(ns.name)}')">详情</button>
+                                    <button class="btn btn-primary btn-sm" onclick="editNamespace(${ns.id})">编辑</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                showAlert('namespaces-alert', '加载失败: ' + error.message, 'error');
+            }
+        }
+
+
+        // 关闭配置项模态框
+        function closeItemModal() {
+            document.getElementById('item-modal').classList.remove('active');
+        }
+
+        // 编辑配置项
+        async function editItem(id) {
+            try {
+                const response = await fetch(`${API_BASE}/items/${id}`);
+                const item = await response.json();
+                showItemModal(item);
+            } catch (error) {
+                alert('加载配置项失败: ' + error.message);
+            }
+        }
+
+        // 删除配置项
+        async function deleteItem(id) {
+            if (!confirm('确定要删除这个配置项吗？')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/items/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('items-alert', '删除成功', 'success');
+                    loadItems();
+                } else {
+                    showAlert('items-alert', result.error || '删除失败', 'error');
+                }
+            } catch (error) {
+                showAlert('items-alert', '删除失败: ' + error.message, 'error');
+            }
+        }
+
+        // 提交配置项表单
+        document.getElementById('item-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('item-id').value;
+            const namespaceIdInput = document.getElementById('item-namespace-id');
+            const groupIdInput = document.getElementById('item-group-id');
+            
+            // 统一使用隐藏字段承载的 ID（编辑/新建都由 showItemModal 赋值）
+            const namespaceId = parseInt(namespaceIdInput.value);
+            const groupId = parseInt(groupIdInput.value);
+
+            if (!namespaceId || !groupId) {
+                showAlert('item-alert', '命名空间ID和分组ID不能为空', 'error');
+                return;
+            }
+
+            // 将变体行转换为 JSON
+            const variantJson = variantRowsToJson();
+            
+            const data = {
+                namespaceId: namespaceId,
+                groupId: groupId,
+                key: document.getElementById('item-key').value,
+                value: document.getElementById('item-value').value,
+                type: document.getElementById('item-type').value,
+                enabled: document.getElementById('item-enabled').checked,
+                variant: variantJson,
+                description: document.getElementById('item-description').value
+            };
+
+            try {
+                const url = id ? `${API_BASE}/items/${id}` : `${API_BASE}/items`;
+                const method = id ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('item-alert', result.message || '保存成功', 'success');
+                    closeItemModal();
+                    loadItems();
+                } else {
+                    showAlert('item-alert', result.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                showAlert('item-alert', '保存失败: ' + error.message, 'error');
+            }
+        });
+
+        // 关闭分组模态框
+        function closeGroupModal() {
+            document.getElementById('group-modal').classList.remove('active');
+        }
+
+        // 提交分组表单
+        document.getElementById('group-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('group-id').value;
+            const namespaceId = parseInt(document.getElementById('group-namespace-id').value);
+            const data = {
+                name: document.getElementById('group-name').value,
+                description: document.getElementById('group-description').value
+            };
+
+            try {
+                let url, method;
+                if (id) {
+                    // 编辑模式
+                    url = `${API_BASE}/groups/${id}`;
+                    method = 'PUT';
+                } else {
+                    // 新建模式
+                    url = `${API_BASE}/namespaces/${namespaceId}/groups`;
+                    method = 'POST';
+                }
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('group-alert', result.message || (id ? '更新成功' : '创建成功'), 'success');
+                    closeGroupModal();
+                    loadGroups();
+                } else {
+                    showAlert('group-alert', result.error || (id ? '更新失败' : '创建失败'), 'error');
+                }
+            } catch (error) {
+                showAlert('group-alert', (id ? '更新失败' : '创建失败') + ': ' + error.message, 'error');
+            }
+        });
+
+        // 显示命名空间编辑模态框
+        function showNamespaceModal(namespace = null) {
+            const modal = document.getElementById('namespace-modal');
+            const form = document.getElementById('namespace-form');
+            const title = document.getElementById('namespace-modal-title');
+
+            if (namespace) {
+                title.textContent = '编辑命名空间';
+                document.getElementById('namespace-id').value = namespace.id;
+                document.getElementById('namespace-name').value = namespace.name;
+                document.getElementById('namespace-description').value = namespace.description || '';
+                document.getElementById('namespace-owner').value = namespace.owner || '';
+            } else {
+                title.textContent = '新建命名空间';
+                form.reset();
+            }
+
+            modal.classList.add('active');
+            document.getElementById('namespace-alert').innerHTML = '';
+        }
+
+        // 关闭命名空间模态框
+        function closeNamespaceModal() {
+            document.getElementById('namespace-modal').classList.remove('active');
+        }
+
+        // 编辑命名空间
+        async function editNamespace(id) {
+            try {
+                const response = await fetch(`${API_BASE}/namespaces/${id}`);
+                if (!response.ok) {
+                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorData.message || errorMessage;
+                    } catch (e) {
+                        const errorText = await response.text();
+                        if (errorText) {
+                            errorMessage = errorText;
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+                const namespace = await response.json();
+                showNamespaceModal(namespace);
+            } catch (error) {
+                console.error('加载命名空间失败:', error);
+                alert('加载命名空间失败: ' + error.message);
+            }
+        }
+
+        // 提交命名空间表单
+        document.getElementById('namespace-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('namespace-id').value;
+            const data = {
+                name: document.getElementById('namespace-name').value,
+                description: document.getElementById('namespace-description').value,
+                owner: document.getElementById('namespace-owner').value
+            };
+
+            try {
+                let url, method;
+                if (id) {
+                    // 编辑模式
+                    url = `${API_BASE}/namespaces/${id}`;
+                    method = 'PUT';
+                } else {
+                    // 新建模式
+                    url = `${API_BASE}/namespaces`;
+                    method = 'POST';
+                }
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('namespace-alert', result.message || (id ? '更新成功' : '创建成功'), 'success');
+                    closeNamespaceModal();
+                    loadNamespaces();
+                } else {
+                    showAlert('namespace-alert', result.error || (id ? '更新失败' : '创建失败'), 'error');
+                }
+            } catch (error) {
+                showAlert('namespace-alert', (id ? '更新失败' : '创建失败') + ': ' + error.message, 'error');
+            }
+        });
+
+        // 显示提示信息
+        function showAlert(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            if (text == null) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 显示分组编辑模态框
+        function showGroupModal(group = null) {
+            if (!currentNamespace) {
+                alert('请先选择命名空间');
+                return;
+            }
+
+            const modal = document.getElementById('group-modal');
+            const form = document.getElementById('group-form');
+            const title = document.getElementById('group-modal-title');
+
+            if (group) {
+                title.textContent = '编辑配置分组';
+                document.getElementById('group-id').value = group.id;
+                document.getElementById('group-namespace-id').value = group.namespaceId;
+                document.getElementById('group-namespace-name').value = group.namespaceName || currentNamespace.name;
+                document.getElementById('group-name').value = group.name;
+                document.getElementById('group-description').value = group.description || '';
+            } else {
+                title.textContent = '新建配置分组';
+                form.reset();
+                document.getElementById('group-namespace-id').value = currentNamespace.id;
+                document.getElementById('group-namespace-name').value = currentNamespace.name;
+            }
+
+            modal.classList.add('active');
+            document.getElementById('group-alert').innerHTML = '';
+        }
+
+        // 编辑分组
+        async function editGroup(id) {
+            try {
+                const response = await fetch(`${API_BASE}/groups/${id}`);
+                if (!response.ok) {
+                    throw new Error('加载分组失败');
+                }
+                const group = await response.json();
+                showGroupModal(group);
+            } catch (error) {
+                alert('加载分组失败: ' + error.message);
+            }
+        }
+
+        // 添加变体行
+        function addVariantRow(key = '', value = '') {
+            const container = document.getElementById('variant-rows');
+            const row = document.createElement('div');
+            row.className = 'variant-row';
+
+            const keyInput = document.createElement('input');
+            keyInput.type = 'text';
+            keyInput.className = 'variant-key';
+            keyInput.placeholder = '标签名 (如: gray)';
+            keyInput.value = key ?? '';
+
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.className = 'variant-value';
+            valueInput.placeholder = '配置值';
+            valueInput.value = value ?? '';
+
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'btn btn-danger btn-sm';
+            delBtn.textContent = '删除';
+            delBtn.onclick = function () { removeVariantRow(delBtn); };
+
+            row.appendChild(keyInput);
+            row.appendChild(valueInput);
+            row.appendChild(delBtn);
+            container.appendChild(row);
+        }
+
+        // 删除变体行
+        function removeVariantRow(btn) {
+            btn.closest('.variant-row').remove();
+        }
+
+        // 将变体行转换为 JSON
+        function variantRowsToJson() {
+            const rows = document.querySelectorAll('#variant-rows .variant-row');
+            const variant = {};
+            rows.forEach(row => {
+                const key = row.querySelector('.variant-key').value.trim();
+                const value = row.querySelector('.variant-value').value.trim();
+                if (key) {
+                    variant[key] = value;
+                }
+            });
+            return Object.keys(variant).length > 0 ? JSON.stringify(variant) : '';
+        }
+
+        // 将 JSON 解析为变体行
+        function jsonToVariantRows(jsonStr) {
+            const container = document.getElementById('variant-rows');
+            container.innerHTML = '';
+            
+            if (!jsonStr || !jsonStr.trim()) {
+                return;
+            }
+
+            try {
+                const variant = JSON.parse(jsonStr);
+                if (typeof variant === 'object' && variant !== null) {
+                    for (const [key, value] of Object.entries(variant)) {
+                        let vStr;
+                        if (value !== null && typeof value === 'object') {
+                            // 数组或对象，保持 JSON 形态
+                            vStr = JSON.stringify(value);
+                        } else {
+                            const sv = String(value);
+                            // 如果是可解析的 JSON（例如 "[\"u1\",\"u2\"]"）则保留原样
+                            if ((sv.startsWith('[') && sv.endsWith(']')) || (sv.startsWith('{') && sv.endsWith('}'))) {
+                                vStr = sv;
+                            } else {
+                                vStr = sv;
+                            }
+                        }
+                        addVariantRow(key, vStr);
+                    }
+                }
+            } catch (e) {
+                console.warn('解析变体 JSON 失败:', e);
+            }
+        }
+
+        // 显示配置项编辑模态框
+        function showItemModal(item = null) {
+            // 如果是从列表直接编辑，需要从 item 中获取命名空间和分组信息
+            let namespaceName, namespaceId, groupName, groupId;
+            
+            if (item) {
+                // 编辑模式：优先使用 item 中的信息，如果没有则使用当前上下文
+                namespaceName = item.namespaceName || (currentNamespace ? currentNamespace.name : `命名空间 ID: ${item.namespaceId}`);
+                namespaceId = item.namespaceId || (currentNamespace ? currentNamespace.id : null);
+                groupName = item.groupName || (currentGroup ? currentGroup.name : `分组 ID: ${item.groupId}`);
+                groupId = item.groupId || (currentGroup ? currentGroup.id : null);
+            } else {
+                // 新建模式：必须从当前上下文获取
+                if (!currentNamespace || !currentGroup) {
+                    alert('请先选择命名空间和分组');
+                    return;
+                }
+                namespaceName = currentNamespace.name;
+                namespaceId = currentNamespace.id;
+                groupName = currentGroup.name;
+                groupId = currentGroup.id;
+            }
+
+            const modal = document.getElementById('item-modal');
+            const form = document.getElementById('item-form');
+            const title = document.getElementById('item-modal-title');
+            const namespaceInput = document.getElementById('item-namespace');
+            const groupInput = document.getElementById('item-group');
+            const namespaceIdInput = document.getElementById('item-namespace-id');
+            const groupIdInput = document.getElementById('item-group-id');
+
+            const keyInput = document.getElementById('item-key');
+            
+            if (item) {
+                title.textContent = '编辑配置项';
+                document.getElementById('item-id').value = item.id;
+                
+                // 编辑模式：显示名称，禁用编辑
+                namespaceInput.value = namespaceName;
+                groupInput.value = groupName;
+                namespaceInput.readOnly = true;
+                groupInput.readOnly = true;
+                namespaceInput.style.backgroundColor = '#f5f5f5';
+                groupInput.style.backgroundColor = '#f5f5f5';
+                namespaceInput.style.cursor = 'not-allowed';
+                groupInput.style.cursor = 'not-allowed';
+                namespaceIdInput.value = namespaceId;
+                groupIdInput.value = groupId;
+                
+                // 配置项(Key)不可修改
+                keyInput.value = item.key;
+                keyInput.readOnly = true;
+                keyInput.style.backgroundColor = '#f5f5f5';
+                keyInput.style.cursor = 'not-allowed';
+                
+                document.getElementById('item-value').value = item.value;
+                document.getElementById('item-type').value = item.type || 'string';
+                document.getElementById('item-enabled').checked = item.enabled !== false;
+                document.getElementById('item-description').value = item.description || '';
+                
+                // 解析变体 JSON 并显示为 key-value 行
+                jsonToVariantRows(item.variant || '');
+            } else {
+                title.textContent = '新建配置项';
+                form.reset();
+                
+                // 新建模式：显示当前命名空间和分组，不可编辑
+                namespaceInput.value = namespaceName;
+                groupInput.value = groupName;
+                namespaceInput.readOnly = true;
+                groupInput.readOnly = true;
+                namespaceInput.style.backgroundColor = '#f5f5f5';
+                groupInput.style.backgroundColor = '#f5f5f5';
+                namespaceInput.style.cursor = 'not-allowed';
+                groupInput.style.cursor = 'not-allowed';
+                namespaceIdInput.value = namespaceId;
+                groupIdInput.value = groupId;
+                
+                // 新建模式：配置项(Key)可编辑
+                keyInput.readOnly = false;
+                keyInput.style.backgroundColor = '';
+                keyInput.style.cursor = '';
+                
+                document.getElementById('item-enabled').checked = true;
+                document.getElementById('item-type').value = 'string';
+                
+                // 清空变体行
+                document.getElementById('variant-rows').innerHTML = '';
+            }
+
+            modal.classList.add('active');
+            document.getElementById('item-alert').innerHTML = '';
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', async () => {
+            // 尝试恢复之前的状态
+            const savedState = restoreViewState();
+            
+            if (savedState) {
+                try {
+                    if (savedState.view === 'items' && savedState.namespace && savedState.group) {
+                        // 恢复配置项视图：需要验证命名空间和分组是否仍然存在
+                        currentNamespace = savedState.namespace;
+                        currentGroup = savedState.group;
+                        currentView = 'items';
+                        updateBreadcrumb();
+                        switchView('items');
+                        await loadItems();
+                        // 如果加载失败，loadItems 会显示错误，但不影响状态恢复
+                    } else if (savedState.view === 'groups' && savedState.namespace) {
+                        // 恢复分组视图：需要验证命名空间是否仍然存在
+                        currentNamespace = savedState.namespace;
+                        currentGroup = null;
+                        currentView = 'groups';
+                        updateBreadcrumb();
+                        switchView('groups');
+                        await loadGroups();
+                        // 如果加载失败，loadGroups 会显示错误，但不影响状态恢复
+                    } else {
+                        // 恢复命名空间视图
+                        showNamespaces();
+                    }
+                } catch (error) {
+                    console.warn('恢复视图状态失败，使用默认视图:', error);
+                    // 如果恢复失败，清除保存的状态并显示默认视图
+                    localStorage.removeItem('configViewState');
+                    showNamespaces();
+                }
+            } else {
+                // 没有保存的状态，显示默认视图
+                showNamespaces();
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
