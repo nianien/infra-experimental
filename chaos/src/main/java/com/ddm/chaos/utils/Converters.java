@@ -6,11 +6,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -113,13 +119,13 @@ public final class Converters {
      *
      * @param <T>  目标类型
      * @param raw  原始值，可以为任意类型
-     * @param type 目标类型的 Class 对象
+     * @param type 目标类型的 Type 对象
      * @return 转换后的对象，如果转换失败返回 null
-     * @throws IllegalArgumentException 如果 provider 为 null
+     * @throws IllegalArgumentException 如果 type 为 null
      */
     public static <T> T cast(Object raw, Type type) {
         if (type == null) {
-            throw new IllegalArgumentException("Target provider cannot be null");
+            throw new IllegalArgumentException("Target type cannot be null");
         }
         if (raw == null) {
             return null;
@@ -136,11 +142,17 @@ public final class Converters {
         if (str.isEmpty()) {
             return null;
         }
+        
         try {
-            // 基础数值类型
+            // 基础数值类型（最常用，优先处理）
             T numericResult = convertNumericType(str, clazz);
             if (numericResult != null) {
                 return numericResult;
+            }
+
+            // 字符串类型（简单快速，优先于 JSON 检测）
+            if (clazz == String.class) {
+                return clazz.cast(str);
             }
 
             // 时间类型
@@ -149,107 +161,128 @@ public final class Converters {
                 return timeResult;
             }
 
-            // JSON 对象/数组反序列化
-            T jsonResult = convertJsonType(str, clazz);
+            // JSON 对象/数组反序列化（最耗时，最后处理）
+            T jsonResult = convertJsonType(str, type);
             if (jsonResult != null) {
                 return jsonResult;
             }
 
-            // 兜底：尝试直接类型转换（通常用于字符串）
-            if (clazz == String.class) {
-                return clazz.cast(str);
-            }
             // 其他类型无法直接转换
             return null;
 
         } catch (Exception e) {
-            log.debug("Type convert failed: raw='{}', targetType='{}': {}",
-                    str, clazz.getSimpleName(), e.getMessage());
+            log.debug("Type conversion failed: raw='{}', targetType='{}', error: {} ({})",
+                    str, clazz.getSimpleName(), e.getClass().getSimpleName(), e.getMessage());
             return null;
         }
     }
 
     /**
      * 转换基础数值类型。
+     * <p>
+     * 使用 switch 表达式优化性能，支持基本类型和包装类型。
+     *
+     * @param <T> 目标类型
+     * @param str  待转换的字符串
+     * @param type 目标类型
+     * @return 转换后的数值，如果类型不匹配或转换失败返回 null
      */
     @SuppressWarnings("unchecked")
     private static <T> T convertNumericType(String str, Class<T> type) {
         try {
-            if (type == String.class) {
-                return (T) str;
-            } else if (type == Byte.class || type == byte.class) {
-                return (T) Byte.valueOf(str);
-            } else if (type == Short.class || type == short.class) {
-                return (T) Short.valueOf(str);
-            } else if (type == Integer.class || type == int.class) {
-                return (T) Integer.valueOf(str);
-            } else if (type == Long.class || type == long.class) {
-                return (T) Long.valueOf(str);
-            } else if (type == Float.class || type == float.class) {
-                return (T) Float.valueOf(str);
-            } else if (type == Double.class || type == double.class) {
-                return (T) Double.valueOf(str);
-            } else if (type == BigInteger.class) {
-                return (T) new BigInteger(str);
-            } else if (type == BigDecimal.class) {
-                return (T) new BigDecimal(str);
-            }
+            return (T) switch (type.getName()) {
+                case "java.lang.Byte", "byte" -> Byte.valueOf(str);
+                case "java.lang.Short", "short" -> Short.valueOf(str);
+                case "java.lang.Integer", "int" -> Integer.valueOf(str);
+                case "java.lang.Long", "long" -> Long.valueOf(str);
+                case "java.lang.Float", "float" -> Float.valueOf(str);
+                case "java.lang.Double", "double" -> Double.valueOf(str);
+                case "java.math.BigInteger" -> new BigInteger(str);
+                case "java.math.BigDecimal" -> new BigDecimal(str);
+                default -> null;
+            };
         } catch (NumberFormatException e) {
-            log.debug("Numeric conversion failed: str={}, provider={}", str, type.getSimpleName());
+            log.debug("Numeric conversion failed: str='{}', type={}", str, type.getSimpleName());
+            return null;
+        } catch (Exception e) {
+            log.debug("Unexpected error during numeric conversion: str='{}', type={}, error: {}",
+                    str, type.getSimpleName(), e.getClass().getSimpleName());
+            return null;
         }
-        return null;
     }
 
     /**
      * 转换时间类型。
+     * <p>
+     * 支持多种时间类型的转换，包括 Duration、Instant、LocalDate、LocalDateTime 等。
+     *
+     * @param <T> 目标类型
+     * @param str  待转换的字符串
+     * @param type 目标类型
+     * @return 转换后的时间对象，如果类型不匹配或转换失败返回 null
      */
     @SuppressWarnings("unchecked")
     private static <T> T convertTimeType(String str, Class<T> type) {
         try {
-            if (type == Duration.class) {
-                Duration duration = parseDuration(str);
-                return duration != null ? (T) duration : null;
-            } else if (type == Instant.class) {
-                Instant instant = parseInstant(str);
-                return instant != null ? (T) instant : null;
-            } else if (type == LocalDate.class) {
-                LocalDate localDate = parseLocalDate(str);
-                return localDate != null ? (T) localDate : null;
-            } else if (type == LocalDateTime.class) {
-                LocalDateTime localDateTime = parseLocalDateTime(str);
-                return localDateTime != null ? (T) localDateTime : null;
-            } else if (type == OffsetDateTime.class) {
-                OffsetDateTime offsetDateTime = parseOffsetDateTime(str);
-                return offsetDateTime != null ? (T) offsetDateTime : null;
-            } else if (type == ZonedDateTime.class) {
-                ZonedDateTime zonedDateTime = parseZonedDateTime(str);
-                return zonedDateTime != null ? (T) zonedDateTime : null;
-            } else if (type == java.util.Date.class) {
-                Instant instant = parseInstant(str);
-                return instant != null ? (T) java.util.Date.from(instant) : null;
-            }
+            Object result = switch (type.getName()) {
+                case "java.time.Duration" -> parseDuration(str);
+                case "java.time.Instant" -> parseInstant(str);
+                case "java.time.LocalDate" -> parseLocalDate(str);
+                case "java.time.LocalDateTime" -> parseLocalDateTime(str);
+                case "java.time.OffsetDateTime" -> parseOffsetDateTime(str);
+                case "java.time.ZonedDateTime" -> parseZonedDateTime(str);
+                case "java.util.Date" -> {
+                    Instant instant = parseInstant(str);
+                    yield instant != null ? Date.from(instant) : null;
+                }
+                default -> null;
+            };
+            return result != null ? (T) result : null;
         } catch (Exception e) {
-            log.debug("Time provider conversion failed: str={}, provider={}", str, type.getSimpleName(), e);
+            log.debug("Time type conversion failed: str='{}', type={}, error: {}",
+                    str, type.getSimpleName(), e.getClass().getSimpleName());
+            return null;
         }
-        return null;
     }
 
     /**
      * 转换 JSON 类型（对象或数组）。
+     * <p>
+     * 快速检测字符串是否为 JSON 格式，然后使用 Jackson 进行反序列化。
+     *
+     * @param <T> 目标类型
+     * @param str  待转换的 JSON 字符串
+     * @param type 目标类型（支持泛型）
+     * @return 反序列化后的对象，如果不是 JSON 格式或解析失败返回 null
      */
     private static <T> T convertJsonType(String str, Type type) {
-        // 判断是否为 JSON 格式（对象或数组）
-        boolean isJsonObject = str.startsWith("{") && str.endsWith("}");
-        boolean isJsonArray = str.startsWith("[") && str.endsWith("]");
-        if (!isJsonObject && !isJsonArray) {
+        // 快速检测：JSON 对象以 { 开头，数组以 [ 开头
+        if (str.length() < 2) {
             return null;
         }
+        char firstChar = str.charAt(0);
+        if (firstChar != '{' && firstChar != '[') {
+            return null;
+        }
+        
+        // 验证结尾字符匹配
+        char lastChar = str.charAt(str.length() - 1);
+        if ((firstChar == '{' && lastChar != '}') || (firstChar == '[' && lastChar != ']')) {
+            return null;
+        }
+        
         try {
             // 将 Type 转为 Jackson 的 JavaType
             var javaType = JSON.getTypeFactory().constructType(type);
             return JSON.readValue(str, javaType);
         } catch (JsonProcessingException e) {
-            log.debug("JSON parse failed: str={}, provider={}", str, type.getTypeName(), e);
+            log.debug("JSON parse failed: str='{}' (length={}), type={}, error: {}",
+                    str.length() > 100 ? str.substring(0, 100) + "..." : str,
+                    str.length(), type.getTypeName(), e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.debug("Unexpected error during JSON parsing: str length={}, type={}, error: {}",
+                    str.length(), type.getTypeName(), e.getClass().getSimpleName());
             return null;
         }
     }
@@ -283,39 +316,50 @@ public final class Converters {
         try {
             String input = str.trim();
 
-            // 优先尝试 ISO-8601 格式（以 "P" 开头）
+            // 优先尝试 ISO-8601 格式（以 "P" 开头，性能更好）
             if (input.startsWith("P")) {
-                return Duration.parse(input);
+                try {
+                    return Duration.parse(input);
+                } catch (Exception e) {
+                    log.debug("Failed to parse ISO-8601 duration: '{}', error: {}", input, e.getMessage());
+                    return null;
+                }
             }
 
             // 使用正则匹配数值+单位格式
             Matcher matcher = DURATION_PATTERN.matcher(input);
             if (matcher.matches()) {
-                double value = Double.parseDouble(matcher.group(1));
-                String unit = matcher.group(2);
-                String normalizedUnit = (unit != null) ? unit.toLowerCase() : "";
+                try {
+                    double value = Double.parseDouble(matcher.group(1));
+                    String unit = matcher.group(2);
+                    String normalizedUnit = (unit != null) ? unit.toLowerCase() : "";
 
-                return switch (normalizedUnit) {
-                    case "ms" -> Duration.ofMillis((long) value);
-                    case "s", "" -> Duration.ofMillis((long) (value * 1000)); // 无单位或秒
-                    case "m" -> Duration.ofMinutes((long) value);
-                    case "h" -> Duration.ofHours((long) value);
-                    case "d" -> Duration.ofDays((long) value);
-                    default -> null;
-                };
+                    return switch (normalizedUnit) {
+                        case "ms" -> Duration.ofMillis((long) value);
+                        case "s", "" -> Duration.ofMillis((long) (value * 1000)); // 无单位或秒
+                        case "m" -> Duration.ofMinutes((long) value);
+                        case "h" -> Duration.ofHours((long) value);
+                        case "d" -> Duration.ofDays((long) value);
+                        default -> null;
+                    };
+                } catch (NumberFormatException e) {
+                    log.debug("Failed to parse duration value: '{}', error: {}", input, e.getMessage());
+                    return null;
+                }
             }
 
-            // 如果正则不匹配，尝试 ISO-8601 格式（可能是不标准的格式）
+            // 最后尝试 ISO-8601 格式（可能是不标准的格式）
             try {
                 return Duration.parse(input);
-            } catch (Exception ignored) {
-                // ISO-8601 解析也失败，返回 null
+            } catch (Exception e) {
+                log.debug("Failed to parse duration as ISO-8601: '{}', error: {}", input, e.getMessage());
+                return null;
             }
 
         } catch (Exception e) {
-            log.debug("Failed to parse duration '{}': {}", str, e.getMessage());
+            log.debug("Unexpected error parsing duration '{}': {}", str, e.getClass().getSimpleName());
+            return null;
         }
-        return null;
     }
 
     /**
@@ -343,20 +387,30 @@ public final class Converters {
         try {
             String input = str.trim();
 
-            // 尝试解析 epoch 时间戳（纯数字）
+            // 快速检测：epoch 时间戳通常是纯数字
             if (EPOCH_PATTERN.matcher(input).matches()) {
-                long epoch = Long.parseLong(input);
-                // 根据数字长度判断：13位及以上为毫秒，否则为秒
-                return (input.length() >= 13)
-                        ? Instant.ofEpochMilli(epoch)
-                        : Instant.ofEpochSecond(epoch);
+                try {
+                    long epoch = Long.parseLong(input);
+                    // 根据数字长度判断：13位及以上为毫秒，否则为秒
+                    return (input.length() >= 13)
+                            ? Instant.ofEpochMilli(epoch)
+                            : Instant.ofEpochSecond(epoch);
+                } catch (NumberFormatException e) {
+                    log.debug("Failed to parse epoch timestamp: '{}', error: {}", input, e.getMessage());
+                    return null;
+                }
             }
 
             // 尝试 ISO-8601 格式
-            return Instant.parse(input);
+            try {
+                return Instant.parse(input);
+            } catch (Exception e) {
+                log.debug("Failed to parse instant as ISO-8601: '{}', error: {}", input, e.getMessage());
+                return null;
+            }
 
         } catch (Exception e) {
-            log.debug("Failed to parse instant: {}", str, e);
+            log.debug("Unexpected error parsing instant '{}': {}", str, e.getClass().getSimpleName());
             return null;
         }
     }
@@ -514,9 +568,24 @@ public final class Converters {
         return null;
     }
 
+    /**
+     * 获取 Type 的原始 Class 对象。
+     * <p>
+     * 处理各种 Type 类型，包括：
+     * <ul>
+     *   <li>{@code Class<?>}：直接返回</li>
+     *   <li>{@code ParameterizedType}：返回原始类型（如 List<String> → List.class）</li>
+     *   <li>{@code GenericArrayType}：返回数组类型</li>
+     *   <li>{@code TypeVariable}：返回上界类型或 Object.class</li>
+     *   <li>{@code WildcardType}：返回上界类型或 Object.class</li>
+     * </ul>
+     *
+     * @param type 类型对象
+     * @return 原始 Class 对象，如果无法确定则返回 Object.class
+     */
     public static Class<?> getRawClass(Type type) {
-        if (type instanceof Class<?>) {
-            return (Class<?>) type;
+        if (type instanceof Class<?> clazz) {
+            return clazz;
         }
         if (type instanceof ParameterizedType parameterizedType) {
             // 例如 List<String> → 返回 List.class
@@ -525,12 +594,17 @@ public final class Converters {
         }
         if (type instanceof GenericArrayType genericArrayType) {
             // 例如 T[] 或 List<String>[] → 返回数组类
-            Class<?> component = getRawClass(genericArrayType.getGenericComponentType());
-            return java.lang.reflect.Array.newInstance(component, 0).getClass();
+            try {
+                Class<?> component = getRawClass(genericArrayType.getGenericComponentType());
+                return Array.newInstance(component, 0).getClass();
+            } catch (Exception e) {
+                log.debug("Failed to create array type for GenericArrayType: {}", type, e);
+                return Object.class;
+            }
         }
-        if (type instanceof TypeVariable<?>) {
+        if (type instanceof TypeVariable<?> typeVariable) {
             // 例如 T extends Number → 返回上界的 Class 或 Object.class
-            Type[] bounds = ((TypeVariable<?>) type).getBounds();
+            Type[] bounds = typeVariable.getBounds();
             return bounds.length > 0 ? getRawClass(bounds[0]) : Object.class;
         }
         if (type instanceof WildcardType wildcardType) {

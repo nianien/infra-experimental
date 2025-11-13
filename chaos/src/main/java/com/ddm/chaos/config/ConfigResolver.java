@@ -22,21 +22,48 @@ import java.util.function.Supplier;
 import static org.springframework.core.annotation.AnnotatedElementUtils.findMergedAnnotation;
 
 /**
- * 支持 @Conf / @Qualifier 的 Supplier&lt;T&gt; 动态注入解析器。
+ * 配置注入解析器，支持 {@code @Conf} 注解的 Supplier&lt;T&gt; 动态注入。
  * <p>
+ * 该解析器扩展了 Spring 的 {@code ContextAnnotationAutowireCandidateResolver}，
+ * 用于在 Spring Bean 注入时解析 {@code @Conf} 注解，并创建配置 Supplier。
+ *
+ * <p><strong>功能特性：</strong>
  * <ul>
- *   <li>仅拦截 Supplier&lt;T&gt; / Supplier&lt;?&gt; 注入点</li>
- *   <li>解析 @Conf/@Qualifier → TypedKey，从 {@link ConfigFactory} 获取 Supplier</li>
- *   <li>factory 未就绪时返回惰性 Supplier，避免初始化时序问题</li>
- *   <li>不做类型转换与运行时类型校验：存啥取啥（Supplier&lt;?&gt; 语义）</li>
+ *   <li>仅拦截 {@code Supplier<T>} / {@code Supplier<?>} 类型的注入点</li>
+ *   <li>解析 {@code @Conf} 注解，提取配置引用、类型和默认值</li>
+ *   <li>从 {@link ConfigFactory} 获取配置 Supplier</li>
+ *   <li>支持惰性加载，避免初始化时序问题（factory 未就绪时返回惰性 Supplier）</li>
+ *   <li>支持字段注入和参数注入（构造器参数、方法参数）</li>
  * </ul>
+ *
+ * <p><strong>使用示例：</strong>
+ * <pre>{@code
+ * @Component
+ * public class MyService {
+ *     @Conf(namespace = "com.chaos", group = "cfd", key = "timeout", defaultValue = "30s")
+ *     private Supplier<Duration> timeout;
+ * }
+ * }</pre>
+ *
+ * @author liyifei
+ * @see Conf
+ * @see ConfigFactory
+ * @since 1.0
  */
 public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
 
     private static final Logger log = LoggerFactory.getLogger(ConfigResolver.class);
 
+    /**
+     * Spring Bean 工厂，用于获取 ConfigFactory 实例
+     */
     private final DefaultListableBeanFactory beanFactory;
 
+    /**
+     * 构造配置解析器。
+     *
+     * @param beanFactory Spring Bean 工厂，不能为 null
+     */
     public ConfigResolver(DefaultListableBeanFactory beanFactory) {
         this.beanFactory = beanFactory;
     }
@@ -53,19 +80,35 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
 
         // 3) 解析泛型 T；不可解析则用 Object 作为通配（支持 Supplier<?>）
         Type targetType = resolveSupplierGeneric(desc);
-        // 4) 解析 @Conf/@Qualifier → TypedKey（参数/字段通用）
+        // 4) 解析 @Conf 注解
         Conf conf = resolveKey(desc);
-        if (conf == null) return null;
+        if (conf == null) {
+            log.trace("No @Conf annotation found on dependency: {}", desc);
+            return null;
+        }
+        
+        // 验证配置引用是否完整
+        if (conf.key() == null || conf.key().isBlank()) {
+            log.warn("Invalid @Conf annotation: key is empty on {}", desc);
+            return null;
+        }
+        
         // 统一惰性 Supplier 实现
-        return getLazySupplier(new ConfDesc(new ConfRef(conf.namespace(), conf.group(), conf.key()), conf.defaultValue(), targetType));
+        ConfRef ref = new ConfRef(conf.namespace(), conf.group(), conf.key());
+        ConfDesc confDesc = new ConfDesc(ref, conf.defaultValue(), targetType);
+        log.debug("Creating lazy supplier for config: {}", ref);
+        return getLazySupplier(confDesc);
     }
 
 
     /**
      * 获取惰性 Supplier，延迟获取工厂实例。
+     * <p>
+     * 使用双重检查锁定模式，确保线程安全且性能优化。
      *
-     * @param <T> 目标类型
-     * @return Supplier 实例，如果 key 为 null 则返回 null
+     * @param <T>  目标类型
+     * @param desc 配置描述符
+     * @return Supplier 实例
      */
     private <T> Supplier<T> getLazySupplier(ConfDesc desc) {
         return new Supplier<>() {
@@ -74,26 +117,69 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
             @Override
             public T get() {
                 Supplier<T> d = delegate;
-                if (d != null) return d.get();
+                if (d != null) {
+                    return getValueSafely(d, desc);
+                }
 
                 synchronized (this) {
                     d = delegate;
-                    if (d != null) return d.get();
+                    if (d != null) {
+                        return getValueSafely(d, desc);
+                    }
 
-                    ConfigFactory f = getFactory();
-                    if (f == null) return null;
+                    ConfigFactory factory = getFactory();
+                    if (factory == null) {
+                        log.warn("ConfigFactory not available, returning default value for {}", desc.ref());
+                        return getDefaultValue(desc);
+                    }
 
-                    Supplier<?> real = f.createSupplier(desc);
-                    if (real == null) return null;
+                    try {
+                        Supplier<?> real = factory.createSupplier(desc);
+                        if (real == null) {
+                            log.warn("ConfigFactory returned null supplier for {}, returning default value", desc.ref());
+                            return getDefaultValue(desc);
+                        }
 
-                    @SuppressWarnings("unchecked")
-                    Supplier<T> typed = (Supplier<T>) real;
-                    delegate = typed;
-                    d = typed;
+                        @SuppressWarnings("unchecked")
+                        Supplier<T> typed = (Supplier<T>) real;
+                        delegate = typed;
+                        return getValueSafely(typed, desc);
+                    } catch (Exception e) {
+                        log.error("Failed to create supplier for {}, returning default value", desc.ref(), e);
+                        return getDefaultValue(desc);
+                    }
                 }
-                return d.get();
             }
         };
+    }
+
+    /**
+     * 安全地获取配置值，如果失败则返回默认值。
+     *
+     * @param <T> 目标类型
+     * @param supplier 配置 Supplier
+     * @param desc 配置描述符
+     * @return 配置值或默认值
+     */
+    private <T> T getValueSafely(Supplier<T> supplier, ConfDesc desc) {
+        try {
+            return supplier.get();
+        } catch (Exception e) {
+            log.error("Failed to get config value for {}, returning default value", desc.ref(), e);
+            return getDefaultValue(desc);
+        }
+    }
+
+    /**
+     * 获取默认值。
+     *
+     * @param <T> 目标类型
+     * @param desc 配置描述符
+     * @return 默认值
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T getDefaultValue(ConfDesc desc) {
+        return (T) desc.defaultValue();
     }
 
     /**
@@ -160,8 +246,14 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
             if (conf != null) {
                 return conf;
             }
-        } catch (Throwable e) {
-            log.warn("Failed to resolve parameter annotations on {}", desc.getMethodParameter(), e);
+        } catch (Exception e) {
+            log.debug("Failed to resolve parameter annotations on {}, will try field injection", 
+                    desc.getMethodParameter(), e);
+        } catch (Error e) {
+            // 对于 Error（如 OutOfMemoryError），记录错误并重新抛出
+            log.error("Error while resolving parameter annotations on {}", 
+                    desc.getMethodParameter(), e);
+            throw e;
         }
         return null;
     }
@@ -186,14 +278,23 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
 
 
     /**
-     * 工厂可为空，避免初始化时序死锁。
+     * 获取配置工厂实例。
+     * <p>
+     * 工厂可能为空，避免初始化时序死锁。如果获取失败，记录调试日志但不抛出异常。
+     *
+     * @return 配置工厂实例，如果不可用则返回 null
      */
     @Nullable
     private ConfigFactory getFactory() {
         try {
             return beanFactory.getBeanProvider(ConfigFactory.class).getIfAvailable();
-        } catch (Throwable ignore) {
+        } catch (Exception e) {
+            log.debug("Failed to get ConfigFactory from bean factory, may not be initialized yet", e);
             return null;
+        } catch (Error e) {
+            // 对于 Error（如 OutOfMemoryError），记录警告但不捕获
+            log.error("Error while getting ConfigFactory", e);
+            throw e;
         }
     }
 

@@ -41,7 +41,29 @@ import java.util.function.Supplier;
  */
 public interface ConfigFactory extends AutoCloseable {
 
-
+    /**
+     * 为指定的配置描述符创建类型化的 Supplier。
+     * <p>
+     * 该方法会根据配置描述符中的引用（ConfRef）从数据源加载配置数据，
+     * 并根据目标类型进行类型转换，返回一个 Supplier 实例。
+     *
+     * <p><strong>缓存机制：</strong>
+     * 相同配置引用（ConfRef）的配置数据会被缓存，缓存键为 ConfRef。
+     * 类型转换结果会在 ConfigData 内部缓存，键为 ConfRef + Type。
+     *
+     * <p><strong>使用示例：</strong>
+     * <pre>{@code
+     * ConfRef ref = new ConfRef("chaos", "cfd", "timeout");
+     * ConfDesc desc = new ConfDesc(ref, Duration.class, Duration.ofSeconds(30));
+     * Supplier<Duration> timeoutSupplier = factory.createSupplier(desc);
+     * Duration timeout = timeoutSupplier.get();
+     * }</pre>
+     *
+     * @param <T>  目标类型
+     * @param desc 配置描述符，包含配置引用、目标类型和默认值
+     * @return 类型化的 Supplier 实例，调用 {@code get()} 方法可获取配置值
+     * @throws NullPointerException 如果 desc 为 null
+     */
     <T> Supplier<T> createSupplier(ConfDesc desc);
 
     /**
