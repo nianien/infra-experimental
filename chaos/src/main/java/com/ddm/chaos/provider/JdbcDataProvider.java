@@ -1,5 +1,6 @@
 package com.ddm.chaos.provider;
 
+import com.ddm.chaos.defined.ConfItem;
 import com.ddm.chaos.defined.ConfRef;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -18,7 +19,7 @@ import java.util.Optional;
  * <ul>
  *   <li>config_namespace：命名空间表</li>
  *   <li>config_group：分组表</li>
- *   <li>config_item：配置项表（包含 key、value、variant 字段）</li>
+ *   <li>config_item：配置项表（包含 key、value、variants 字段）</li>
  * </ul>
  *
  * @author liyifei
@@ -66,7 +67,7 @@ public class JdbcDataProvider implements DataProvider {
                     g.`name` AS `group`,
                     d.`key`,
                     d.`value`,
-                    d.`variant`
+                    d.`variants`
                 FROM `config_item` d
                 JOIN `config_group` g      ON d.`group_id`     = g.`id`
                 JOIN `config_namespace` n  ON g.`namespace_id` = n.`id`
@@ -95,7 +96,7 @@ public class JdbcDataProvider implements DataProvider {
                 rs.getString("group"),
                 rs.getString("key"),
                 rs.getString("value"),
-                rs.getString("variant")
+                rs.getString("variants")
         );
     }
 

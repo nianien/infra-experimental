@@ -1,5 +1,6 @@
 package com.ddm.chaos.provider;
 
+import com.ddm.chaos.defined.ConfItem;
 import com.ddm.chaos.defined.ConfRef;
 
 import java.util.Map;

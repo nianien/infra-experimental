@@ -1,8 +1,5 @@
-package com.ddm.chaos.config;
+package com.ddm.chaos.defined;
 
-import com.ddm.chaos.defined.ConfDesc;
-import com.ddm.chaos.defined.ConfRef;
-import com.ddm.chaos.provider.ConfItem;
 import com.ddm.chaos.utils.Converters;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,46 +11,37 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 不可变配置项。
- * <p>
- * <ul>
- *   <li><strong>item</strong>：配置项原始数据（不可变）</li>
- *   <li><strong>resolvedValue</strong>：已解析的生效值（字符串），在构造时计算并缓存</li>
- *   <li><strong>resolvedValues</strong>：类型化值的缓存（线程安全）</li>
- * </ul>
- * <p>
- * <strong>生效值计算规则：</strong>firstNonNull(variant[tag1], variant[tag2], ...) else value
- * <p>在构造时计算并缓存到 resolvedValue；不做类型转换。
+ * 配置项内容
  */
-public final class ConfigData {
+public final class ConfData {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Object NULL = new Object();
 
-    private final ConfItem item;
     private final String resolvedValue;
-    private final Map<ConfKey, Object> resolvedValues = new ConcurrentHashMap<>();
+    private final Map<CacheKey, Object> resolvedValues = new ConcurrentHashMap<>();
 
-    public ConfigData(ConfItem item, String[] tags) {
-        this.item = item;
-        this.resolvedValue = resolve(tags);
+    public ConfData(ConfItem item, String[] tags) {
+        this(item.value(), item.variants(), tags);
+    }
+
+    public ConfData(String value, String variants, String[] tags) {
+        this.resolvedValue = resolve(value, variants, tags);
     }
 
 
-    private String resolve(String[] tags) {
-        String result = item.value();
-        Map<String, String> vmap = parseVariants(item.variant());
+    private static String resolve(String value, String variants, String[] tags) {
+        Map<String, String> vmap = parseVariants(variants);
         if (!vmap.isEmpty() && tags.length > 0) {
             for (String t : tags) {
                 if (t == null || t.isBlank()) continue;
                 String hit = vmap.get(t.trim());
                 if (hit != null) {
-                    result = hit;
-                    break;
+                    return hit;
                 }
             }
         }
-        return result;
+        return value;
     }
 
     /**
@@ -66,7 +54,7 @@ public final class ConfigData {
      */
     @SuppressWarnings("unchecked")
     public <T> T getValue(ConfDesc desc) {
-        Object res = resolvedValues.computeIfAbsent(new ConfKey(desc.ref(), desc.type()), key -> {
+        Object res = resolvedValues.computeIfAbsent(new CacheKey(desc.ref(), desc.type()), key -> {
             try {
                 Object cast = Converters.cast(resolvedValue, key.type());
                 if (cast != null) {
@@ -99,8 +87,8 @@ public final class ConfigData {
         }
     }
 
-    record ConfKey(ConfRef ref, Type type) {
-        public ConfKey(ConfRef ref, Type type) {
+    record CacheKey(ConfRef ref, Type type) {
+        public CacheKey(ConfRef ref, Type type) {
             this.ref = Objects.requireNonNull(ref, "ref cannot be null");
             this.type = Objects.requireNonNull(type, "type cannot be null");
         }
@@ -108,9 +96,8 @@ public final class ConfigData {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof ConfKey k)) return false;
-            return Objects.equals(ref, k.ref)
-                    && Objects.equals(typeName(type), typeName(k.type));
+            if (!(o instanceof CacheKey k)) return false;
+            return Objects.equals(ref, k.ref) && Objects.equals(typeName(type), typeName(k.type));
         }
 
         @Override

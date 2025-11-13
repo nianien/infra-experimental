@@ -3,7 +3,8 @@ package com.ddm.chaos.config;
 import com.ddm.chaos.config.ConfigProperties.Provider;
 import com.ddm.chaos.defined.ConfDesc;
 import com.ddm.chaos.defined.ConfRef;
-import com.ddm.chaos.provider.ConfItem;
+import com.ddm.chaos.defined.ConfItem;
+import com.ddm.chaos.defined.ConfData;
 import com.ddm.chaos.provider.DataProvider;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
@@ -38,7 +39,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
      */
     private final ExecutorService refreshPool;
 
-    private final LoadingCache<ConfRef, ConfigData> cache;
+    private final LoadingCache<ConfRef, ConfData> cache;
 
     private final DataProvider provider;
     private final ConfigProperties props;
@@ -68,13 +69,13 @@ public final class DefaultConfigFactory implements ConfigFactory {
     }
 
 
-    private ConfigData loadData(ConfRef ref) {
+    private ConfData loadData(ConfRef ref) {
         log.debug("Loading config item {}", ref);
         ConfItem item = provider.loadData(ref);
         if (item == null) {
             throw new IllegalStateException("Provider returned null ConfigItem for " + ref);
         }
-        return new ConfigData(item, props.tags());
+        return new ConfData(item, props.tags());
     }
 
     @Override
