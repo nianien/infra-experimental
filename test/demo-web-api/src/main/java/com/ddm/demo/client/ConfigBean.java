@@ -17,9 +17,4 @@ public class ConfigBean {
     @Conf(namespace = "com.ddm", group = "cfd", key = "demo.whitelist", defaultValue = "u001,u002")
     private Supplier<List<String>> whitelist;
 
-
-    private void ddd() {
-
-    }
-
 }

@@ -115,23 +115,21 @@ public class JdbcDataProvider implements DataProvider {
         
         String sql = """
                 SELECT
-                    n.`name` AS `namespace`,
-                    g.`name` AS `group`,
-                    d.`key`,
-                    d.`value`,
-                    d.`variants`
-                FROM `config_item` d
-                JOIN `config_group` g      ON d.`group_id`     = g.`id`
-                JOIN `config_namespace` n  ON g.`namespace_id` = n.`id`
-                WHERE d.`key` = :key
-                  AND d.`enabled` = 1
-                  AND n.`name` = :namespace
-                  AND g.`name` = :group;
+                    c.`namespace` AS `namespace`,
+                    c.`group_name` AS `group`,
+                    c.`key`,
+                    c.`value`,
+                    c.`variants`
+                FROM `config_item` c
+                WHERE c.`namespace` = :namespace
+                  AND c.`group_name` = :groupName
+                  AND c.`key` = :key
+                  AND c.`enabled` = 1
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("key", ref.key())
                 .addValue("namespace", ref.namespace())
-                .addValue("group", ref.group());
+                .addValue("key", ref.key())
+                .addValue("groupName", ref.group());
         
         try {
             log.debug("Querying config item from database: {}", ref);
