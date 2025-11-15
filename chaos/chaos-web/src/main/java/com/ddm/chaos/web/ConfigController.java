@@ -333,6 +333,43 @@ public class ConfigController {
         }
     }
 
+    /**
+     * 删除配置分组。
+     * 如果该分组下存在配置项，则不允许删除。
+     *
+     * @param id 分组 ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/groups/{id}")
+    public ResponseEntity<Map<String, Object>> deleteGroup(@PathVariable Long id) {
+        try {
+            // 检查是否存在关联的配置项
+            String checkSql = "SELECT COUNT(*) FROM config_item ci " +
+                    "INNER JOIN config_group cg ON ci.group_name = cg.name AND ci.namespace = cg.namespace " +
+                    "WHERE cg.id = ?";
+            Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, id);
+            if (count != null && count > 0) {
+                return ResponseEntity.badRequest()
+                        .body(createError("无法删除分组：该分组下存在 " + count + " 个配置项，请先删除所有配置项"));
+            }
+
+            String sql = "DELETE FROM config_group WHERE id = ?";
+            int deleted = jdbcTemplate.update(sql, id);
+            if (deleted == 0) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "分组删除成功");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Failed to delete group {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createError("删除失败: " + e.getMessage()));
+        }
+    }
+
     /* ===================== 配置项管理 ===================== */
 
     /**

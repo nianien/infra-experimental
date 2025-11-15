@@ -280,6 +280,30 @@
             color: #333;
         }
 
+        /* 删除确认模态框简洁样式 */
+        #delete-confirm-modal .modal-content {
+            animation: fadeInUp 0.2s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #delete-confirm-btn {
+            transition: all 0.2s ease;
+        }
+
+        #delete-confirm-btn:hover {
+            opacity: 0.9;
+        }
+
         .badge {
             display: inline-block;
             padding: 4px 8px;
@@ -604,6 +628,7 @@
                         <button class="btn btn-primary" onclick="showGroupModal()">新建分组</button>
                     </div>
                 </div>
+                <div id="groups-alert"></div>
                 <div id="groups-loading" class="loading">加载中...</div>
                 <div id="groups-empty" class="empty-state" style="display: none;">
                     <p>暂无配置分组</p>
@@ -635,6 +660,7 @@
                         <button class="btn btn-primary" onclick="showItemModal()">新建配置项</button>
                     </div>
                 </div>
+                <div id="items-alert"></div>
                 <div id="items-loading" class="loading">加载中...</div>
                 <div id="items-empty" class="empty-state" style="display: none;">
                     <p>暂无配置项</p>
@@ -794,6 +820,30 @@
         </div>
     </div>
 
+    <!-- 删除确认模态框 -->
+    <div id="delete-confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>确认删除</h3>
+                <button class="close-btn" onclick="closeDeleteConfirmModal()">&times;</button>
+            </div>
+            <div style="padding: 30px;">
+                <div id="delete-confirm-message" style="font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 20px;">
+                    <!-- 动态填充消息 -->
+                </div>
+                <div id="delete-confirm-warning" style="background: #f8f9fa; border-left: 3px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 20px; color: #666; font-size: 14px; display: none;">
+                    <span id="delete-warning-text"></span>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #f0f0f0;">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteConfirmModal()" style="min-width: 90px;">取消</button>
+                    <button type="button" id="delete-confirm-btn" class="btn btn-danger" style="min-width: 90px;">
+                        删除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = '/api/config';
 
@@ -899,6 +949,7 @@
 
         // 加载配置项列表
         async function loadItems() {
+            console.log('loadItems() 开始执行');
             const loading = document.getElementById('items-loading');
             const empty = document.getElementById('items-empty');
             const table = document.getElementById('items-table');
@@ -906,17 +957,21 @@
             const title = document.getElementById('items-title');
 
             if (!currentNamespace || !currentGroup) {
+                console.warn('loadItems: currentNamespace or currentGroup is missing', { currentNamespace, currentGroup });
                 return;
             }
 
+            console.log('loadItems: 开始加载数据', { namespaceId: currentNamespace.id, groupId: currentGroup.id });
             loading.style.display = 'block';
             empty.style.display = 'none';
             table.style.display = 'none';
 
             try {
                 const url = `${API_BASE}/items?namespaceId=${currentNamespace.id}&groupId=${currentGroup.id}`;
+                console.log('loadItems: 请求 URL:', url);
                 const response = await fetch(url);
                 const items = await response.json();
+                console.log('loadItems: 获取到数据，数量:', items.length);
 
                 loading.style.display = 'none';
 
@@ -935,8 +990,10 @@
                 }
 
                 if (items.length === 0) {
+                    console.log('loadItems: 没有数据，显示空状态');
                     empty.style.display = 'block';
                 } else {
+                    console.log('loadItems: 更新表格，共', items.length, '条数据');
                     table.style.display = 'table';
                     tbody.innerHTML = items.map(item => {
                         // 格式化变体配置显示
@@ -976,8 +1033,11 @@
                         </tr>
                     `;
                     }).join('');
+                    console.log('loadItems: 表格更新完成');
                 }
+                console.log('loadItems() 执行完成');
             } catch (error) {
+                console.error('loadItems: 加载失败', error);
                 loading.style.display = 'none';
                 showAlert('items-alert', '加载失败: ' + error.message, 'error');
             }
@@ -985,6 +1045,7 @@
 
         // 加载分组列表
         async function loadGroups() {
+            console.log('loadGroups() 开始执行');
             const loading = document.getElementById('groups-loading');
             const empty = document.getElementById('groups-empty');
             const table = document.getElementById('groups-table');
@@ -992,15 +1053,18 @@
             const title = document.getElementById('groups-title');
 
             if (!currentNamespace) {
+                console.warn('loadGroups: currentNamespace is missing', { currentNamespace });
                 return;
             }
 
+            console.log('loadGroups: 开始加载数据', { namespaceId: currentNamespace.id });
             loading.style.display = 'block';
             empty.style.display = 'none';
             table.style.display = 'none';
 
             try {
                 const url = `${API_BASE}/namespaces/${currentNamespace.id}/groups`;
+                console.log('loadGroups: 请求 URL:', url);
                 const response = await fetch(url);
                 
                 if (!response.ok) {
@@ -1008,6 +1072,7 @@
                 }
                 
                 const groups = await response.json();
+                console.log('loadGroups: 获取到数据，数量:', groups.length);
 
                 loading.style.display = 'none';
 
@@ -1020,8 +1085,10 @@
                 `;
 
                 if (groups.length === 0) {
+                    console.log('loadGroups: 没有数据，显示空状态');
                     empty.style.display = 'block';
                 } else {
+                    console.log('loadGroups: 更新表格，共', groups.length, '条数据');
                     table.style.display = 'table';
                     tbody.innerHTML = groups.map(group => `
                         <tr>
@@ -1033,12 +1100,16 @@
                                 <div class="action-buttons">
                                     <button class="btn btn-success btn-sm" onclick="showItems(${group.id}, '${escapeHtml(group.name)}')">详情</button>
                                     <button class="btn btn-primary btn-sm" onclick="editGroup(${group.id})">编辑</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteGroup(${group.id})">删除</button>
                                 </div>
                             </td>
                         </tr>
                     `).join('');
+                    console.log('loadGroups: 表格更新完成');
                 }
+                console.log('loadGroups() 执行完成');
             } catch (error) {
+                console.error('loadGroups: 加载失败', error);
                 loading.style.display = 'none';
                 showAlert('groups-alert', '加载失败: ' + error.message, 'error');
             }
@@ -1115,22 +1186,43 @@
         }
 
         // 删除配置项
-        async function deleteItem(id) {
-            if (!confirm('确定要删除这个配置项吗？')) return;
+        function deleteItem(id) {
+            showDeleteConfirmModal({
+                message: '确定要删除这个配置项吗？',
+                warning: null,
+                onConfirm: async () => {
+                    try {
+                        console.log('开始删除配置项:', id);
+                        const response = await fetch(`${API_BASE}/items/${id}`, { method: 'DELETE' });
+                        const result = await response.json();
+                        console.log('删除响应:', response.ok, result);
 
-            try {
-                const response = await fetch(`${API_BASE}/items/${id}`, { method: 'DELETE' });
-                const result = await response.json();
-
-                if (response.ok) {
-                    showAlert('items-alert', '删除成功', 'success');
-                    loadItems();
-                } else {
-                    showAlert('items-alert', result.error || '删除失败', 'error');
+                        if (response.ok) {
+                            console.log('删除成功，准备刷新');
+                            showAlert('items-alert', '删除成功', 'success');
+                            // 立即刷新配置项列表
+                            if (currentNamespace && currentGroup) {
+                                console.log('当前状态:', { namespace: currentNamespace, group: currentGroup });
+                                // 确保视图正确显示
+                                switchView('items');
+                                // 刷新列表
+                                console.log('调用 loadItems()');
+                                await loadItems();
+                                console.log('loadItems() 完成');
+                            } else {
+                                console.log('状态丢失，重新加载页面');
+                                location.reload();
+                            }
+                        } else {
+                            console.error('删除失败:', result);
+                            showAlert('items-alert', result.error || '删除失败', 'error');
+                        }
+                    } catch (error) {
+                        console.error('删除异常:', error);
+                        showAlert('items-alert', '删除失败: ' + error.message, 'error');
+                    }
                 }
-            } catch (error) {
-                showAlert('items-alert', '删除失败: ' + error.message, 'error');
-            }
+            });
         }
 
         // 提交配置项表单
@@ -1333,9 +1425,15 @@
         // 显示提示信息
         function showAlert(containerId, message, type) {
             const container = document.getElementById(containerId);
+            if (!container) {
+                console.warn('Alert container not found:', containerId);
+                return;
+            }
             container.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
             setTimeout(() => {
-                container.innerHTML = '';
+                if (container) {
+                    container.innerHTML = '';
+                }
             }, 5000);
         }
 
@@ -1388,6 +1486,46 @@
             } catch (error) {
                 alert('加载分组失败: ' + error.message);
             }
+        }
+
+        // 删除分组
+        function deleteGroup(id) {
+            showDeleteConfirmModal({
+                message: '确定要删除这个配置分组吗？',
+                warning: '如果该分组下存在配置项，删除操作将失败。',
+                onConfirm: async () => {
+                    try {
+                        console.log('开始删除分组:', id);
+                        const response = await fetch(`${API_BASE}/groups/${id}`, { method: 'DELETE' });
+                        const result = await response.json();
+                        console.log('删除响应:', response.ok, result);
+
+                        if (response.ok) {
+                            console.log('删除成功，准备刷新');
+                            showAlert('groups-alert', result.message || '删除成功', 'success');
+                            // 立即刷新分组列表
+                            if (currentNamespace) {
+                                console.log('当前状态:', { namespace: currentNamespace });
+                                // 确保视图正确显示
+                                switchView('groups');
+                                // 刷新列表
+                                console.log('调用 loadGroups()');
+                                await loadGroups();
+                                console.log('loadGroups() 完成');
+                            } else {
+                                console.log('状态丢失，重新加载页面');
+                                location.reload();
+                            }
+                        } else {
+                            console.error('删除失败:', result);
+                            showAlert('groups-alert', result.error || '删除失败', 'error');
+                        }
+                    } catch (error) {
+                        console.error('删除异常:', error);
+                        showAlert('groups-alert', '删除失败: ' + error.message, 'error');
+                    }
+                }
+            });
         }
 
         // 添加变体行
@@ -1608,13 +1746,98 @@
             }
         });
 
+        // 删除确认模态框相关变量
+        let deleteConfirmCallback = null;
+
+        // 显示删除确认模态框
+        function showDeleteConfirmModal(options) {
+            const modal = document.getElementById('delete-confirm-modal');
+            const messageEl = document.getElementById('delete-confirm-message');
+            const warningEl = document.getElementById('delete-confirm-warning');
+            const warningTextEl = document.getElementById('delete-warning-text');
+
+            // 设置消息
+            messageEl.textContent = options.message || '确定要删除吗？';
+
+            // 设置警告信息
+            if (options.warning) {
+                warningTextEl.textContent = options.warning;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
+
+            // 保存确认回调
+            deleteConfirmCallback = options.onConfirm;
+
+            // 显示模态框
+            modal.classList.add('active');
+        }
+
+        // 关闭删除确认模态框
+        function closeDeleteConfirmModal() {
+            const modal = document.getElementById('delete-confirm-modal');
+            modal.classList.remove('active');
+        }
+
+        // 确认删除
+        function confirmDelete() {
+            console.log('confirmDelete called, deleteConfirmCallback:', deleteConfirmCallback);
+            if (deleteConfirmCallback) {
+                const callback = deleteConfirmCallback;
+                // 先清空回调，防止重复执行
+                deleteConfirmCallback = null;
+                // 关闭模态框
+                closeDeleteConfirmModal();
+                // 执行回调（删除操作和刷新）
+                Promise.resolve(callback()).catch(error => {
+                    console.error('删除操作失败:', error);
+                    // 尝试显示错误，但不确定是哪个视图
+                    const itemsAlert = document.getElementById('items-alert');
+                    const groupsAlert = document.getElementById('groups-alert');
+                    if (itemsAlert) {
+                        showAlert('items-alert', '删除操作失败: ' + error.message, 'error');
+                    } else if (groupsAlert) {
+                        showAlert('groups-alert', '删除操作失败: ' + error.message, 'error');
+                    }
+                });
+            } else {
+                console.error('deleteConfirmCallback is null');
+            }
+        }
+
         // 点击模态框外部关闭
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => {
+                // 如果点击的是模态框本身（不是子元素），才关闭
                 if (e.target === modal) {
-                    modal.classList.remove('active');
+                    if (modal.id === 'delete-confirm-modal') {
+                        closeDeleteConfirmModal();
+                    } else {
+                        modal.classList.remove('active');
+                    }
                 }
             });
+        });
+
+        // 确保删除确认按钮的点击事件不被阻止
+        // 使用事件委托，因为按钮在页面加载时就存在
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'delete-confirm-btn') {
+                e.preventDefault();
+                e.stopPropagation();
+                confirmDelete();
+            }
+        });
+
+        // ESC 键关闭删除确认模态框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const deleteModal = document.getElementById('delete-confirm-modal');
+                if (deleteModal.classList.contains('active')) {
+                    closeDeleteConfirmModal();
+                }
+            }
         });
     </script>
 </body>
