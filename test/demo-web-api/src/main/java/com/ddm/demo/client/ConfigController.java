@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -114,41 +115,20 @@ public class ConfigController {
     /* ===================== 配置分组管理 ===================== */
 
     /**
-     * 获取所有配置分组（不限定命名空间）。
-     *
-     * @return 分组列表，包含命名空间名
-     */
-    @GetMapping("/groups")
-    public ResponseEntity<List<Map<String, Object>>> listAllGroups() {
-        try {
-            String sql = "SELECT cg.id, cg.namespace_id, cg.name, cg.description, cg.created_at, cg.updated_at, " +
-                    "ns.name AS namespace_name " +
-                    "FROM config_group cg " +
-                    "LEFT JOIN config_namespace ns ON cg.namespace_id = ns.id " +
-                    "ORDER BY cg.namespace_id, cg.id";
-            List<Map<String, Object>> groups = jdbcTemplate.query(sql, groupWithNamespaceRowMapper());
-            return ResponseEntity.ok(groups);
-        } catch (Exception e) {
-            log.error("Failed to list all groups", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    /**
      * 获取指定命名空间下的所有分组。
      * 注意：此路由必须在 /namespaces/{id} 之前定义，以避免路由冲突。
      *
      * @param namespaceId 命名空间 ID
-     * @return 分组列表
+     * @return 分组列表，包含命名空间名
      */
     @GetMapping("/namespaces/{namespaceId}/groups")
     public ResponseEntity<List<Map<String, Object>>> listGroups(@PathVariable Long namespaceId) {
         try {
-            String sql = "SELECT cg.id, cg.namespace_id, cg.name, cg.description, cg.created_at, cg.updated_at, " +
-                    "ns.name AS namespace_name " +
+            String sql = "SELECT cg.id, ns.id AS namespace_id, ns.name AS namespace_name, " +
+                    "cg.name, cg.description, cg.created_at, cg.updated_at " +
                     "FROM config_group cg " +
-                    "LEFT JOIN config_namespace ns ON cg.namespace_id = ns.id " +
-                    "WHERE cg.namespace_id = ? ORDER BY cg.id";
+                    "JOIN config_namespace ns ON cg.namespace = ns.name " +
+                    "WHERE ns.id = ? ORDER BY cg.id";
             List<Map<String, Object>> groups = jdbcTemplate.query(sql, groupWithNamespaceRowMapper(), namespaceId);
             return ResponseEntity.ok(groups);
         } catch (Exception e) {
@@ -263,8 +243,13 @@ public class ConfigController {
                 return ResponseEntity.badRequest().body(createError("name 不能为空"));
             }
 
-            String sql = "INSERT INTO config_group (namespace_id, name, description) VALUES (?, ?, ?)";
-            jdbcTemplate.update(sql, namespaceId, name, description);
+            String namespaceName = getNamespaceName(namespaceId);
+            if (namespaceName == null) {
+                return ResponseEntity.badRequest().body(createError("命名空间不存在: " + namespaceId));
+            }
+
+            String sql = "INSERT INTO config_group (`namespace`, name, description) VALUES (?, ?, ?)";
+            jdbcTemplate.update(sql, namespaceName, name, description);
 
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
@@ -286,10 +271,10 @@ public class ConfigController {
     @GetMapping("/groups/{id}")
     public ResponseEntity<Map<String, Object>> getGroup(@PathVariable Long id) {
         try {
-            String sql = "SELECT cg.id, cg.namespace_id, cg.name, cg.description, cg.created_at, cg.updated_at, " +
-                    "ns.name AS namespace_name " +
+            String sql = "SELECT cg.id, ns.id AS namespace_id, COALESCE(ns.name, cg.namespace) AS namespace_name, " +
+                    "cg.name, cg.description, cg.created_at, cg.updated_at " +
                     "FROM config_group cg " +
-                    "LEFT JOIN config_namespace ns ON cg.namespace_id = ns.id " +
+                    "LEFT JOIN config_namespace ns ON cg.namespace = ns.name " +
                     "WHERE cg.id = ?";
             List<Map<String, Object>> groups = jdbcTemplate.query(sql, groupWithNamespaceRowMapper(), id);
             if (groups.isEmpty()) {
@@ -373,21 +358,22 @@ public class ConfigController {
             @RequestParam(required = false) Long groupId) {
         try {
             StringBuilder sql = new StringBuilder(
-                    "SELECT ci.id, ci.namespace_id, ci.group_id, ci.`key`, ci.`value`, ci.variant, " +
-                    "ci.type, ci.enabled, ci.description, ci.updated_by, ci.created_at, ci.updated_at, ci.version, " +
-                    "ns.name AS namespace_name, cg.name AS group_name " +
+                    "SELECT ci.id, ns.id AS namespace_id, COALESCE(ns.name, ci.namespace) AS namespace_name, " +
+                    "cg.id AS group_id, COALESCE(cg.name, ci.group_name) AS group_name, " +
+                    "ci.`key`, ci.`value`, ci.variants AS variants, ci.type, ci.enabled, ci.description, " +
+                    "ci.updated_by, ci.created_at, ci.updated_at, ci.version " +
                     "FROM config_item ci " +
-                    "LEFT JOIN config_namespace ns ON ci.namespace_id = ns.id " +
-                    "LEFT JOIN config_group cg ON ci.group_id = cg.id " +
+                    "LEFT JOIN config_namespace ns ON ci.namespace = ns.name " +
+                    "LEFT JOIN config_group cg ON ci.group_name = cg.name AND cg.namespace = ci.namespace " +
                     "WHERE 1=1");
             List<Object> params = new ArrayList<>();
 
             if (namespaceId != null) {
-                sql.append(" AND ci.namespace_id = ?");
+                sql.append(" AND ns.id = ?");
                 params.add(namespaceId);
             }
             if (groupId != null) {
-                sql.append(" AND ci.group_id = ?");
+                sql.append(" AND cg.id = ?");
                 params.add(groupId);
             }
             sql.append(" ORDER BY ci.id");
@@ -410,12 +396,13 @@ public class ConfigController {
     @GetMapping("/items/{id}")
     public ResponseEntity<Map<String, Object>> getItem(@PathVariable Long id) {
         try {
-            String sql = "SELECT ci.id, ci.namespace_id, ci.group_id, ci.`key`, ci.`value`, ci.variant, " +
-                    "ci.type, ci.enabled, ci.description, ci.updated_by, ci.created_at, ci.updated_at, ci.version, " +
-                    "ns.name AS namespace_name, cg.name AS group_name " +
+            String sql = "SELECT ci.id, ns.id AS namespace_id, COALESCE(ns.name, ci.namespace) AS namespace_name, " +
+                    "cg.id AS group_id, COALESCE(cg.name, ci.group_name) AS group_name, " +
+                    "ci.`key`, ci.`value`, ci.variants AS variants, ci.type, ci.enabled, ci.description, " +
+                    "ci.updated_by, ci.created_at, ci.updated_at, ci.version " +
                     "FROM config_item ci " +
-                    "LEFT JOIN config_namespace ns ON ci.namespace_id = ns.id " +
-                    "LEFT JOIN config_group cg ON ci.group_id = cg.id " +
+                    "LEFT JOIN config_namespace ns ON ci.namespace = ns.name " +
+                    "LEFT JOIN config_group cg ON ci.group_name = cg.name AND cg.namespace = ci.namespace " +
                     "WHERE ci.id = ?";
             List<Map<String, Object>> items = jdbcTemplate.query(sql, configItemDetailRowMapper(), id);
             if (items.isEmpty()) {
@@ -451,6 +438,19 @@ public class ConfigController {
                 return ResponseEntity.badRequest().body(createError("namespaceId, groupId, key, value 不能为空"));
             }
 
+            String namespaceName = getNamespaceName(namespaceId);
+            if (namespaceName == null) {
+                return ResponseEntity.badRequest().body(createError("命名空间不存在: " + namespaceId));
+            }
+
+            GroupInfo groupInfo = getGroupInfo(groupId);
+            if (groupInfo == null) {
+                return ResponseEntity.badRequest().body(createError("配置分组不存在: " + groupId));
+            }
+            if (!namespaceName.equals(groupInfo.namespace())) {
+                return ResponseEntity.badRequest().body(createError("分组不属于指定命名空间"));
+            }
+
             // 验证 variant 是否为有效的 JSON
             if (variant != null && !variant.isBlank()) {
                 try {
@@ -460,11 +460,11 @@ public class ConfigController {
                 }
             }
 
-            String sql = "INSERT INTO config_item (namespace_id, group_id, `key`, `value`, variant, type, enabled, description, updated_by) " +
+            String sql = "INSERT INTO config_item (`namespace`, group_name, `key`, `value`, variants, type, enabled, description, updated_by) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             // variant 列为 JSON 类型，空串会触发 MySQL JSON 校验失败；应传 NULL
             String variantParam = (variant == null || variant.isBlank()) ? null : variant;
-            jdbcTemplate.update(sql, namespaceId, groupId, key, value, variantParam, type, enabled ? 1 : 0, description, updatedBy);
+            jdbcTemplate.update(sql, namespaceName, groupInfo.name(), key, value, variantParam, type, enabled ? 1 : 0, description, updatedBy);
 
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
@@ -513,7 +513,7 @@ public class ConfigController {
                 params.add(value);
             }
             if (variant != null) {
-                sql.append(", variant = ?");
+                sql.append(", variants = ?");
                 params.add(variant.isBlank() ? null : variant);
             }
             if (type != null) {
@@ -599,7 +599,8 @@ public class ConfigController {
         return (rs, rowNum) -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", rs.getLong("id"));
-            map.put("namespaceId", rs.getLong("namespace_id"));
+            Object nsIdObj = rs.getObject("namespace_id");
+            map.put("namespaceId", nsIdObj == null ? null : rs.getLong("namespace_id"));
             map.put("namespaceName", rs.getString("namespace_name"));
             map.put("name", rs.getString("name"));
             map.put("description", rs.getString("description"));
@@ -616,13 +617,15 @@ public class ConfigController {
         return (rs, rowNum) -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", rs.getLong("id"));
-            map.put("namespaceId", rs.getLong("namespace_id"));
-            map.put("groupId", rs.getLong("group_id"));
+            Object nsIdObj = rs.getObject("namespace_id");
+            Object groupIdObj = rs.getObject("group_id");
+            map.put("namespaceId", nsIdObj == null ? null : rs.getLong("namespace_id"));
+            map.put("groupId", groupIdObj == null ? null : rs.getLong("group_id"));
             map.put("namespaceName", rs.getString("namespace_name"));
             map.put("groupName", rs.getString("group_name"));
             map.put("key", rs.getString("key"));
             map.put("value", rs.getString("value"));
-            map.put("variant", rs.getString("variant"));
+            map.put("variant", rs.getString("variants"));
             map.put("type", rs.getString("type"));
             map.put("enabled", rs.getBoolean("enabled"));
             map.put("description", rs.getString("description"));
@@ -659,6 +662,40 @@ public class ConfigController {
         Map<String, Object> error = new HashMap<>();
         error.put("error", message);
         return error;
+    }
+
+    private String getNamespaceName(Long namespaceId) {
+        if (namespaceId == null) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT name FROM config_namespace WHERE id = ?",
+                    String.class,
+                    namespaceId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    private GroupInfo getGroupInfo(Long groupId) {
+        if (groupId == null) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT id, name, namespace FROM config_group WHERE id = ?",
+                    (rs, rowNum) -> new GroupInfo(
+                            rs.getLong("id"),
+                            rs.getString("name"),
+                            rs.getString("namespace")),
+                    groupId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    private record GroupInfo(Long id, String name, String namespace) {
     }
 }
 

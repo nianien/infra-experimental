@@ -1,5 +1,7 @@
 package com.ddm.chaos.defined;
 
+import com.ddm.chaos.provider.DataProvider;
+
 /**
  * 配置项，表示从数据源（如数据库）读取的完整配置数据。
  * <p>
@@ -12,7 +14,7 @@ package com.ddm.chaos.defined;
  *   <li><strong>variants</strong>：变体配置 JSON 字符串，格式如 {"gray":"value1", "blue":"value2"}，用于不同标签的配置覆盖</li>
  * </ul>
  *
- * <p>该 record 通常由 {@link com.ddm.chaos.provider.DataProvider} 从数据源加载并返回。
+ * <p>该 record 通常由 {@link DataProvider} 从数据源加载并返回。
  *
  * @author liyifei
  * @see ConfRef

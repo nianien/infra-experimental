@@ -1,5 +1,6 @@
 package com.ddm.chaos.annotation;
 
+import com.ddm.chaos.config.ConfigResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Indexed;
 
@@ -39,7 +40,7 @@ import java.lang.annotation.*;
  * }</pre>
  *
  * @author liyifei
- * @see com.ddm.chaos.config.ConfigResolver
+ * @see ConfigResolver
  * @since 1.0
  */
 @Target({ElementType.FIELD, ElementType.PARAMETER})

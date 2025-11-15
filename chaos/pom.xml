@@ -10,8 +10,14 @@
     </parent>
 
     <artifactId>chaos</artifactId>
+    <packaging>pom</packaging>
 
-
+    <modules>
+        <module>chaos-core</module>
+        <module>chaos-client</module>
+        <module>chaos-server</module>
+        <module>chaos-web</module>
+    </modules>
     <dependencies>
         <!-- Spring Boot/Framework（作为 Starter，均标记 provided） -->
         <dependency>
