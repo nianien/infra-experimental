@@ -16,7 +16,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,6 +29,7 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>基础数值类型（byte, short, int, long, float, double, BigInteger, BigDecimal）</li>
  *   <li>时间类型（Duration, Instant, LocalDate, LocalDateTime, OffsetDateTime, ZonedDateTime, Date）</li>
+ *   <li>数组和列表类型（支持逗号分隔的字符串，如 "abc,xyz" → List&lt;String&gt; 或 String[]）</li>
  *   <li>JSON 对象/数组的反序列化</li>
  *   <li>字符串类型</li>
  * </ul>
@@ -44,6 +47,10 @@ import java.util.regex.Pattern;
  *
  * // JSON 反序列化
  * MyObject obj = Converters.cast("{\"name\":\"test\"}", MyObject.class);
+ *
+ * // 数组和列表转换（逗号分隔）
+ * List&lt;String&gt; list = Converters.cast("abc,xyz", new TypeReference&lt;List&lt;String&gt;&gt;(){}.getType());
+ * String[] array = Converters.cast("abc,xyz", String[].class);
  * }</pre>
  *
  * <p><strong>特性：</strong>
@@ -108,12 +115,13 @@ public final class Converters {
      *   <li>如果 raw 为 null，直接返回 null</li>
      *   <li>如果 raw 已经是目标类型，直接转换返回</li>
      *   <li>将 raw 转换为字符串后，根据目标类型进行相应转换：
-     *     <ul>
-     *       <li>基础数值类型：解析字符串为对应数值</li>
-     *       <li>时间类型：解析 ISO-8601、epoch 时间戳等格式</li>
-     *       <li>JSON 对象/数组：使用 Jackson 反序列化</li>
-     *       <li>其他类型：尝试直接类型转换</li>
-     *     </ul>
+ *     <ul>
+ *       <li>基础数值类型：解析字符串为对应数值</li>
+ *       <li>时间类型：解析 ISO-8601、epoch 时间戳等格式</li>
+ *       <li>数组/列表类型：解析逗号分隔的字符串为数组或 List</li>
+ *       <li>JSON 对象/数组：使用 Jackson 反序列化</li>
+ *       <li>其他类型：尝试直接类型转换</li>
+ *     </ul>
      *   </li>
      * </ol>
      *
@@ -159,6 +167,12 @@ public final class Converters {
             T timeResult = convertTimeType(str, clazz);
             if (timeResult != null) {
                 return timeResult;
+            }
+
+            // 数组或列表类型（支持逗号分隔的字符串）
+            T arrayOrListResult = convertArrayOrListType(str, type);
+            if (arrayOrListResult != null) {
+                return arrayOrListResult;
             }
 
             // JSON 对象/数组反序列化（最耗时，最后处理）
@@ -242,6 +256,116 @@ public final class Converters {
             log.debug("Time type conversion failed: str='{}', type={}, error: {}",
                     str, type.getSimpleName(), e.getClass().getSimpleName());
             return null;
+        }
+    }
+
+    /**
+     * 转换数组或列表类型。
+     * <p>
+     * 支持将逗号分隔的字符串解析为数组或 List。
+     * 例如：{@code "abc,xyz"} → {@code List<String>} 或 {@code String[]}
+     *
+     * @param <T> 目标类型
+     * @param str  待转换的字符串（逗号分隔）
+     * @param type 目标类型（数组类型或 List 类型）
+     * @return 转换后的数组或列表，如果类型不匹配或转换失败返回 null
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> T convertArrayOrListType(String str, Type type) {
+        Class<?> rawClass = getRawClass(type);
+        
+        // 检查是否为数组类型
+        if (rawClass.isArray()) {
+            try {
+                Class<?> componentType = rawClass.getComponentType();
+                return (T) parseCommaSeparatedString(str, componentType, true);
+            } catch (Exception e) {
+                log.debug("Array conversion failed: str='{}', type={}, error: {}",
+                        str, type.getTypeName(), e.getMessage());
+                return null;
+            }
+        }
+        
+        // 检查是否为 List 类型
+        if (List.class.isAssignableFrom(rawClass)) {
+            try {
+                // 提取 List 的泛型参数类型
+                Type elementType = Object.class;
+                if (type instanceof ParameterizedType parameterizedType) {
+                    Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+                    if (actualTypeArguments.length > 0) {
+                        elementType = actualTypeArguments[0];
+                    }
+                }
+                
+                Class<?> elementClass = getRawClass(elementType);
+                List<Object> list = parseCommaSeparatedString(str, elementClass, false);
+                if (list != null) {
+                    return (T) new ArrayList<>(list);
+                }
+            } catch (Exception e) {
+                log.debug("List conversion failed: str='{}', type={}, error: {}",
+                        str, type.getTypeName(), e.getMessage());
+                return null;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * 解析逗号分隔的字符串为数组或列表。
+     *
+     * @param str           逗号分隔的字符串
+     * @param elementType   元素类型
+     * @param returnArray   如果为 true，返回数组；如果为 false，返回 List
+     * @return 解析后的数组或列表，如果解析失败返回 null
+     */
+    @SuppressWarnings("unchecked")
+    private static <E> E parseCommaSeparatedString(String str, Class<?> elementType, boolean returnArray) {
+        if (str == null || str.isBlank()) {
+            return returnArray ? (E) Array.newInstance(elementType, 0) : (E) new ArrayList<>();
+        }
+        
+        // 如果字符串看起来像 JSON 数组（以 [ 开头），不处理，让 JSON 解析器处理
+        String trimmed = str.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            return null;
+        }
+        
+        // 按逗号分割
+        String[] parts = str.split(",");
+        List<Object> list = new ArrayList<>();
+        
+        for (String part : parts) {
+            String trimmedPart = part.trim();
+            if (trimmedPart.isEmpty()) {
+                continue;
+            }
+            
+            // 递归调用 cast 方法转换每个元素
+            Object element = cast(trimmedPart, elementType);
+            if (element != null) {
+                list.add(element);
+            } else {
+                // 如果转换失败，尝试作为字符串添加（对于 String 类型）
+                if (elementType == String.class) {
+                    list.add(trimmedPart);
+                } else {
+                    log.debug("Failed to convert element '{}' to type {}, skipping", trimmedPart, elementType.getSimpleName());
+                }
+            }
+        }
+        
+        if (returnArray) {
+            // 转换为数组
+            Object array = Array.newInstance(elementType, list.size());
+            for (int i = 0; i < list.size(); i++) {
+                Array.set(array, i, list.get(i));
+            }
+            return (E) array;
+        } else {
+            return (E) list;
         }
     }
 
