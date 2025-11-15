@@ -5,6 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>配置管理中心</title>
     <style>
+        :root {
+            /* 清新主题色彩变量 */
+            --primary: #22c55e;
+            --primary-hover: #16a34a;
+            --primary-light: #86efac;
+            --primary-bg: #f0fdf4;
+            --primary-border: #bbf7d0;
+            
+            --success: #10b981;
+            --success-light: #d1fae5;
+            
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --danger-light: #fee2e2;
+            
+            --secondary: #6b7280;
+            --secondary-hover: #4b5563;
+            
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-hover: #f3f4f6;
+            
+            --border-color: #e5e7eb;
+            --border-light: #f3f4f6;
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,210 +52,305 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f5f7fa;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #f0fdf4 0%, #f9fafb 100%);
+            color: var(--text-primary);
             line-height: 1.6;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
             color: white;
-            padding: 20px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px 40px;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
         }
 
         .header h1 {
+            position: relative;
+            z-index: 1;
             font-size: 24px;
-            margin-bottom: 5px;
-        }
-
-        .header p {
-            opacity: 0.9;
-            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin: 0;
         }
 
         .container {
-            max-width: 1400px;
-            margin: 30px auto;
-            padding: 0 20px;
+            max-width: 1600px;
+            margin: 24px auto;
+            padding: 0 32px;
         }
 
-        .nav-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .nav-tab {
+        /* 面包屑导航 */
+        #breadcrumb {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
             padding: 12px 24px;
-            cursor: pointer;
-            background: none;
-            border: none;
-            font-size: 16px;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            font-size: 14px;
         }
 
-        .nav-tab:hover {
-            color: #667eea;
+        #breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
         }
 
-        .nav-tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-            font-weight: 600;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
+        #breadcrumb a:hover {
+            color: var(--primary-hover);
         }
 
         .card {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
         }
 
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
         }
 
         .card-header h2 {
-            font-size: 20px;
-            color: #333;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .btn {
             padding: 10px 20px;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.3s;
             font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            line-height: 1.5;
         }
 
         .btn-primary {
-            background: #667eea;
+            background: var(--primary);
             color: white;
+            box-shadow: var(--shadow-sm);
         }
 
         .btn-primary:hover {
-            background: #5568d3;
+            background: var(--primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+            box-shadow: var(--shadow-md);
         }
 
-        .btn-danger {
-            background: #e74c3c;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c0392b;
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-sm);
         }
 
         .btn-success {
-            background: #27ae60;
+            background: var(--success);
             color: white;
+            box-shadow: var(--shadow-sm);
         }
 
         .btn-success:hover {
-            background: #229954;
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
 
         .btn-secondary {
-            background: #95a5a6;
-            color: white;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
         }
 
         .btn-secondary:hover {
-            background: #7f8c8d;
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--border-color);
         }
 
         .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
+            padding: 6px 14px;
+            font-size: 13px;
         }
 
         table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+            background: transparent;
         }
 
-        th, td {
-            padding: 12px;
+        table thead {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+            color: white;
+        }
+
+        table thead th {
+            padding: 16px 20px;
             text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        th {
-            background-color: #f8f9fa;
             font-weight: 600;
-            color: #555;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: white;
             position: sticky;
             top: 0;
+            z-index: 10;
         }
 
-        tr:hover {
-            background-color: #f8f9fa;
+        table thead th:first-child {
+            border-top-left-radius: var(--radius-md);
+        }
+
+        table thead th:last-child {
+            border-top-right-radius: var(--radius-md);
+        }
+
+        table tbody tr {
+            transition: background-color 0.15s ease;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        table tbody tr:last-child {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        table tbody tr:hover {
+            background-color: var(--primary-bg);
+        }
+
+        table tbody tr:nth-child(even) {
+            background-color: var(--bg-secondary);
+        }
+
+        table tbody tr:nth-child(even):hover {
+            background-color: var(--primary-bg);
+        }
+
+        table tbody td {
+            padding: 16px 20px;
+            font-size: 14px;
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+
+        table tbody tr:nth-child(odd) td {
+            background: var(--bg-primary);
+        }
+
+        table tbody tr:nth-child(even) td {
+            background: var(--bg-secondary);
+        }
+
+        table tbody tr:hover td {
+            background-color: var(--primary-bg) !important;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #555;
+            font-size: 14px;
+            color: var(--text-primary);
         }
 
         .form-group input,
         .form-group select,
         .form-group textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
             font-size: 14px;
-            transition: border-color 0.3s;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            transition: all 0.2s ease;
         }
 
         .form-group input:focus,
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+        }
+
+        .form-group input:read-only {
+            background: var(--bg-secondary);
+            cursor: not-allowed;
+            color: var(--text-secondary);
         }
 
         .form-group textarea {
             min-height: 100px;
-            font-family: 'Monaco', 'Menlo', monospace;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
             resize: vertical;
+            line-height: 1.6;
         }
 
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 24px;
         }
 
         .modal {
@@ -225,143 +360,155 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
             z-index: 1000;
             overflow-y: auto;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .modal.active {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 24px;
         }
 
         .modal-content {
-            background: white;
-            border-radius: 8px;
-            padding: 30px;
-            max-width: 700px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: 36px;
+            max-width: 720px;
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border-light);
+            animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-24px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
         }
 
         .modal-header h3 {
-            font-size: 22px;
-            color: #333;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
         }
 
         .close-btn {
-            background: none;
+            background: var(--bg-secondary);
             border: none;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
-            color: #999;
+            color: var(--text-secondary);
             padding: 0;
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .close-btn:hover {
-            color: #333;
-        }
-
-        /* 删除确认模态框简洁样式 */
-        #delete-confirm-modal .modal-content {
-            animation: fadeInUp 0.2s ease;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        #delete-confirm-btn {
             transition: all 0.2s ease;
         }
 
-        #delete-confirm-btn:hover {
-            opacity: 0.9;
+        .close-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        /* 删除确认模态框 */
+        #delete-confirm-modal .modal-content {
+            max-width: 480px;
         }
 
         .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
             font-size: 12px;
             font-weight: 500;
+            line-height: 1.5;
         }
 
         .badge-success {
-            background: #d4edda;
-            color: #155724;
+            background: var(--success-light);
+            color: #065f46;
         }
 
         .badge-danger {
-            background: #f8d7da;
-            color: #721c24;
+            background: var(--danger-light);
+            color: #991b1b;
         }
 
         .badge-primary {
-            background: #cfe2ff;
-            color: #084298;
+            background: var(--primary-light);
+            color: #14532d;
         }
 
         .alert {
-            padding: 12px 16px;
-            border-radius: 6px;
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
             margin-bottom: 20px;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background: var(--success-light);
+            color: #065f46;
+            border-color: var(--success);
         }
 
         .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: var(--danger-light);
+            color: #991b1b;
+            border-color: var(--danger);
         }
 
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #999;
+            padding: 60px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
         }
 
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
-            color: #999;
+            padding: 80px 20px;
+            color: var(--text-muted);
         }
 
-        .empty-state svg {
-            width: 64px;
-            height: 64px;
+        .empty-state p {
+            font-size: 16px;
             margin-bottom: 20px;
-            opacity: 0.5;
         }
 
         .action-buttons {
@@ -372,7 +519,7 @@
             white-space: nowrap;
         }
 
-        table tbody td:last-child {
+        table tbody td.action-buttons-cell {
             text-align: center;
             white-space: nowrap;
         }
@@ -380,16 +527,13 @@
         .checkbox-group {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .checkbox-group input[type="checkbox"] {
-            width: auto;
-        }
-
-        .json-editor {
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 13px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
         }
 
         .view-content {
@@ -398,6 +542,7 @@
 
         .view-content.active {
             display: block;
+            animation: fadeIn 0.3s ease;
         }
 
         .clickable-row {
@@ -405,13 +550,13 @@
         }
 
         .clickable-row:hover {
-            background-color: #f0f4ff !important;
+            background-color: var(--primary-bg) !important;
         }
 
         .variant-row {
             display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 12px;
+            margin-bottom: 12px;
             align-items: center;
         }
 
@@ -420,7 +565,7 @@
         }
 
         .variant-row .variant-key {
-            flex: 0 0 150px;
+            flex: 0 0 160px;
         }
 
         .variant-row .variant-value {
@@ -428,121 +573,60 @@
         }
 
         .variant-container {
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 15px;
-            background-color: #fafafa;
+            border: 1px solid var(--primary-border);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            background: var(--primary-bg);
         }
 
         .variant-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 16px;
         }
 
         .variant-header label {
             margin: 0;
             font-weight: 500;
             font-size: 14px;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .card-header h2 {
-            margin: 0;
-            font-size: 24px;
-            color: #333;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            color: var(--text-primary);
         }
 
         .card-header .title-info {
-            font-size: 14px;
-            color: #666;
-            font-weight: normal;
-            margin-left: 8px;
+            font-size: 15px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-left: 12px;
         }
 
         .card-header .title-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            background: #667eea;
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            background: var(--primary);
             color: white;
-            border-radius: 12px;
+            border-radius: 20px;
             font-size: 13px;
             font-weight: 500;
-            margin-left: 8px;
+            margin-left: 12px;
+            box-shadow: var(--shadow-sm);
         }
 
         .card-header .actions {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: center;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        table thead {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        table thead th {
-            padding: 14px 16px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        table tbody tr {
-            border-bottom: 1px solid #f0f0f0;
-            transition: background-color 0.2s;
-        }
-
-        table tbody tr:hover {
-            background-color: #f8f9ff;
-        }
-
-        table tbody tr:last-child {
-            border-bottom: none;
-        }
-
-        table tbody td {
-            padding: 14px 16px;
-            font-size: 14px;
-            color: #333;
-            vertical-align: middle;
-        }
-
-        table tbody td.action-buttons-cell {
-            text-align: center;
-            white-space: nowrap;
-        }
-
         table tbody td code {
-            background: #f5f5f5;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Monaco', 'Menlo', monospace;
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
             font-size: 13px;
-            color: #e83e8c;
+            color: var(--text-primary);
+            border: none;
         }
 
         table tbody td .badge {
@@ -550,39 +634,88 @@
             padding: 4px 10px;
         }
 
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .container {
+                padding: 0 24px;
+            }
+
+            .card {
+                padding: 24px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .card-header .actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
         @media (max-width: 768px) {
+            .header {
+                padding: 24px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .container {
+                margin: 24px auto;
+                padding: 0 16px;
+            }
+
+            .card {
+                padding: 20px;
+                border-radius: var(--radius-lg);
+            }
+
             .form-row {
                 grid-template-columns: 1fr;
+                gap: 20px;
             }
 
             .modal-content {
-                padding: 20px;
+                padding: 24px;
+                margin: 16px;
             }
 
-            table {
-                font-size: 14px;
+            table thead th,
+            table tbody td {
+                padding: 12px 16px;
+                font-size: 13px;
             }
 
-            th, td {
-                padding: 8px;
+            .btn-sm {
+                padding: 5px 12px;
+                font-size: 12px;
+            }
+
+            .action-buttons {
+                flex-wrap: wrap;
+                gap: 6px;
             }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>⚙️ 配置管理中心</h1>
-        <p>管理配置命名空间、分组和配置项</p>
+        <h1>🌿 配置管理中心</h1>
     </div>
 
     <div class="container">
         <!-- 面包屑导航 -->
-        <div id="breadcrumb" style="margin-bottom: 20px; padding: 12px 16px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <span style="color: #666; margin-right: 8px;">📂</span>
-            <a href="javascript:void(0)" onclick="showNamespaces()" style="color: #667eea; text-decoration: none; font-weight: 500;">命名空间列表</a>
-            <span id="breadcrumb-separator1" style="display: none; color: #999; margin: 0 10px;">›</span>
+        <div id="breadcrumb" style="margin-bottom: 20px; padding: 14px 18px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(52, 211, 153, 0.12), 0 1px 3px rgba(0,0,0,0.05); border: 1px solid rgba(52, 211, 153, 0.25);">
+            <span style="color: #059669; margin-right: 8px; font-size: 16px;">📂</span>
+            <a href="javascript:void(0)" onclick="showNamespaces()" style="color: #059669; text-decoration: none; font-weight: 500; transition: color 0.2s;">命名空间列表</a>
+            <span id="breadcrumb-separator1" style="display: none; color: #10b981; margin: 0 10px; font-weight: 500;">›</span>
             <span id="breadcrumb-namespace" style="display: none;"></span>
-            <span id="breadcrumb-separator2" style="display: none; color: #999; margin: 0 10px;">›</span>
+            <span id="breadcrumb-separator2" style="display: none; color: #10b981; margin: 0 10px; font-weight: 500;">›</span>
             <span id="breadcrumb-group" style="display: none;"></span>
         </div>
 
@@ -695,12 +828,12 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="item-namespace">命名空间 *</label>
-                        <input type="text" id="item-namespace" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                        <input type="text" id="item-namespace" readonly>
                         <input type="hidden" id="item-namespace-id">
                     </div>
                     <div class="form-group">
                         <label for="item-group">配置分组 *</label>
-                        <input type="text" id="item-group" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                        <input type="text" id="item-group" readonly>
                         <input type="hidden" id="item-group-id">
                     </div>
                 </div>
@@ -735,7 +868,7 @@
                         <div id="variant-rows">
                             <!-- 动态添加的环境值行 -->
                         </div>
-                        <small style="color: #999; display: block; margin-top: 10px;">用于不同环境的配置覆盖，例如：gray=gray-value, blue=blue-value</small>
+                        <small style="color: var(--text-muted); display: block; margin-top: 10px;">用于不同环境的配置覆盖，例如：gray=gray-value, blue=blue-value</small>
                     </div>
                 </div>
                 <div class="form-group">
@@ -768,7 +901,7 @@
                 <input type="hidden" id="group-id">
                 <div class="form-group">
                     <label for="group-namespace-id">命名空间 *</label>
-                    <input type="text" id="group-namespace-name" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+                    <input type="text" id="group-namespace-name" readonly>
                     <input type="hidden" id="group-namespace-id" required>
                 </div>
                 <div class="form-group">
@@ -825,13 +958,13 @@
                 <button class="close-btn" onclick="closeDeleteConfirmModal()">&times;</button>
             </div>
             <div style="padding: 30px;">
-                <div id="delete-confirm-message" style="font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 20px;">
+                <div id="delete-confirm-message" style="font-size: 15px; color: var(--text-primary); line-height: 1.6; margin-bottom: 20px;">
                     <!-- 动态填充消息 -->
                 </div>
-                <div id="delete-confirm-warning" style="background: #f8f9fa; border-left: 3px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 20px; color: #666; font-size: 14px; display: none;">
+                <div id="delete-confirm-warning" style="background: var(--bg-secondary); border-left: 3px solid #f59e0b; border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px; color: var(--text-secondary); font-size: 14px; display: none;">
                     <span id="delete-warning-text"></span>
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #f0f0f0;">
+                <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 24px; border-top: 1px solid var(--border-light);">
                     <button type="button" class="btn btn-secondary" onclick="closeDeleteConfirmModal()" style="min-width: 90px;">取消</button>
                     <button type="button" id="delete-confirm-btn" class="btn btn-danger" style="min-width: 90px;">
                         删除
@@ -928,7 +1061,7 @@
             if (currentNamespace) {
                 separator1.style.display = 'inline';
                 namespaceSpan.style.display = 'inline';
-                namespaceSpan.innerHTML = `<span style="color: #999; font-size: 13px; margin-right: 4px;">命名空间:</span><a href="javascript:void(0)" onclick="showGroups(${currentNamespace.id}, '${escapeHtml(currentNamespace.name)}')" style="color: #667eea; text-decoration: none; font-weight: 500;">${escapeHtml(currentNamespace.name)}</a>`;
+                namespaceSpan.innerHTML = `<span style="color: #999; font-size: 13px; margin-right: 4px;">命名空间:</span><a href="javascript:void(0)" onclick="showGroups(${currentNamespace.id}, '${escapeHtml(currentNamespace.name)}')" style="color: #059669; text-decoration: none; font-weight: 500;">${escapeHtml(currentNamespace.name)}</a>`;
             } else {
                 separator1.style.display = 'none';
                 namespaceSpan.style.display = 'none';
@@ -937,7 +1070,7 @@
             if (currentGroup) {
                 separator2.style.display = 'inline';
                 groupSpan.style.display = 'inline';
-                groupSpan.innerHTML = `<span style="color: #999; font-size: 13px; margin-right: 4px;">分组:</span><span style="color: #333; font-weight: 500;">${escapeHtml(currentGroup.name)}</span>`;
+                groupSpan.innerHTML = `<span style="color: var(--text-muted); font-size: 13px; margin-right: 6px;">分组:</span><span style="color: var(--primary); font-weight: 500;">${escapeHtml(currentGroup.name)}</span>`;
             } else {
                 separator2.style.display = 'none';
                 groupSpan.style.display = 'none';
@@ -1014,12 +1147,12 @@
                             </td>
                             <td>
                                 ${variantDisplay !== '-' 
-                                    ? `<code style="max-width: 250px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: pre-wrap; font-size: 12px; background: #f5f5f5; padding: 4px 6px; border-radius: 3px;" title="${escapeHtml(variantDisplay)}">${escapeHtml(variantDisplay)}</code>`
-                                    : '<span style="color: #999; font-style: italic;">-</span>'}
+                                    ? `<code style="max-width: 250px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: pre-wrap; font-size: 12px; padding: 4px 6px; border-radius: 3px;" title="${escapeHtml(variantDisplay)}">${escapeHtml(variantDisplay)}</code>`
+                                    : '<span style="color: var(--text-muted); font-style: italic;">-</span>'}
                             </td>
                             <td><span class="badge badge-primary">${item.type || 'string'}</span></td>
                             <td>${item.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-danger">禁用</span>'}</td>
-                            <td style="color: #666; font-size: 13px;">${item.updatedAt || '-'}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${item.updatedAt || '-'}</td>
                             <td class="action-buttons-cell">
                                 <div class="action-buttons">
                                     <button class="btn btn-primary btn-sm" onclick="editItem(${item.id})">编辑</button>
@@ -1088,9 +1221,9 @@
                     table.style.display = 'table';
                     tbody.innerHTML = groups.map(group => `
                         <tr>
-                            <td><strong style="color: #333; font-size: 15px;">${escapeHtml(group.name)}</strong></td>
-                            <td style="color: #666;">${escapeHtml(group.description || '-')}</td>
-                            <td style="color: #666; font-size: 13px;">${group.createdAt || '-'}</td>
+                            <td><strong style="color: var(--text-primary); font-size: 15px;">${escapeHtml(group.name)}</strong></td>
+                            <td style="color: var(--text-secondary);">${escapeHtml(group.description || '-')}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${group.createdAt || '-'}</td>
                             <td class="action-buttons-cell">
                                 <div class="action-buttons">
                                     <button class="btn btn-success btn-sm" onclick="showItems(${group.id}, '${escapeHtml(group.name)}')">详情</button>
@@ -1143,10 +1276,10 @@
                     table.style.display = 'table';
                     tbody.innerHTML = namespaces.map(ns => `
                         <tr>
-                            <td><strong style="color: #333; font-size: 15px;">${escapeHtml(ns.name)}</strong></td>
-                            <td style="color: #666;">${escapeHtml(ns.description || '-')}</td>
-                            <td style="color: #666;">${escapeHtml(ns.owner || '-')}</td>
-                            <td style="color: #666; font-size: 13px;">${ns.createdAt || '-'}</td>
+                            <td><strong style="color: var(--text-primary); font-size: 15px;">${escapeHtml(ns.name)}</strong></td>
+                            <td style="color: var(--text-secondary);">${escapeHtml(ns.description || '-')}</td>
+                            <td style="color: var(--text-secondary);">${escapeHtml(ns.owner || '-')}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${ns.createdAt || '-'}</td>
                             <td class="action-buttons-cell">
                                 <div class="action-buttons">
                                     <button class="btn btn-success btn-sm" onclick="showGroups(${ns.id}, '${escapeHtml(ns.name)}')">详情</button>
@@ -1657,7 +1790,7 @@
                 // 键名不可修改
                 keyInput.value = item.key;
                 keyInput.readOnly = true;
-                keyInput.style.backgroundColor = '#f5f5f5';
+                // 只读输入框样式由CSS控制
                 keyInput.style.cursor = 'not-allowed';
                 
                 document.getElementById('item-value').value = item.value;
