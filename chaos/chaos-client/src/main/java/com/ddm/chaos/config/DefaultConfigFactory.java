@@ -98,7 +98,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
                 .build(this::loadData);
 
         log.info("Config factory initialized with provider '{}' (ttl={})",
-                provider.type(), props.ttl());
+                provider.getClass(), props.ttl());
     }
 
 
@@ -118,7 +118,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
             ConfItem item = provider.loadData(ref);
             if (item == null) {
                 String message = String.format("DataProvider '%s' returned null ConfigItem for %s",
-                        provider.type(), ref);
+                        provider.getClass(), ref);
                 log.error(message);
                 throw new IllegalStateException(message);
             }
@@ -129,9 +129,9 @@ public final class DefaultConfigFactory implements ConfigFactory {
             // 重新抛出 IllegalStateException，不包装
             throw e;
         } catch (Exception e) {
-            log.error("Failed to load config item: {} (provider: {})", ref, provider.type(), e);
+            log.error("Failed to load config item: {} (provider: {})", ref, provider.getClass(), e);
             throw new IllegalStateException(
-                    String.format("Failed to load config item: %s (provider: %s)", ref, provider.type()), e);
+                    String.format("Failed to load config item: %s (provider: %s)", ref, provider.getClass()), e);
         }
     }
 
@@ -144,7 +144,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
         return () -> {
             try {
                 ConfData data = cache.get(ref);
-                T value = (T) data.getValue(desc);
+                T value = data.getValue(desc);
                 log.trace("Retrieved config value for {}: {}", ref, value);
                 return value;
             } catch (IllegalStateException e) {
@@ -186,19 +186,18 @@ public final class DefaultConfigFactory implements ConfigFactory {
     @PreDestroy
     @Override
     public void close() {
-        log.info("Shutting down config factory (provider: {})", provider.type());
+        log.info("Shutting down config factory (provider: {})", provider.getClass());
         try {
             refreshPool.shutdownNow();
             log.debug("Refresh pool shutdown completed");
         } catch (Exception e) {
             log.warn("Error while shutting down refresh pool", e);
         }
-
         try {
             provider.close();
-            log.debug("DataProvider '{}' closed successfully", provider.type());
+            log.debug("DataProvider '{}' closed successfully", provider.getClass());
         } catch (Exception e) {
-            log.warn("Failed to close provider '{}'", provider.type(), e);
+            log.warn("Failed to close provider '{}'", provider.getClass(), e);
         }
     }
 

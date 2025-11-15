@@ -12,17 +12,13 @@
     <artifactId>chaos-server</artifactId>
 
     <dependencies>
+        <!-- Chaos Core -->
         <dependency>
             <groupId>com.ddm</groupId>
             <artifactId>chaos-core</artifactId>
-            <version>1.0-SNAPSHOT</version>
         </dependency>
 
         <!-- gRPC Server -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-        </dependency>
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-server-spring-boot-starter</artifactId>
@@ -37,9 +33,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
+
+        <!-- MySQL Connector (optional, can be provided at runtime) -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 

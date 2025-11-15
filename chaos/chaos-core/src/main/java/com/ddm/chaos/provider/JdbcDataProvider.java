@@ -51,16 +51,6 @@ public class JdbcDataProvider implements DataProvider {
         this.jdbc = new NamedParameterJdbcTemplate(dataSource);
     }
 
-    /**
-     * 返回提供者类型标识。
-     *
-     * @return 提供者类型，固定返回 "jdbc"
-     */
-    @Override
-    public String type() {
-        return "jdbc";
-    }
-
 
     /**
      * 从数据库加载指定配置项的数据。
@@ -121,7 +111,6 @@ public class JdbcDataProvider implements DataProvider {
      *
      * @param rs     ResultSet
      * @param rowNum 行号（未使用）
-     * @return ConfItem 实例
      * @throws SQLException 如果读取 ResultSet 时发生错误
      */
     private ConfItem mapRowToConfItem(ResultSet rs, int rowNum) throws SQLException {

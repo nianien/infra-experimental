@@ -38,15 +38,6 @@ public class GrpcDataProvider implements DataProvider {
         this.stub = stub;
     }
 
-    /**
-     * 返回提供者类型标识。
-     *
-     * @return 提供者类型，固定返回 "grpc"
-     */
-    @Override
-    public String type() {
-        return "grpc";
-    }
 
     /**
      * 通过 gRPC 调用远程服务加载配置项。

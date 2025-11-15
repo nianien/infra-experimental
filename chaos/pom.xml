@@ -18,6 +18,41 @@
         <module>chaos-server</module>
         <module>chaos-web</module>
     </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Chaos 子模块版本统一管理 -->
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>chaos-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>chaos-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>chaos-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>chaos-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- MySQL Connector -->
+            <dependency>
+                <groupId>com.mysql</groupId>
+                <artifactId>mysql-connector-j</artifactId>
+                <version>9.1.0</version>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!-- Test Dependencies -->
         <dependency>

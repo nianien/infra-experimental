@@ -3,8 +3,6 @@ package com.ddm.chaos.provider;
 import com.ddm.chaos.defined.ConfItem;
 import com.ddm.chaos.defined.ConfRef;
 
-import java.util.Map;
-
 /**
  * 数据提供者接口，负责从数据源（数据库、Redis、HTTP API 等）拉取配置数据。
  *
@@ -49,8 +47,6 @@ import java.util.Map;
  */
 public interface DataProvider extends AutoCloseable {
 
-    String type();
-
 
     /**
      * 根据配置引用加载对应的配置记录。
@@ -60,21 +56,6 @@ public interface DataProvider extends AutoCloseable {
      */
     ConfItem loadData(ConfRef ref);
 
-    /**
-     * 使用配置参数初始化数据源。
-     *
-     * <p>该方法在数据提供者使用前调用，用于：
-     * <ul>
-     *   <li>建立数据源连接（数据库连接、HTTP 客户端等）</li>
-     *   <li>验证配置参数的有效性</li>
-     *   <li>初始化必要的资源</li>
-     * </ul>
-     *
-     * @param options 配置参数 Map，包含数据源所需的配置（如 url、username、password 等）
-     * @throws Exception 如果初始化失败，抛出异常
-     */
-    default void init(Map<String, String> options) {
-    }
 
     /**
      * 关闭数据提供者，释放相关资源。
