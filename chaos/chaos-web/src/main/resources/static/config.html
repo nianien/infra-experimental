@@ -604,7 +604,6 @@
                 <table id="namespaces-table" style="display: none;">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>名称</th>
                             <th>描述</th>
                             <th>负责人</th>
@@ -637,7 +636,6 @@
                 <table id="groups-table" style="display: none;">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>名称</th>
                             <th>描述</th>
                             <th>创建时间</th>
@@ -669,10 +667,9 @@
                 <table id="items-table" style="display: none;">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>配置项</th>
+                            <th>键名</th>
                             <th>默认值</th>
-                            <th>泳道值</th>
+                            <th>环境值</th>
                             <th>类型</th>
                             <th>状态</th>
                             <th>更新时间</th>
@@ -709,7 +706,7 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="item-key">配置项 (Key) *</label>
+                        <label for="item-key">键名 *</label>
                         <input type="text" id="item-key" required placeholder="例如: demo.name">
                     </div>
                     <div class="form-group">
@@ -732,13 +729,13 @@
                 <div class="form-group">
                     <div class="variant-container">
                         <div class="variant-header">
-                            <label>泳道值</label>
-                            <button type="button" class="btn btn-success btn-sm" onclick="addVariantRow()">+ 添加泳道</button>
+                            <label>环境值</label>
+                            <button type="button" class="btn btn-success btn-sm" onclick="addVariantRow()">+ 添加环境</button>
                         </div>
                         <div id="variant-rows">
-                            <!-- 动态添加的泳道值行 -->
+                            <!-- 动态添加的环境值行 -->
                         </div>
-                        <small style="color: #999; display: block; margin-top: 10px;">用于不同泳道的配置覆盖，例如：gray=gray-value, blue=blue-value</small>
+                        <small style="color: #999; display: block; margin-top: 10px;">用于不同环境的配置覆盖，例如：gray=gray-value, blue=blue-value</small>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1011,7 +1008,6 @@
                         
                         return `
                         <tr>
-                            <td style="color: #999; font-size: 13px;">#${item.id}</td>
                             <td><code>${escapeHtml(item.key)}</code></td>
                             <td>
                                 <code style="max-width: 200px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.value)}">${escapeHtml(item.value)}</code>
@@ -1092,7 +1088,6 @@
                     table.style.display = 'table';
                     tbody.innerHTML = groups.map(group => `
                         <tr>
-                            <td style="color: #999; font-size: 13px;">#${group.id}</td>
                             <td><strong style="color: #333; font-size: 15px;">${escapeHtml(group.name)}</strong></td>
                             <td style="color: #666;">${escapeHtml(group.description || '-')}</td>
                             <td style="color: #666; font-size: 13px;">${group.createdAt || '-'}</td>
@@ -1148,7 +1143,6 @@
                     table.style.display = 'table';
                     tbody.innerHTML = namespaces.map(ns => `
                         <tr>
-                            <td style="color: #999; font-size: 13px;">#${ns.id}</td>
                             <td><strong style="color: #333; font-size: 15px;">${escapeHtml(ns.name)}</strong></td>
                             <td style="color: #666;">${escapeHtml(ns.description || '-')}</td>
                             <td style="color: #666;">${escapeHtml(ns.owner || '-')}</td>
@@ -1537,7 +1531,7 @@
             const keyInput = document.createElement('input');
             keyInput.type = 'text';
             keyInput.className = 'variant-key';
-            keyInput.placeholder = '标签名 (如: gray)';
+            keyInput.placeholder = '环境名 (如: gray)';
             keyInput.value = key ?? '';
 
             const valueInput = document.createElement('input');
@@ -1660,7 +1654,7 @@
                 namespaceIdInput.value = namespaceId;
                 groupIdInput.value = groupId;
                 
-                // 配置项(Key)不可修改
+                // 键名不可修改
                 keyInput.value = item.key;
                 keyInput.readOnly = true;
                 keyInput.style.backgroundColor = '#f5f5f5';
@@ -1689,7 +1683,7 @@
                 namespaceIdInput.value = namespaceId;
                 groupIdInput.value = groupId;
                 
-                // 新建模式：配置项(Key)可编辑
+                // 新建模式：键名可编辑
                 keyInput.readOnly = false;
                 keyInput.style.backgroundColor = '';
                 keyInput.style.cursor = '';
