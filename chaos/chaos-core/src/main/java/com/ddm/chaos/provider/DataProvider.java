@@ -9,24 +9,16 @@ import com.ddm.chaos.defined.ConfRef;
  * <p><strong>职责：</strong>
  * <ul>
  *   <li>根据配置项引用（{@link ConfRef}）返回单条配置记录 {@link ConfItem}</li>
- *   <li>管理数据源生命周期（初始化、关闭）</li>
- *   <li>以 {@link #type()} 标识自身类型，便于 SPI 发现</li>
+ *   <li>提供资源关闭能力（通过 {@link AutoCloseable} 接口）</li>
  * </ul>
  *
  * <p><strong>实现示例：</strong>
  * <pre>{@code
  * public class JdbcDataProvider implements DataProvider {
- *     private NamedParameterJdbcTemplate jdbc;
+ *     private final NamedParameterJdbcTemplate jdbc;
  *
- *     @Override
- *     public void init(Map<String, String> options) {
- *         String url = must(options, "jdbc-url");
- *         DataSource ds = DataSourceBuilder.create()
- *                 .url(url)
- *                 .username(options.getOrDefault("username", ""))
- *                 .password(options.getOrDefault("password", ""))
- *                 .build();
- *         this.jdbc = new NamedParameterJdbcTemplate(ds);
+ *     public JdbcDataProvider(DataSource dataSource) {
+ *         this.jdbc = new NamedParameterJdbcTemplate(dataSource);
  *     }
  *
  *     @Override

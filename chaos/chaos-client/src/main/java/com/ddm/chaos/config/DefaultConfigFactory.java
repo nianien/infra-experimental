@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  *   <li><strong>配置缓存</strong>：使用 Caffeine LoadingCache 缓存配置数据，缓存键为 {@link ConfRef}</li>
  *   <li><strong>异步刷新</strong>：配置数据在 TTL 到期后异步刷新，读路径始终返回旧值，保证可用性</li>
  *   <li><strong>类型转换</strong>：支持将配置值转换为任意类型，转换结果在 {@link ConfData} 内部缓存</li>
- *   <li><strong>SPI 加载</strong>：通过 SPI 机制动态加载 {@link DataProvider} 实现</li>
+ *   <li><strong>数据提供者</strong>：通过构造函数接收 {@link DataProvider} 实例，由外部管理其生命周期</li>
  * </ul>
  *
  * <p><strong>缓存策略：</strong>
@@ -74,14 +74,14 @@ public final class DefaultConfigFactory implements ConfigFactory {
      * <p>
      * 初始化过程：
      * <ol>
-     *   <li>通过 SPI 机制加载并初始化指定的 DataProvider</li>
+     *   <li>接收已初始化的 DataProvider 实例</li>
      *   <li>创建用于异步刷新的线程池</li>
      *   <li>初始化 Caffeine 缓存，配置 TTL 和刷新策略</li>
      * </ol>
      *
-     * @param props 配置属性，不能为 null，必须包含有效的 ttl 和 provider
-     * @throws NullPointerException  如果 props 或其必需字段为 null
-     * @throws IllegalStateException 如果无法加载指定的 DataProvider
+     * @param provider 数据提供者实例，不能为 null，应由外部初始化
+     * @param props    配置属性，不能为 null，必须包含有效的 ttl
+     * @throws NullPointerException 如果 provider 或 props 或其必需字段为 null
      */
     public DefaultConfigFactory(DataProvider provider, ConfigProperties props) {
         Objects.requireNonNull(props.ttl(), "ttl");

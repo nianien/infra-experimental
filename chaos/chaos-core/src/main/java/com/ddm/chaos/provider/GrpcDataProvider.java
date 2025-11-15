@@ -11,16 +11,16 @@ import io.grpc.StatusRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 /**
  * 基于 gRPC 的数据提供者实现。
  * <p>
  * 通过 gRPC 调用远程配置服务来获取配置数据。
  * <p>
- * 配置参数：
- * <ul>
- *   <li><strong>grpc-url</strong>：gRPC 服务器地址，格式如 "localhost:9090"（必填）</li>
- *   <li><strong>timeout-seconds</strong>：请求超时时间（秒），默认 10 秒（可选）</li>
- * </ul>
+ * <strong>使用方式：</strong>
+ * 通过构造函数传入已配置的 gRPC 客户端存根（ConfigServiceBlockingStub），
+ * 由外部（如 Spring）管理 gRPC 通道的生命周期。
  *
  * @author liyifei
  * @see DataProvider
@@ -30,12 +30,19 @@ public class GrpcDataProvider implements DataProvider {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcDataProvider.class);
 
+    private final ConfigServiceGrpc.ConfigServiceBlockingStub stub;
 
-    private ConfigServiceGrpc.ConfigServiceBlockingStub stub;
-
-
+    /**
+     * 构造 gRPC 数据提供者。
+     * <p>
+     * 使用传入的 gRPC 客户端存根进行远程调用。
+     * 存根的生命周期由外部管理，本类不负责关闭。
+     *
+     * @param stub gRPC 客户端存根，不能为 null
+     * @throws NullPointerException 如果 stub 为 null
+     */
     public GrpcDataProvider(ConfigServiceBlockingStub stub) {
-        this.stub = stub;
+        this.stub = Objects.requireNonNull(stub, "stub cannot be null");
     }
 
 
@@ -48,11 +55,6 @@ public class GrpcDataProvider implements DataProvider {
      */
     @Override
     public ConfItem loadData(ConfRef ref) {
-        if (stub == null) {
-            String message = "GrpcDataProvider not initialized. Call init() first.";
-            log.error(message);
-            throw new IllegalStateException(message);
-        }
         try {
             log.debug("Loading config via gRPC: {}", ref);
 

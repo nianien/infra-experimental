@@ -15,13 +15,18 @@ import java.sql.SQLException;
 
 /**
  * 基于 JDBC 的数据提供者实现。
- * <p>从关系型数据库（MySQL、H2 等）中读取配置数据。
- * <p>支持的配置表结构：
+ * <p>
+ * 从关系型数据库（MySQL、H2 等）中读取配置数据。
+ * <p>
+ * 支持的配置表结构：
  * <ul>
  *   <li>config_namespace：命名空间表</li>
  *   <li>config_group：分组表</li>
- *   <li>config_item：配置项表（包含 key、value、variants 字段）</li>
+ *   <li>config_item：配置项表（包含 namespace、group_name、key、value、variants 字段）</li>
  * </ul>
+ *
+ * <p><strong>使用方式：</strong>
+ * 通过构造函数传入已配置的 DataSource，由外部（如 Spring）管理数据源的生命周期。
  *
  * @author liyifei
  * @see DataProvider
@@ -31,21 +36,16 @@ public class JdbcDataProvider implements DataProvider {
 
     private static final Logger log = LoggerFactory.getLogger(JdbcDataProvider.class);
 
-    private NamedParameterJdbcTemplate jdbc;
-
+    private final NamedParameterJdbcTemplate jdbc;
 
     /**
-     * 初始化 JDBC 数据源。
-     * <p>从配置中读取：
-     * <ul>
-     *   <li>命名空间（namespace）：必填</li>
-     *   <li>分组（groups）：可选，为空则查询所有分组</li>
-     *   <li>标签（tags）：可选，用于配置项变体计算</li>
-     *   <li>数据库连接信息（jdbc-url、username、password）：从 provider.options 中读取</li>
-     * </ul>
+     * 构造 JDBC 数据提供者。
+     * <p>
+     * 使用传入的 DataSource 创建 NamedParameterJdbcTemplate。
+     * DataSource 的生命周期由外部管理，本类不负责关闭。
      *
-     * @param dataSource 数据源
-     * @throws IllegalArgumentException 如果必填配置缺失
+     * @param dataSource 数据源，不能为 null
+     * @throws NullPointerException 如果 dataSource 为 null
      */
     public JdbcDataProvider(DataSource dataSource) {
         this.jdbc = new NamedParameterJdbcTemplate(dataSource);
@@ -64,12 +64,6 @@ public class JdbcDataProvider implements DataProvider {
      */
     @Override
     public ConfItem loadData(ConfRef ref) {
-        if (jdbc == null) {
-            String message = "JdbcDataProvider not initialized. Call init() first.";
-            log.error(message);
-            throw new IllegalStateException(message);
-        }
-
         String sql = """
                 SELECT
                     c.`namespace` AS `namespace`,
