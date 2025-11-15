@@ -51,6 +51,15 @@ public interface DataProvider extends AutoCloseable {
 
     String type();
 
+
+    /**
+     * 根据配置引用加载对应的配置记录。
+     *
+     * @param ref 配置项引用（命名空间 + 分组 + key），不会为 null
+     * @return 对应的配置项，如果不存在可抛出异常或返回 null（由实现决定）
+     */
+    ConfItem loadData(ConfRef ref);
+
     /**
      * 使用配置参数初始化数据源。
      *
@@ -64,15 +73,8 @@ public interface DataProvider extends AutoCloseable {
      * @param options 配置参数 Map，包含数据源所需的配置（如 url、username、password 等）
      * @throws Exception 如果初始化失败，抛出异常
      */
-    void init(Map<String, String> options);
-
-    /**
-     * 根据配置引用加载对应的配置记录。
-     *
-     * @param ref 配置项引用（命名空间 + 分组 + key），不会为 null
-     * @return 对应的配置项，如果不存在可抛出异常或返回 null（由实现决定）
-     */
-    ConfItem loadData(ConfRef ref);
+    default void init(Map<String, String> options) {
+    }
 
     /**
      * 关闭数据提供者，释放相关资源。

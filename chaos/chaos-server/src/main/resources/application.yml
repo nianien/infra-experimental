@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    chaos:
+      jdbc-url: jdbc:mysql://localhost:3306/test
+      username: root
+      password: root
+      hikari:
+        maximum-pool-size: 10
+        connection-timeout: 3000
+  sql:
+    init:
+      mode: never
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:9090}

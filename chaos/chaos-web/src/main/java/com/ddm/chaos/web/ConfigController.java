@@ -1,6 +1,5 @@
-package com.ddm.demo.client;
+package com.ddm.chaos.web;
 
-import com.ddm.chaos.config.ConfigProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,12 +9,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.web.bind.annotation.*;
 
 import javax.sql.DataSource;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 配置管理控制器，提供配置的 CRUD 操作。
@@ -42,25 +43,14 @@ public class ConfigController {
     /**
      * 构造函数，从 ConfigProperties 创建 DataSource 和 JdbcTemplate。
      *
-     * @param configProperties 配置属性
+     * @param dataSource 配置属性
      */
     @Autowired
-    public ConfigController(ConfigProperties configProperties) {
-        DataSource dataSource = createDataSource(configProperties);
+    public ConfigController(DataSource dataSource) {
         this.jdbcTemplate = new JdbcTemplate(dataSource);
     }
 
-    /**
-     * 从配置属性创建 DataSource。
-     */
-    private DataSource createDataSource(ConfigProperties props) {
-        Map<String, String> options = props.provider().options();
-        DriverManagerDataSource ds = new DriverManagerDataSource();
-        ds.setUrl(options.get("jdbc-url"));
-        ds.setUsername(options.getOrDefault("username", ""));
-        ds.setPassword(options.getOrDefault("password", ""));
-        return ds;
-    }
+
 
     /* ===================== 命名空间管理 ===================== */
 
@@ -228,7 +218,7 @@ public class ConfigController {
      * 创建配置分组。
      *
      * @param namespaceId 命名空间 ID
-     * @param request 分组信息
+     * @param request     分组信息
      * @return 创建结果
      */
     @PostMapping("/namespaces/{namespaceId}/groups")
@@ -359,13 +349,13 @@ public class ConfigController {
         try {
             StringBuilder sql = new StringBuilder(
                     "SELECT ci.id, ns.id AS namespace_id, COALESCE(ns.name, ci.namespace) AS namespace_name, " +
-                    "cg.id AS group_id, COALESCE(cg.name, ci.group_name) AS group_name, " +
-                    "ci.`key`, ci.`value`, ci.variants AS variants, ci.type, ci.enabled, ci.description, " +
-                    "ci.updated_by, ci.created_at, ci.updated_at, ci.version " +
-                    "FROM config_item ci " +
-                    "LEFT JOIN config_namespace ns ON ci.namespace = ns.name " +
-                    "LEFT JOIN config_group cg ON ci.group_name = cg.name AND cg.namespace = ci.namespace " +
-                    "WHERE 1=1");
+                            "cg.id AS group_id, COALESCE(cg.name, ci.group_name) AS group_name, " +
+                            "ci.`key`, ci.`value`, ci.variants AS variants, ci.type, ci.enabled, ci.description, " +
+                            "ci.updated_by, ci.created_at, ci.updated_at, ci.version " +
+                            "FROM config_item ci " +
+                            "LEFT JOIN config_namespace ns ON ci.namespace = ns.name " +
+                            "LEFT JOIN config_group cg ON ci.group_name = cg.name AND cg.namespace = ci.namespace " +
+                            "WHERE 1=1");
             List<Object> params = new ArrayList<>();
 
             if (namespaceId != null) {

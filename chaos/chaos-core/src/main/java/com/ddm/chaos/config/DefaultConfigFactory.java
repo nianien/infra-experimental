@@ -1,10 +1,9 @@
 package com.ddm.chaos.config;
 
-import com.ddm.chaos.config.ConfigProperties.Provider;
-import com.ddm.chaos.defined.ConfDesc;
-import com.ddm.chaos.defined.ConfRef;
-import com.ddm.chaos.defined.ConfItem;
 import com.ddm.chaos.defined.ConfData;
+import com.ddm.chaos.defined.ConfDesc;
+import com.ddm.chaos.defined.ConfItem;
+import com.ddm.chaos.defined.ConfRef;
 import com.ddm.chaos.provider.DataProvider;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
@@ -12,10 +11,7 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.ServiceLoader;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
@@ -62,7 +58,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
      * 数据提供者，用于从数据源加载配置数据
      */
     private final DataProvider provider;
-    
+
     /**
      * 配置属性
      */
@@ -87,11 +83,10 @@ public final class DefaultConfigFactory implements ConfigFactory {
      * @throws NullPointerException  如果 props 或其必需字段为 null
      * @throws IllegalStateException 如果无法加载指定的 DataProvider
      */
-    public DefaultConfigFactory(ConfigProperties props) {
+    public DefaultConfigFactory(DataProvider provider, ConfigProperties props) {
         Objects.requireNonNull(props.ttl(), "ttl");
-        Objects.requireNonNull(props.provider(), "provider");
         // 专用于 refresh 的后台线程（daemon）
-        this.provider = loadDataProvider(props.provider());
+        this.provider = provider;
         this.props = props;
         this.refreshPool = createRefreshExecutor();
 
@@ -122,12 +117,12 @@ public final class DefaultConfigFactory implements ConfigFactory {
         try {
             ConfItem item = provider.loadData(ref);
             if (item == null) {
-                String message = String.format("DataProvider '%s' returned null ConfigItem for %s", 
+                String message = String.format("DataProvider '%s' returned null ConfigItem for %s",
                         provider.type(), ref);
                 log.error(message);
                 throw new IllegalStateException(message);
             }
-            log.trace("Successfully loaded config item: {} (value length: {})", 
+            log.trace("Successfully loaded config item: {} (value length: {})",
                     ref, item.value() != null ? item.value().length() : 0);
             return new ConfData(item, props.tags());
         } catch (IllegalStateException e) {
@@ -158,7 +153,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
                 return (T) desc.defaultValue();
             } catch (Exception e) {
                 // 其他异常（如类型转换失败），记录警告并返回默认值
-                log.warn("Failed to get config value for {}, returning default value. Error: {}", 
+                log.warn("Failed to get config value for {}, returning default value. Error: {}",
                         ref, e.getMessage());
                 return (T) desc.defaultValue();
             }
@@ -198,7 +193,7 @@ public final class DefaultConfigFactory implements ConfigFactory {
         } catch (Exception e) {
             log.warn("Error while shutting down refresh pool", e);
         }
-        
+
         try {
             provider.close();
             log.debug("DataProvider '{}' closed successfully", provider.type());
@@ -207,47 +202,6 @@ public final class DefaultConfigFactory implements ConfigFactory {
         }
     }
 
-    /**
-     * 通过 SPI 机制加载指定类型的 DataProvider。
-     *
-     * @param pCfg Provider 类型（不区分大小写），不能为 null
-     * @return 对应的 DataProvider 实例，不会为 null
-     * @throws IllegalStateException 如果找不到指定类型的 DataProvider
-     */
-    private static DataProvider loadDataProvider(Provider pCfg) {
-        String type = pCfg.type();
-        Objects.requireNonNull(type, "provider type cannot be null");
-        ServiceLoader<DataProvider> loader =
-                ServiceLoader.load(DataProvider.class, Thread.currentThread().getContextClassLoader());
-        List<String> availableTypes = new ArrayList<>();
-        DataProvider foundProvider = null;
-        for (DataProvider provider : loader) {
-            String providerType = provider.type();
-            if (type.equalsIgnoreCase(providerType)) {
-                foundProvider = provider;
-                break;
-            }
-            availableTypes.add(providerType);
-        }
-        if (foundProvider != null) {
-            try {
-                foundProvider.init(pCfg.options());
-                log.info("DataProvider '{}' initialized successfully via SPI", type);
-                return foundProvider;
-            } catch (Exception e) {
-                String message = String.format("Failed to initialize DataProvider '%s'", type);
-                log.error(message, e);
-                throw new IllegalStateException(message, e);
-            }
-        }
-        String typesList = availableTypes.isEmpty()
-                ? "none"
-                : String.join(", ", availableTypes);
-        String message = String.format("No DataProvider found via SPI for type '%s'. Available types: %s",
-                type, typesList);
-        log.error(message);
-        throw new IllegalStateException(message);
-    }
 }
 
 

@@ -4,7 +4,14 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-
+#  datasource: #本地模式
+#    chaos:
+#      url: jdbc:mysql://localhost:3306/test
+#      username: root
+#      password: root
+#      hikari:
+#        maximum-pool-size: 10
+#        connection-timeout: 3000
 # Web 服务配置
 server:
   port: ${WEB_SERVER_PORT:8080}
@@ -26,6 +33,10 @@ grpc:
       address: static://localhost:8082
       negotiationType: plaintext
 
+    chaos-service: #rpc 模式
+      address: static://localhost:9090
+      negotiationType: plaintext
+
 # 日志配置
 logging:
   level:
@@ -37,20 +48,8 @@ logging:
 
 chaos:
   config-center:
-    namespace: com.ddm
-    groups: [ "cfd","se","common" ] #"cfd>se"
     tags: [ "gray", "hotfix" ]
     ttl: 30S
-    provider:
-      type: jdbc
-      options:
-        jdbc-url: jdbc:mysql://localhost:3306/test
-        username: root
-        password: root
-        hikari:
-          maximum-pool-size: 10
-          connection-timeout: 3000
-
 ---
 
 spring:
@@ -65,16 +64,3 @@ grpc:
     order-service:
       address: "cloud:///demo-order-rpc.test.local"
 
----
-
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-grpc:
-  client:
-    user-service:
-      address: "cloud:///demo-user-rpc.dev.local"
-    order-service:
-      address: "cloud:///demo-order-rpc.dev.local"

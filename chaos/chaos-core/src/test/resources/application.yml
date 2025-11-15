@@ -14,8 +14,6 @@ spring:
       data-locations: classpath:data-h2.sql
 chaos:
   config-center:
-    namespace: com.ddm
-    groups: [ "cfd" ]
     tags: [ gray, hotfix ]
     ttl: 30S
     provider:

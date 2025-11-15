@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package com.ddm.chaos.proto;
+
+option java_multiple_files = true;
+option java_package = "com.ddm.chaos.proto";
+option java_outer_classname = "ConfigProto";
+
+// 配置服务
+service ConfigService {
+  // 根据配置引用加载配置项
+  rpc LoadConfig(LoadConfigRequest) returns (LoadConfigResponse);
+}
+
+// 配置引用
+message ConfigRef {
+  string namespace = 1;
+  string group = 2;
+  string key = 3;
+}
+
+// 加载配置请求
+message LoadConfigRequest {
+  ConfigRef ref = 1;
+}
+
+// 配置项
+message ConfigItem {
+  string namespace = 1;
+  string group = 2;
+  string key = 3;
+  string value = 4;
+  string variants = 5;  // JSON 字符串
+}
+
+// 加载配置响应
+message LoadConfigResponse {
+  // 如果配置项不存在，not_found 为 true
+  bool not_found = 1;
+  // 配置项数据（当 not_found 为 false 时有效）
+  ConfigItem item = 2;
+}
+

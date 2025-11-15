@@ -31,7 +31,7 @@
         <!-- Chaos dynamic configuration starter -->
         <dependency>
             <groupId>com.ddm</groupId>
-            <artifactId>chaos</artifactId>
+            <artifactId>chaos-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
 

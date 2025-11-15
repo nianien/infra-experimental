@@ -59,13 +59,13 @@ public class WebController {
     /**
      * 用户服务 gRPC 客户端 Stub。
      */
-    @GrpcClient("user-service")
+//    @GrpcClient("user-service")
     private UserServiceGrpc.UserServiceBlockingStub userServiceStub;
 
     /**
      * 订单服务 gRPC 客户端 Stub。
      */
-    @GrpcClient("order-service")
+//    @GrpcClient("order-service")
     private OrderServiceGrpc.OrderServiceBlockingStub orderServiceStub;
 
     /**

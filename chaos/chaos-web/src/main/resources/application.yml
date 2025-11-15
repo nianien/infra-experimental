@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: config-app
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+# Web 服务配置
+server:
+  port: ${WEB_SERVER_PORT:8080}
+  servlet:
+    context-path: /
+
+# gRPC 客户端配置
+grpc:
+  server:
+    enabled: false  # 显式禁用 gRPC 服务端
+    port: -1        # 设置端口为 -1 进一步确保不启动
+
+# 日志配置
+logging:
+  level:
+    com.ddm.demo: DEBUG
+    com.ddm.argus: INFO
+    net.devh.boot.grpc: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{lane:--}] [%X{traceId:--}] %logger{36} - %msg%n"
