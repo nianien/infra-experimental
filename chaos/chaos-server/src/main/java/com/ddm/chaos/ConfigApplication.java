@@ -4,10 +4,7 @@ import com.ddm.chaos.provider.DataProvider;
 import com.ddm.chaos.provider.JdbcDataProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 
 import javax.sql.DataSource;
 
@@ -44,19 +41,6 @@ public class ConfigApplication {
         return new JdbcDataProvider(dataSource);
     }
 
-    /**
-     * 创建数据源 Bean。
-     * <p>
-     * 从配置属性 {@code spring.datasource.chaos.*} 中读取数据源配置。
-     *
-     * @return DataSource 实例
-     */
-    @Bean
-    @Primary
-    @ConfigurationProperties(prefix = "spring.datasource.chaos")
-    public DataSource dataSource() {
-        return DataSourceBuilder.create().build();
-    }
 
     /**
      * 应用入口方法。

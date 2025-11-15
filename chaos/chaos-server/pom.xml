@@ -18,6 +18,11 @@
             <artifactId>chaos-core</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.ddm</groupId>
+            <artifactId>argus-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- gRPC Server -->
         <dependency>
             <groupId>net.devh</groupId>

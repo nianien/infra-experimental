@@ -1,9 +1,13 @@
 spring:
   application:
     name: config-app
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  datasource:
+    url: jdbc:mysql://localhost:3306/test
+    username: root
+    password: root
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 3000
 
 # Web 服务配置
 server:

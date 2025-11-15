@@ -1,12 +1,11 @@
 spring:
   datasource:
-    chaos:
-      jdbc-url: jdbc:mysql://localhost:3306/test
-      username: root
-      password: root
-      hikari:
-        maximum-pool-size: 10
-        connection-timeout: 3000
+    url: jdbc:mysql://localhost:3306/test
+    username: root
+    password: root
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 3000
   sql:
     init:
       mode: never
