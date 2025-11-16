@@ -25,21 +25,6 @@ public class ApiResponse {
     }
 
     /**
-     * 创建成功响应（带数据）。
-     *
-     * @param message 成功消息
-     * @param data    数据
-     * @return 响应对象
-     */
-    public static Map<String, Object> success(String message, Object data) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("message", message);
-        result.put("data", data);
-        return result;
-    }
-
-    /**
      * 创建错误响应。
      *
      * @param message 错误消息

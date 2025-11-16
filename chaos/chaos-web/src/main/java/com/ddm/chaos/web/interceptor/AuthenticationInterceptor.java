@@ -1,5 +1,7 @@
 package com.ddm.chaos.web.interceptor;
 
+import com.ddm.chaos.web.dto.User;
+import com.ddm.chaos.web.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -10,8 +12,12 @@ import org.springframework.web.servlet.HandlerInterceptor;
 /**
  * 认证拦截器，用于验证需要登录的操作。
  * <p>
- * 对于 POST、PUT、DELETE 请求，验证请求头中的 X-User 是否存在。
- * 如果不存在或为空，返回 401 Unauthorized。
+ * 对于 POST、PUT、DELETE 请求，验证请求头中的 Authorization (Bearer token) 或 X-User。
+ * <p>
+ * 注意：本系统不维护会话生命周期，实际认证应该由网关/SSO完成。
+ * 这里只做基本的用户存在性检查，用于授权和审计。
+ * <p>
+ * 如果未来接入网关/SSO，可以从请求头（如 X-User、X-User-Id）中直接获取用户信息。
  *
  * @author liyifei
  * @since 1.0
@@ -20,7 +26,14 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthenticationInterceptor implements HandlerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationInterceptor.class);
+    private static final String HEADER_AUTHORIZATION = "Authorization";
     private static final String HEADER_USER = "X-User";
+
+    private final UserService userService;
+
+    public AuthenticationInterceptor(UserService userService) {
+        this.userService = userService;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -37,20 +50,54 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 检查请求头中的用户信息
-        String user = request.getHeader(HEADER_USER);
-        if (user == null || user.isBlank()) {
-            log.warn("Unauthorized request: {} {} - Missing X-User header", method, uri);
+        // 提取 token
+        String token = extractToken(request);
+        if (token == null || token.isBlank()) {
+            log.warn("Unauthorized request: {} {} - Missing token", method, uri);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"success\":false,\"error\":\"未登录，请先登录\"}");
             return false;
         }
 
-        // 验证用户名的有效性（简单检查：不能是默认值 "admin" 除非是真正的登录用户）
-        // 这里可以根据实际需求扩展，比如验证 token、检查用户是否存在等
-        log.debug("Authenticated request: {} {} - User: {}", method, uri, user);
+        // 验证 token（简化实现：只检查用户是否存在）
+        // 实际生产环境中，token 验证应该由网关/SSO完成
+        User user = userService.validateToken(token);
+        if (user == null) {
+            log.warn("Unauthorized request: {} {} - Invalid token or user not found", method, uri);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"success\":false,\"error\":\"未登录，请先登录\"}");
+            return false;
+        }
+
+        // 将用户信息存储到 request 属性中，供后续使用
+        String username = user.username();
+        request.setAttribute("currentUser", username);
+        log.debug("Authenticated request: {} {} - User: {}", method, uri, username);
         return true;
+    }
+
+    /**
+     * 从请求头中提取 token。
+     * 优先使用 Authorization: Bearer token，如果没有则使用 X-User header（向后兼容）。
+     *
+     * @param request HTTP 请求
+     * @return token，如果不存在返回 null
+     */
+    private String extractToken(HttpServletRequest request) {
+        // 优先使用 Authorization header
+        String authHeader = request.getHeader(HEADER_AUTHORIZATION);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        // 向后兼容：使用 X-User header（如果它是 token 格式）
+        String userHeader = request.getHeader(HEADER_USER);
+        if (userHeader != null && userHeader.length() > 20) {
+            // 假设 token 长度大于 20，否则可能是用户名
+            return userHeader;
+        }
+        return null;
     }
 }
 

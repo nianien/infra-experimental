@@ -1117,18 +1117,29 @@
         let currentGroup = null;
         let currentView = 'namespaces'; // 当前视图：'namespaces', 'groups', 'items'
 
-        // 获取当前用户
-        function getCurrentUser() {
+        // 获取当前用户信息（从 localStorage）
+        function getCurrentUserInfo() {
             try {
                 const userStr = localStorage.getItem('currentUser');
                 if (userStr) {
-                    const user = JSON.parse(userStr);
-                    return user.username || 'admin';
+                    return JSON.parse(userStr);
                 }
             } catch (e) {
-                console.warn('获取当前用户失败:', e);
+                console.warn('获取当前用户信息失败:', e);
             }
-            return 'admin';
+            return null;
+        }
+
+        // 获取当前用户名（向后兼容）
+        function getCurrentUser() {
+            const userInfo = getCurrentUserInfo();
+            return userInfo ? userInfo.username : null;
+        }
+
+        // 获取当前 token
+        function getCurrentToken() {
+            const userInfo = getCurrentUserInfo();
+            return userInfo ? userInfo.token : null;
         }
 
         // 检查是否已登录
@@ -1145,12 +1156,15 @@
             return false;
         }
 
-        // 获取请求头（包含当前用户信息）
+        // 获取请求头（包含认证 token）
         function getRequestHeaders() {
             const headers = { 'Content-Type': 'application/json' };
-            const currentUser = getCurrentUser();
-            if (currentUser) {
-                headers['X-User'] = currentUser;
+            const token = getCurrentToken();
+            if (token) {
+                // 使用标准的 Authorization Bearer token
+                headers['Authorization'] = 'Bearer ' + token;
+                // 向后兼容：同时设置 X-User（使用 token，拦截器会识别）
+                headers['X-User'] = token;
             }
             return headers;
         }
@@ -2370,11 +2384,11 @@
                 const data = await response.json();
                 console.log('登录响应:', { status: response.status, ok: response.ok, data });
 
-                if (response.ok && data.success) {
-                    // 登录成功
+                if (response.ok && data.success && data.token) {
+                    // 登录成功，保存用户信息和 token
                     currentUser = {
                         username: data.username || username,
-                        token: data.token || 'mock-token-' + Date.now()
+                        token: data.token
                     };
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     updateLoginUI();
@@ -2459,7 +2473,7 @@
             }
         });
 
-        // 登出
+        // 登出（无状态系统：只需清除前端 token）
         function logout() {
             showConfirmModal({
                 title: '确认登出',
@@ -2467,10 +2481,9 @@
                 buttonText: '登出',
                 buttonType: 'primary',
                 onConfirm: () => {
-                    currentUser = null;
+                    // 无状态系统：直接清除本地 token 并刷新页面
                     localStorage.removeItem('currentUser');
-                    updateLoginUI();
-                    showAlert('namespaces-alert', '已登出', 'success');
+                    location.reload();
                 }
             });
         }
