@@ -835,6 +835,7 @@
                             <th>名称</th>
                             <th>描述</th>
                             <th>负责人</th>
+                            <th>操作人</th>
                             <th>创建时间</th>
                             <th>操作</th>
                         </tr>
@@ -858,6 +859,8 @@
                         <tr>
                             <th>名称</th>
                             <th>描述</th>
+                            <th>负责人</th>
+                            <th>操作人</th>
                             <th>创建时间</th>
                             <th>操作</th>
                         </tr>
@@ -884,7 +887,7 @@
                             <th>环境值</th>
                             <th>类型</th>
                             <th>状态</th>
-                            <th>更新时间</th>
+                            <th>操作信息</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -990,6 +993,10 @@
                 <div class="form-group">
                     <label for="group-description">描述</label>
                     <textarea id="group-description" placeholder="分组的描述信息"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="group-owner">负责人</label>
+                    <input type="text" id="group-owner" placeholder="负责人（创建时自动设置为当前用户）">
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                     <button type="button" class="btn btn-secondary" onclick="closeGroupModal()">取消</button>
@@ -1106,6 +1113,30 @@
         let currentNamespace = null;
         let currentGroup = null;
         let currentView = 'namespaces'; // 当前视图：'namespaces', 'groups', 'items'
+
+        // 获取当前用户
+        function getCurrentUser() {
+            try {
+                const userStr = localStorage.getItem('currentUser');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    return user.username || 'admin';
+                }
+            } catch (e) {
+                console.warn('获取当前用户失败:', e);
+            }
+            return 'admin';
+        }
+
+        // 获取请求头（包含当前用户信息）
+        function getRequestHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            const currentUser = getCurrentUser();
+            if (currentUser) {
+                headers['X-User'] = currentUser;
+            }
+            return headers;
+        }
 
         // 保存当前视图状态到 localStorage
         function saveViewState() {
@@ -1290,7 +1321,11 @@
                             </td>
                             <td><span class="badge badge-primary">${item.type || 'string'}</span></td>
                             <td>${item.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-danger">禁用</span>'}</td>
-                            <td style="color: var(--text-secondary); font-size: 13px;">${item.updatedAt || '-'}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">
+                                ${item.operator ? `<div>${escapeHtml(item.operator)}</div>` : ''}
+                                ${item.updatedAt ? `<div style="color: var(--text-muted); font-size: 12px; margin-top: 2px;">${escapeHtml(item.updatedAt)}</div>` : ''}
+                                ${!item.operator && !item.updatedAt ? '-' : ''}
+                            </td>
                             <td class="action-buttons-cell">
                                 <div class="action-buttons">
                                     <button class="btn btn-primary btn-sm" onclick="editItem(${item.id})">编辑</button>
@@ -1355,10 +1390,12 @@
                         <tr>
                             <td><strong style="color: var(--text-primary); font-size: 15px;">${escapeHtml(group.name)}</strong></td>
                             <td style="color: var(--text-secondary);">${escapeHtml(group.description || '-')}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${group.owner || '-'}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${group.operator || '-'}</td>
                             <td style="color: var(--text-secondary); font-size: 13px;">${group.createdAt || '-'}</td>
                             <td class="action-buttons-cell">
                                 <div class="action-buttons">
-                                    <button class="btn btn-success btn-sm" onclick="showItems(${group.id}, '${escapeHtml(group.name)}')">详情</button>
+                                    <button class="btn btn-success btn-sm" onclick="showItems(${group.id}, '${escapeHtml(group.name)}')">进入</button>
                                     <button class="btn btn-primary btn-sm" onclick="editGroup(${group.id})">编辑</button>
                                     <button class="btn btn-danger btn-sm" onclick="deleteGroup(${group.id})">删除</button>
                                 </div>
@@ -1404,10 +1441,11 @@
                             <td><strong style="color: var(--text-primary); font-size: 15px;">${escapeHtml(ns.name)}</strong></td>
                             <td style="color: var(--text-secondary);">${escapeHtml(ns.description || '-')}</td>
                             <td style="color: var(--text-secondary);">${escapeHtml(ns.owner || '-')}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${ns.operator || '-'}</td>
                             <td style="color: var(--text-secondary); font-size: 13px;">${ns.createdAt || '-'}</td>
                             <td class="action-buttons-cell">
                                 <div class="action-buttons">
-                                    <button class="btn btn-success btn-sm" onclick="showGroups(${ns.id}, '${escapeHtml(ns.name)}')">详情</button>
+                                    <button class="btn btn-success btn-sm" onclick="showGroups(${ns.id}, '${escapeHtml(ns.name)}')">进入</button>
                                     <button class="btn btn-primary btn-sm" onclick="editNamespace(${ns.id})">编辑</button>
                                 </div>
                             </td>
@@ -1514,7 +1552,7 @@
 
                 const response = await fetch(url, {
                     method: method,
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getRequestHeaders(),
                     body: JSON.stringify(data)
                 });
 
@@ -1545,7 +1583,8 @@
             const namespaceId = parseInt(document.getElementById('group-namespace-id').value);
             const data = {
                 name: document.getElementById('group-name').value,
-                description: document.getElementById('group-description').value
+                description: document.getElementById('group-description').value,
+                owner: document.getElementById('group-owner').value || null
             };
 
             try {
@@ -1562,7 +1601,7 @@
 
                 const response = await fetch(url, {
                     method: method,
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getRequestHeaders(),
                     body: JSON.stringify(data)
                 });
 
@@ -1656,7 +1695,7 @@
 
                 const response = await fetch(url, {
                     method: method,
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getRequestHeaders(),
                     body: JSON.stringify(data)
                 });
 
@@ -1715,11 +1754,14 @@
                 document.getElementById('group-namespace-name').value = group.namespaceName || currentNamespace.name;
                 document.getElementById('group-name').value = group.name;
                 document.getElementById('group-description').value = group.description || '';
+                document.getElementById('group-owner').value = group.owner || '';
             } else {
                 title.textContent = '新建配置分组';
                 form.reset();
                 document.getElementById('group-namespace-id').value = currentNamespace.id;
                 document.getElementById('group-namespace-name').value = currentNamespace.name;
+                // 新建时，owner 字段留空，后端会自动设置为当前用户
+                document.getElementById('group-owner').value = '';
             }
 
             modal.classList.add('active');

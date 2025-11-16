@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 
@@ -57,6 +58,29 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("数据操作失败，请稍后重试"));
+    }
+
+    /**
+     * 处理静态资源未找到的异常。
+     * 对于 Chrome DevTools 等浏览器的探测请求，静默处理，不记录日志。
+     *
+     * @param e 资源未找到异常
+     * @return 404 响应
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResourceFound(NoResourceFoundException e) {
+        String resourcePath = e.getResourcePath();
+        
+        // Chrome DevTools 的探测请求，静默处理
+        if (resourcePath != null && resourcePath.contains(".well-known/appspecific/com.chrome.devtools.json")) {
+            // 不记录日志，直接返回 404
+            return ResponseEntity.notFound().build();
+        }
+        
+        // 其他静态资源未找到的情况，记录 DEBUG 日志（可选）
+        // log.debug("Static resource not found: {}", resourcePath);
+        
+        return ResponseEntity.notFound().build();
     }
 
     @ExceptionHandler(Exception.class)

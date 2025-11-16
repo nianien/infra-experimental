@@ -41,7 +41,7 @@ public class ConfigService {
      * 获取所有命名空间列表。
      */
     public List<Map<String, Object>> listNamespaces() {
-        String sql = "SELECT id, name, description, owner, created_at, updated_at FROM config_namespace ORDER BY id";
+        String sql = "SELECT id, name, description, owner, operator, created_at, updated_at FROM config_namespace ORDER BY id";
         return jdbcTemplate.query(sql, namespaceRowMapper());
     }
 
@@ -49,7 +49,7 @@ public class ConfigService {
      * 获取单个命名空间详情。
      */
     public Map<String, Object> getNamespace(Long id) {
-        String sql = "SELECT id, name, description, owner, created_at, updated_at FROM config_namespace WHERE id = ?";
+        String sql = "SELECT id, name, description, owner, operator, created_at, updated_at FROM config_namespace WHERE id = ?";
         List<Map<String, Object>> namespaces = jdbcTemplate.query(sql, namespaceRowMapper(), id);
         if (namespaces.isEmpty()) {
             return null;
@@ -59,49 +59,42 @@ public class ConfigService {
 
     /**
      * 创建命名空间。
+     * @param currentUser 当前用户，将作为 owner 和 operator
      */
     @Transactional
-    public void createNamespace(String name, String description, String owner) {
+    public void createNamespace(String name, String description, String currentUser) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("name 不能为空");
         }
-        String sql = "INSERT INTO config_namespace (name, description, owner) VALUES (?, ?, ?)";
-        jdbcTemplate.update(sql, name, description, owner);
+        String sql = "INSERT INTO config_namespace (name, description, owner, operator) VALUES (?, ?, ?, ?)";
+        jdbcTemplate.update(sql, name, description, currentUser, currentUser);
     }
 
     /**
      * 更新命名空间。
+     * @param currentUser 当前用户，将作为 operator
      */
     @Transactional
-    public boolean updateNamespace(Long id, String name, String description, String owner) {
-        StringBuilder sql = new StringBuilder("UPDATE config_namespace SET");
+    public boolean updateNamespace(Long id, String name, String description, String owner, String currentUser) {
+        StringBuilder sql = new StringBuilder("UPDATE config_namespace SET operator = ?");
         List<Object> params = new ArrayList<>();
+        params.add(currentUser);
         boolean hasUpdate = false;
 
         if (name != null && !name.isBlank()) {
-            sql.append(" name = ?");
+            sql.append(", name = ?");
             params.add(name);
             hasUpdate = true;
         }
         if (description != null) {
-            if (hasUpdate) {
-                sql.append(",");
-            }
-            sql.append(" description = ?");
+            sql.append(", description = ?");
             params.add(description);
             hasUpdate = true;
         }
         if (owner != null) {
-            if (hasUpdate) {
-                sql.append(",");
-            }
-            sql.append(" owner = ?");
+            sql.append(", owner = ?");
             params.add(owner);
             hasUpdate = true;
-        }
-
-        if (!hasUpdate) {
-            throw new IllegalArgumentException("没有需要更新的字段");
         }
 
         sql.append(" WHERE id = ?");
@@ -118,7 +111,7 @@ public class ConfigService {
      */
     public List<Map<String, Object>> listGroups(Long namespaceId) {
         String sql = "SELECT cg.id, ns.id AS namespace_id, ns.name AS namespace_name, " +
-                "cg.name, cg.description, cg.created_at, cg.updated_at " +
+                "cg.name, cg.description, cg.owner, cg.operator, cg.created_at, cg.updated_at " +
                 "FROM config_group cg " +
                 "JOIN config_namespace ns ON cg.namespace = ns.name " +
                 "WHERE ns.id = ? ORDER BY cg.id";
@@ -130,7 +123,7 @@ public class ConfigService {
      */
     public Map<String, Object> getGroup(Long id) {
         String sql = "SELECT cg.id, ns.id AS namespace_id, COALESCE(ns.name, cg.namespace) AS namespace_name, " +
-                "cg.name, cg.description, cg.created_at, cg.updated_at " +
+                "cg.name, cg.description, cg.owner, cg.operator, cg.created_at, cg.updated_at " +
                 "FROM config_group cg " +
                 "LEFT JOIN config_namespace ns ON cg.namespace = ns.name " +
                 "WHERE cg.id = ?";
@@ -143,9 +136,10 @@ public class ConfigService {
 
     /**
      * 创建配置分组。
+     * @param currentUser 当前用户，将作为 owner 和 operator
      */
     @Transactional
-    public void createGroup(Long namespaceId, String name, String description) {
+    public void createGroup(Long namespaceId, String name, String description, String currentUser) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("name 不能为空");
         }
@@ -155,35 +149,35 @@ public class ConfigService {
             throw new IllegalArgumentException("命名空间不存在: " + namespaceId);
         }
 
-        String sql = "INSERT INTO config_group (`namespace`, name, description) VALUES (?, ?, ?)";
-        jdbcTemplate.update(sql, namespaceName, name, description);
+        String sql = "INSERT INTO config_group (`namespace`, name, description, owner, operator) VALUES (?, ?, ?, ?, ?)";
+        jdbcTemplate.update(sql, namespaceName, name, description, currentUser, currentUser);
     }
 
     /**
      * 更新配置分组。
+     * @param currentUser 当前用户，将作为 operator
      */
     @Transactional
-    public boolean updateGroup(Long id, String name, String description) {
-        StringBuilder sql = new StringBuilder("UPDATE config_group SET");
+    public boolean updateGroup(Long id, String name, String description, String owner, String currentUser) {
+        StringBuilder sql = new StringBuilder("UPDATE config_group SET operator = ?");
         List<Object> params = new ArrayList<>();
+        params.add(currentUser);
         boolean hasUpdate = false;
 
         if (name != null && !name.isBlank()) {
-            sql.append(" name = ?");
+            sql.append(", name = ?");
             params.add(name);
             hasUpdate = true;
         }
         if (description != null) {
-            if (hasUpdate) {
-                sql.append(",");
-            }
-            sql.append(" description = ?");
+            sql.append(", description = ?");
             params.add(description);
             hasUpdate = true;
         }
-
-        if (!hasUpdate) {
-            throw new IllegalArgumentException("没有需要更新的字段");
+        if (owner != null) {
+            sql.append(", owner = ?");
+            params.add(owner);
+            hasUpdate = true;
         }
 
         sql.append(" WHERE id = ?");
@@ -225,7 +219,7 @@ public class ConfigService {
                 "SELECT ci.id, ns.id AS namespace_id, COALESCE(ns.name, ci.namespace) AS namespace_name, " +
                         "cg.id AS group_id, COALESCE(cg.name, ci.group_name) AS group_name, " +
                         "ci.`key`, ci.`value`, ci.variants AS variants, ci.type, ci.enabled, ci.description, " +
-                        "ci.updated_by, ci.created_at, ci.updated_at, ci.version " +
+                        "ci.operator, ci.created_at, ci.updated_at, ci.version " +
                         "FROM config_item ci " +
                         "LEFT JOIN config_namespace ns ON ci.namespace = ns.name " +
                         "LEFT JOIN config_group cg ON ci.group_name = cg.name AND cg.namespace = ci.namespace " +
@@ -252,7 +246,7 @@ public class ConfigService {
         String sql = "SELECT ci.id, ns.id AS namespace_id, COALESCE(ns.name, ci.namespace) AS namespace_name, " +
                 "cg.id AS group_id, COALESCE(cg.name, ci.group_name) AS group_name, " +
                 "ci.`key`, ci.`value`, ci.variants AS variants, ci.type, ci.enabled, ci.description, " +
-                "ci.updated_by, ci.created_at, ci.updated_at, ci.version " +
+                "ci.operator, ci.created_at, ci.updated_at, ci.version " +
                 "FROM config_item ci " +
                 "LEFT JOIN config_namespace ns ON ci.namespace = ns.name " +
                 "LEFT JOIN config_group cg ON ci.group_name = cg.name AND cg.namespace = ci.namespace " +
@@ -266,10 +260,11 @@ public class ConfigService {
 
     /**
      * 创建配置项。
+     * @param currentUser 当前用户，将作为 operator
      */
     @Transactional
     public void createItem(Long namespaceId, Long groupId, String key, String value, String variant,
-                          String type, Boolean enabled, String description, String updatedBy) {
+                          String type, Boolean enabled, String description, String currentUser) {
         if (namespaceId == null || groupId == null || key == null || key.isBlank() || value == null) {
             throw new IllegalArgumentException("namespaceId, groupId, key, value 不能为空");
         }
@@ -296,18 +291,19 @@ public class ConfigService {
             }
         }
 
-        String sql = "INSERT INTO config_item (`namespace`, group_name, `key`, `value`, variants, type, enabled, description, updated_by) " +
+        String sql = "INSERT INTO config_item (`namespace`, group_name, `key`, `value`, variants, type, enabled, description, operator) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String variantParam = (variant == null || variant.isBlank()) ? null : variant;
-        jdbcTemplate.update(sql, namespaceName, groupInfo.name(), key, value, variantParam, type, enabled ? 1 : 0, description, updatedBy);
+        jdbcTemplate.update(sql, namespaceName, groupInfo.name(), key, value, variantParam, type, enabled ? 1 : 0, description, currentUser);
     }
 
     /**
      * 更新配置项。
+     * @param currentUser 当前用户，将作为 operator
      */
     @Transactional
     public boolean updateItem(Long id, String value, String variant, String type, Boolean enabled,
-                             String description, String updatedBy) {
+                             String description, String currentUser) {
         // 验证 variant 是否为有效的 JSON
         if (variant != null && !variant.isBlank()) {
             try {
@@ -317,8 +313,9 @@ public class ConfigService {
             }
         }
 
-        StringBuilder sql = new StringBuilder("UPDATE config_item SET version = version + 1");
+        StringBuilder sql = new StringBuilder("UPDATE config_item SET version = version + 1, operator = ?");
         List<Object> params = new ArrayList<>();
+        params.add(currentUser);
 
         if (value != null) {
             sql.append(", `value` = ?");
@@ -339,10 +336,6 @@ public class ConfigService {
         if (description != null) {
             sql.append(", description = ?");
             params.add(description);
-        }
-        if (updatedBy != null) {
-            sql.append(", updated_by = ?");
-            params.add(updatedBy);
         }
         sql.append(" WHERE id = ?");
         params.add(id);
@@ -372,6 +365,7 @@ public class ConfigService {
             map.put("name", rs.getString("name"));
             map.put("description", rs.getString("description"));
             map.put("owner", rs.getString("owner"));
+            map.put("operator", rs.getString("operator"));
             map.put("createdAt", formatTimestamp(rs.getTimestamp("created_at")));
             map.put("updatedAt", formatTimestamp(rs.getTimestamp("updated_at")));
             return map;
@@ -387,6 +381,8 @@ public class ConfigService {
             map.put("namespaceName", rs.getString("namespace_name"));
             map.put("name", rs.getString("name"));
             map.put("description", rs.getString("description"));
+            map.put("owner", rs.getString("owner"));
+            map.put("operator", rs.getString("operator"));
             map.put("createdAt", formatTimestamp(rs.getTimestamp("created_at")));
             map.put("updatedAt", formatTimestamp(rs.getTimestamp("updated_at")));
             return map;
@@ -409,7 +405,7 @@ public class ConfigService {
             map.put("type", rs.getString("type"));
             map.put("enabled", rs.getBoolean("enabled"));
             map.put("description", rs.getString("description"));
-            map.put("updatedBy", rs.getString("updated_by"));
+            map.put("operator", rs.getString("operator"));
             map.put("createdAt", formatTimestamp(rs.getTimestamp("created_at")));
             map.put("updatedAt", formatTimestamp(rs.getTimestamp("updated_at")));
             map.put("version", rs.getLong("version"));

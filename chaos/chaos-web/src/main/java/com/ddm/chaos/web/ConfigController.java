@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
@@ -72,12 +73,14 @@ public class ConfigController {
      * 创建命名空间。
      */
     @PostMapping("/namespaces")
-    public ResponseEntity<Map<String, Object>> createNamespace(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> createNamespace(
+            @RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest) {
         String name = request.get("name");
         String description = request.get("description");
-        String owner = request.get("owner");
+        String currentUser = getCurrentUser(httpRequest, request);
 
-        configService.createNamespace(name, description, owner);
+        configService.createNamespace(name, description, currentUser);
         return ResponseEntity.ok(ApiResponse.success("命名空间创建成功"));
     }
 
@@ -87,12 +90,14 @@ public class ConfigController {
     @PutMapping("/namespaces/{id}")
     public ResponseEntity<Map<String, Object>> updateNamespace(
             @PathVariable Long id,
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest) {
         String name = request.get("name");
         String description = request.get("description");
         String owner = request.get("owner");
+        String currentUser = getCurrentUser(httpRequest, request);
 
-        boolean updated = configService.updateNamespace(id, name, description, owner);
+        boolean updated = configService.updateNamespace(id, name, description, owner, currentUser);
         if (!updated) {
             return ResponseEntity.notFound().build();
         }
@@ -139,11 +144,13 @@ public class ConfigController {
     @PostMapping("/namespaces/{namespaceId}/groups")
     public ResponseEntity<Map<String, Object>> createGroup(
             @PathVariable Long namespaceId,
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest) {
         String name = request.get("name");
         String description = request.get("description");
+        String currentUser = getCurrentUser(httpRequest, request);
 
-        configService.createGroup(namespaceId, name, description);
+        configService.createGroup(namespaceId, name, description, currentUser);
         return ResponseEntity.ok(ApiResponse.success("分组创建成功"));
     }
 
@@ -153,11 +160,14 @@ public class ConfigController {
     @PutMapping("/groups/{id}")
     public ResponseEntity<Map<String, Object>> updateGroup(
             @PathVariable Long id,
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest) {
         String name = request.get("name");
         String description = request.get("description");
+        String owner = request.get("owner");
+        String currentUser = getCurrentUser(httpRequest, request);
 
-        boolean updated = configService.updateGroup(id, name, description);
+        boolean updated = configService.updateGroup(id, name, description, owner, currentUser);
         if (!updated) {
             return ResponseEntity.notFound().build();
         }
@@ -212,7 +222,9 @@ public class ConfigController {
      * 创建配置项。
      */
     @PostMapping("/items")
-    public ResponseEntity<Map<String, Object>> createItem(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> createItem(
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
         Long namespaceId = getLong(request, "namespaceId");
         Long groupId = getLong(request, "groupId");
         String key = (String) request.get("key");
@@ -221,9 +233,9 @@ public class ConfigController {
         String type = (String) request.getOrDefault("type", "string");
         Boolean enabled = (Boolean) request.getOrDefault("enabled", true);
         String description = (String) request.get("description");
-        String updatedBy = (String) request.get("updatedBy");
+        String currentUser = getCurrentUser(httpRequest, request);
 
-        configService.createItem(namespaceId, groupId, key, value, variant, type, enabled, description, updatedBy);
+        configService.createItem(namespaceId, groupId, key, value, variant, type, enabled, description, currentUser);
         return ResponseEntity.ok(ApiResponse.success("配置项创建成功"));
     }
 
@@ -233,15 +245,16 @@ public class ConfigController {
     @PutMapping("/items/{id}")
     public ResponseEntity<Map<String, Object>> updateItem(
             @PathVariable Long id,
-            @RequestBody Map<String, Object> request) {
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
         String value = (String) request.get("value");
         String variant = (String) request.get("variant");
         String type = (String) request.get("type");
         Boolean enabled = (Boolean) request.get("enabled");
         String description = (String) request.get("description");
-        String updatedBy = (String) request.get("updatedBy");
+        String currentUser = getCurrentUser(httpRequest, request);
 
-        boolean updated = configService.updateItem(id, value, variant, type, enabled, description, updatedBy);
+        boolean updated = configService.updateItem(id, value, variant, type, enabled, description, currentUser);
         if (!updated) {
             return ResponseEntity.notFound().build();
         }
@@ -258,6 +271,30 @@ public class ConfigController {
     }
 
     /* ===================== 辅助方法 ===================== */
+
+    /**
+     * 获取当前用户。
+     * 优先从请求头 X-User 获取，其次从请求参数 currentUser 获取，最后使用默认值 "admin"。
+     */
+    private String getCurrentUser(HttpServletRequest httpRequest, Map<String, ?> request) {
+        // 1. 从请求头获取
+        String user = httpRequest.getHeader("X-User");
+        if (user != null && !user.isBlank()) {
+            return user;
+        }
+        // 2. 从请求参数获取
+        if (request != null) {
+            Object currentUserObj = request.get("currentUser");
+            if (currentUserObj instanceof String) {
+                String currentUser = (String) currentUserObj;
+                if (currentUser != null && !currentUser.isBlank()) {
+                    return currentUser;
+                }
+            }
+        }
+        // 3. 默认值
+        return "admin";
+    }
 
     private Long getLong(Map<String, Object> map, String key) {
         Object value = map.get(key);
