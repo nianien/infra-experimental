@@ -1,0 +1,2502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos 配置平台</title>
+    <style>
+        :root {
+            /* 清新主题色彩变量 */
+            --primary: #22c55e;
+            --primary-hover: #16a34a;
+            --primary-light: #86efac;
+            --primary-bg: #f0fdf4;
+            --primary-border: #bbf7d0;
+            
+            --success: #10b981;
+            --success-light: #d1fae5;
+            
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --danger-light: #fee2e2;
+            
+            --secondary: #6b7280;
+            --secondary-hover: #4b5563;
+            
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-hover: #f3f4f6;
+            
+            --border-color: #e5e7eb;
+            --border-light: #f3f4f6;
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #f0fdf4 0%, #f9fafb 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+            color: white;
+            padding: 20px 40px;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .header h1 {
+            position: relative;
+            z-index: 1;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin: 0;
+        }
+
+        .header-actions {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-login {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-login:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 15px;
+        }
+
+        .user-info .username {
+            color: white;
+            opacity: 0.95;
+        }
+
+        .user-info .username strong {
+            font-weight: 600;
+            opacity: 1;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 24px auto;
+            padding: 0 32px;
+        }
+
+        /* 面包屑导航 */
+        #breadcrumb {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 12px 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #breadcrumb .breadcrumb-nav {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        #breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        #breadcrumb a:hover {
+            color: var(--primary-hover);
+        }
+
+        .card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: 20px 24px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .card-header h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            line-height: 1.4;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-success:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 13px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 0;
+            background: transparent;
+        }
+
+        table thead {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+            color: white;
+        }
+
+        table thead th {
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        table thead th:first-child {
+            border-top-left-radius: var(--radius-md);
+        }
+
+        table thead th:last-child {
+            border-top-right-radius: var(--radius-md);
+        }
+
+        table tbody tr {
+            transition: background-color 0.15s ease;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        table tbody tr:last-child {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        table tbody tr:hover {
+            background-color: var(--primary-bg);
+        }
+
+        table tbody tr:nth-child(even) {
+            background-color: var(--bg-secondary);
+        }
+
+        table tbody tr:nth-child(even):hover {
+            background-color: var(--primary-bg);
+        }
+
+        table tbody td {
+            padding: 16px 20px;
+            font-size: 14px;
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+
+        table tbody tr:nth-child(odd) td {
+            background: var(--bg-primary);
+        }
+
+        table tbody tr:nth-child(even) td {
+            background: var(--bg-secondary);
+        }
+
+        table tbody tr:hover td {
+            background-color: var(--primary-bg) !important;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            transition: all 0.2s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+        }
+
+        .form-group input:read-only {
+            background: var(--bg-secondary);
+            cursor: not-allowed;
+            color: var(--text-secondary);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            overflow-y: auto;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: 36px;
+            max-width: 720px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border-light);
+            animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-24px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .modal-header h3 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .close-btn {
+            background: var(--bg-secondary);
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        /* 删除确认模态框 */
+        #delete-confirm-modal .modal-content {
+            max-width: 480px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .badge-success {
+            background: var(--success-light);
+            color: #065f46;
+        }
+
+        .badge-danger {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+
+        .badge-primary {
+            background: var(--primary-light);
+            color: #14532d;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* 当 alert 容器为空时，不占用空间 */
+        #groups-alert:empty,
+        #items-alert:empty,
+        #namespaces-alert:empty,
+        #namespace-alert:empty,
+        #group-alert:empty,
+        #item-alert:empty {
+            display: none;
+        }
+
+        .alert-success {
+            background: var(--success-light);
+            color: #065f46;
+            border-color: var(--success);
+        }
+
+        .alert-error {
+            background: var(--danger-light);
+            color: #991b1b;
+            border-color: var(--danger);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state p {
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-start;
+            white-space: nowrap;
+        }
+
+        table tbody td.action-buttons-cell {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .view-content {
+            display: none;
+        }
+
+        .view-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .clickable-row {
+            cursor: pointer;
+        }
+
+        .clickable-row:hover {
+            background-color: var(--primary-bg) !important;
+        }
+
+        .variant-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .variant-row input {
+            flex: 1;
+        }
+
+        .variant-row .variant-key {
+            flex: 0 0 160px;
+        }
+
+        .variant-row .variant-value {
+            flex: 1;
+        }
+
+        .variant-container {
+            border: 1px solid var(--primary-border);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            background: var(--primary-bg);
+        }
+
+        .variant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .variant-header label {
+            margin: 0;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .card-header .title-info {
+            font-size: 15px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-left: 12px;
+        }
+
+        .card-header .title-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-left: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header .actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        table tbody td code {
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            border: none;
+        }
+
+        table tbody td .badge {
+            font-size: 12px;
+            padding: 4px 10px;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .container {
+                padding: 0 24px;
+            }
+
+            .card {
+                padding: 24px;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .card-header .actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 24px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .container {
+                margin: 24px auto;
+                padding: 0 16px;
+            }
+
+            .card {
+                padding: 20px;
+                border-radius: var(--radius-lg);
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .modal-content {
+                padding: 24px;
+                margin: 16px;
+            }
+
+            table thead th,
+            table tbody td {
+                padding: 12px 16px;
+                font-size: 13px;
+            }
+
+            .btn-sm {
+                padding: 5px 12px;
+                font-size: 12px;
+            }
+
+            .action-buttons {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>🌿 Chaos 配置平台</h1>
+            <div class="header-actions">
+                <div id="login-status">
+                    <a href="#" class="btn-login" id="login-btn" onclick="showLoginModal(); return false;">
+                        <span>🔐</span>
+                        <span>登录</span>
+                    </a>
+                    <div id="user-info" class="user-info" style="display: none;">
+                        <span class="username">欢迎, <strong id="username-display"></strong></span>
+                        <a href="#" class="btn-login" onclick="logout(); return false;">
+                            <span>登出</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 面包屑导航 -->
+        <div id="breadcrumb">
+            <div class="breadcrumb-nav">
+                <span style="color: var(--primary); margin-right: 8px; font-size: 16px;">📂</span>
+                <a href="javascript:void(0)" onclick="showNamespaces()">配置中心</a>
+                <span id="breadcrumb-separator1" style="display: none; color: var(--text-muted); margin: 0 12px;">›</span>
+                <span id="breadcrumb-namespace" style="display: none;"></span>
+                <span id="breadcrumb-separator2" style="display: none; color: var(--text-muted); margin: 0 12px;">›</span>
+                <span id="breadcrumb-group" style="display: none;"></span>
+            </div>
+            <button id="breadcrumb-action-btn" class="btn btn-primary" style="display: none;">新建</button>
+        </div>
+
+        <!-- 命名空间视图 -->
+        <div id="view-namespaces" class="view-content active">
+            <div class="card">
+                <div id="namespaces-loading" class="loading">加载中...</div>
+                <div id="namespaces-empty" class="empty-state" style="display: none;">
+                    <p>暂无命名空间</p>
+                    <button class="btn btn-primary" onclick="showNamespaceModal()">创建第一个命名空间</button>
+                </div>
+                <table id="namespaces-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>描述</th>
+                            <th>负责人</th>
+                            <th>操作人</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="namespaces-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 分组视图 -->
+        <div id="view-groups" class="view-content">
+            <div class="card">
+                <div id="groups-alert"></div>
+                <div id="groups-loading" class="loading">加载中...</div>
+                <div id="groups-empty" class="empty-state" style="display: none;">
+                    <p>暂无配置分组</p>
+                    <button class="btn btn-primary" onclick="showGroupModal()">创建第一个分组</button>
+                </div>
+                <table id="groups-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>描述</th>
+                            <th>负责人</th>
+                            <th>操作人</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groups-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 配置项视图 -->
+        <div id="view-items" class="view-content">
+            <div class="card">
+                <div id="items-alert"></div>
+                <div id="items-loading" class="loading">加载中...</div>
+                <div id="items-empty" class="empty-state" style="display: none;">
+                    <p>暂无配置项</p>
+                    <button class="btn btn-primary" onclick="showItemModal()">创建第一个配置项</button>
+                </div>
+                <table id="items-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>键名</th>
+                            <th>默认值</th>
+                            <th>环境值</th>
+                            <th>类型</th>
+                            <th>状态</th>
+                            <th>操作信息</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置项编辑模态框 -->
+    <div id="item-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="item-modal-title">新建配置项</h3>
+                <button class="close-btn" onclick="closeItemModal()">&times;</button>
+            </div>
+            <div id="item-alert"></div>
+            <form id="item-form">
+                <input type="hidden" id="item-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="item-namespace">命名空间 *</label>
+                        <input type="text" id="item-namespace" readonly>
+                        <input type="hidden" id="item-namespace-id">
+                    </div>
+                    <div class="form-group">
+                        <label for="item-group">配置分组 *</label>
+                        <input type="text" id="item-group" readonly>
+                        <input type="hidden" id="item-group-id">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="item-key">键名 *</label>
+                        <input type="text" id="item-key" required placeholder="例如: demo.name" pattern="[a-zA-Z0-9._-]+" title="只能包含字母、数字、点(.)、下划线(_)、连字符(-)">
+                        <small style="color: var(--text-muted); display: block; margin-top: 4px;">只能包含字母、数字、点(.)、下划线(_)、连字符(-)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-type">类型</label>
+                        <select id="item-type">
+                            <option value="string">string</option>
+                            <option value="int">int</option>
+                            <option value="long">long</option>
+                            <option value="double">double</option>
+                            <option value="boolean">boolean</option>
+                            <option value="array">array</option>
+                            <option value="json">json</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="item-value">默认值 *</label>
+                    <textarea id="item-value" required placeholder="配置的默认值"></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="variant-container">
+                        <div class="variant-header">
+                            <label>环境值</label>
+                            <button type="button" class="btn btn-success btn-sm" onclick="addVariantRow()">+ 添加环境</button>
+                        </div>
+                        <div id="variant-rows">
+                            <!-- 动态添加的环境值行 -->
+                        </div>
+                        <small style="color: var(--text-muted); display: block; margin-top: 10px;">用于不同环境的配置覆盖，例如：gray=gray-value, blue=blue-value</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="item-enabled" checked>
+                        <span>启用</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="item-description">描述</label>
+                    <textarea id="item-description" placeholder="配置项的描述信息"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeItemModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 分组编辑模态框 -->
+    <div id="group-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="group-modal-title">新建配置分组</h3>
+                <button class="close-btn" onclick="closeGroupModal()">&times;</button>
+            </div>
+            <div id="group-alert"></div>
+            <form id="group-form">
+                <input type="hidden" id="group-id">
+                <div class="form-group">
+                    <label for="group-namespace-id">命名空间 *</label>
+                    <input type="text" id="group-namespace-name" readonly>
+                    <input type="hidden" id="group-namespace-id" required>
+                </div>
+                <div class="form-group">
+                    <label for="group-name">分组名称 *</label>
+                    <input type="text" id="group-name" required placeholder="例如: cfd" pattern="[a-zA-Z0-9._-]+" title="只能包含字母、数字、点(.)、下划线(_)、连字符(-)">
+                    <small style="color: var(--text-muted); display: block; margin-top: 4px;">只能包含字母、数字、点(.)、下划线(_)、连字符(-)</small>
+                </div>
+                <div class="form-group">
+                    <label for="group-description">描述</label>
+                    <textarea id="group-description" placeholder="分组的描述信息"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="group-owner">负责人</label>
+                    <input type="text" id="group-owner" placeholder="负责人（创建时自动设置为当前用户）">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeGroupModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 命名空间编辑模态框 -->
+    <div id="namespace-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="namespace-modal-title">新建命名空间</h3>
+                <button class="close-btn" onclick="closeNamespaceModal()">&times;</button>
+            </div>
+            <div id="namespace-alert"></div>
+            <form id="namespace-form">
+                <input type="hidden" id="namespace-id">
+                <div class="form-group">
+                    <label for="namespace-name">命名空间名称 *</label>
+                    <input type="text" id="namespace-name" required placeholder="例如: com.ddm" pattern="[a-zA-Z0-9._-]+" title="只能包含字母、数字、点(.)、下划线(_)、连字符(-)">
+                    <small style="color: var(--text-muted); display: block; margin-top: 4px;">只能包含字母、数字、点(.)、下划线(_)、连字符(-)</small>
+                </div>
+                <div class="form-group">
+                    <label for="namespace-description">描述</label>
+                    <textarea id="namespace-description" placeholder="命名空间的描述信息"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="namespace-owner">负责人</label>
+                    <input type="text" id="namespace-owner" placeholder="负责人或创建者">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeNamespaceModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 登录模态框 -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>用户登录</h3>
+                <button class="close-btn" onclick="closeLoginModal()">&times;</button>
+            </div>
+            <div id="login-alert"></div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">用户名 *</label>
+                    <input type="text" id="login-username" required placeholder="请输入用户名" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">密码 *</label>
+                    <input type="password" id="login-password" required placeholder="请输入密码" autocomplete="current-password">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeLoginModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">登录</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 删除确认模态框 -->
+    <div id="delete-confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3 id="delete-confirm-title">确认删除</h3>
+                <button class="close-btn" onclick="closeDeleteConfirmModal()">&times;</button>
+            </div>
+            <div style="padding: 30px;">
+                <div id="delete-confirm-message" style="font-size: 15px; color: var(--text-primary); line-height: 1.6; margin-bottom: 20px;">
+                    <!-- 动态填充消息 -->
+                </div>
+                <div id="delete-confirm-warning" style="background: var(--bg-secondary); border-left: 3px solid #f59e0b; border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px; color: var(--text-secondary); font-size: 14px; display: none;">
+                    <span id="delete-warning-text"></span>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 24px; border-top: 1px solid var(--border-light);">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteConfirmModal()" style="min-width: 90px;">取消</button>
+                    <button type="button" id="delete-confirm-btn" class="btn btn-danger" style="min-width: 90px;">
+                        删除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通用确认模态框 -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3 id="confirm-modal-title">确认</h3>
+                <button class="close-btn" onclick="closeConfirmModal()">&times;</button>
+            </div>
+            <div style="padding: 30px;">
+                <div id="confirm-modal-message" style="font-size: 15px; color: var(--text-primary); line-height: 1.6; margin-bottom: 20px;">
+                    <!-- 动态填充消息 -->
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 24px; border-top: 1px solid var(--border-light);">
+                    <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()" style="min-width: 90px;">取消</button>
+                    <button type="button" id="confirm-modal-btn" class="btn btn-primary" style="min-width: 90px;">
+                        确认
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/config';
+
+        // 当前选中的命名空间和分组
+        let currentNamespace = null;
+        let currentGroup = null;
+        let currentView = 'namespaces'; // 当前视图：'namespaces', 'groups', 'items'
+
+        // 获取当前用户信息（从 localStorage）
+        function getCurrentUserInfo() {
+            try {
+                const userStr = localStorage.getItem('currentUser');
+                if (userStr) {
+                    return JSON.parse(userStr);
+                }
+            } catch (e) {
+                console.warn('获取当前用户信息失败:', e);
+            }
+            return null;
+        }
+
+        // 获取当前用户名（向后兼容）
+        function getCurrentUser() {
+            const userInfo = getCurrentUserInfo();
+            return userInfo ? userInfo.username : null;
+        }
+
+        // 获取当前 token
+        function getCurrentToken() {
+            const userInfo = getCurrentUserInfo();
+            return userInfo ? userInfo.token : null;
+        }
+
+        // 检查是否已登录
+        function isLoggedIn() {
+            try {
+                const userStr = localStorage.getItem('currentUser');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    return user && user.username;
+                }
+            } catch (e) {
+                return false;
+            }
+            return false;
+        }
+
+        // 获取请求头（包含认证 token）
+        function getRequestHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            const token = getCurrentToken();
+            if (token) {
+                // 使用标准的 Authorization Bearer token
+                headers['Authorization'] = 'Bearer ' + token;
+                // 向后兼容：同时设置 X-User（使用 token，拦截器会识别）
+                headers['X-User'] = token;
+            }
+            return headers;
+        }
+
+        // 保存当前视图状态到 localStorage
+        function saveViewState() {
+            const state = {
+                view: currentView || 'namespaces',
+                namespace: currentNamespace ? { id: currentNamespace.id, name: currentNamespace.name } : null,
+                group: currentGroup ? { id: currentGroup.id, name: currentGroup.name } : null
+            };
+            localStorage.setItem('configViewState', JSON.stringify(state));
+        }
+
+        // 从 localStorage 恢复视图状态
+        function restoreViewState() {
+            try {
+                const stateStr = localStorage.getItem('configViewState');
+                if (!stateStr) {
+                    return null;
+                }
+                const state = JSON.parse(stateStr);
+                return state;
+            } catch (e) {
+                console.warn('恢复视图状态失败:', e);
+                return null;
+            }
+        }
+
+        // 更新面包屑操作按钮
+        function updateBreadcrumbAction() {
+            const btn = document.getElementById('breadcrumb-action-btn');
+            if (!btn) return;
+
+            // 未登录时不显示新建按钮
+            if (!isLoggedIn()) {
+                btn.style.display = 'none';
+                return;
+            }
+
+            if (currentView === 'namespaces') {
+                btn.textContent = '新建命名空间';
+                btn.onclick = showNamespaceModal;
+                btn.style.display = 'inline-flex';
+            } else if (currentView === 'groups') {
+                btn.textContent = '新建分组';
+                btn.onclick = showGroupModal;
+                btn.style.display = 'inline-flex';
+            } else if (currentView === 'items') {
+                btn.textContent = '新建配置项';
+                btn.onclick = showItemModal;
+                btn.style.display = 'inline-flex';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        // 显示命名空间视图
+        function showNamespaces() {
+            currentView = 'namespaces';
+            currentNamespace = null;
+            currentGroup = null;
+            updateBreadcrumb();
+            updateBreadcrumbAction();
+            switchView('namespaces');
+            loadNamespaces();
+            saveViewState();
+        }
+
+        // 显示分组视图（从命名空间进入）
+        function showGroups(namespaceId, namespaceName) {
+            currentView = 'groups';
+            if (namespaceId && namespaceName) {
+                currentNamespace = { id: namespaceId, name: namespaceName };
+            }
+            currentGroup = null;
+            updateBreadcrumb();
+            updateBreadcrumbAction();
+            switchView('groups');
+            loadGroups();
+            saveViewState();
+        }
+
+        // 显示配置项视图（从分组进入）
+        function showItems(groupId, groupName) {
+            if (!currentNamespace) {
+                alert('请先选择命名空间');
+                return;
+            }
+            currentView = 'items';
+            currentGroup = { id: groupId, name: groupName };
+            updateBreadcrumb();
+            updateBreadcrumbAction();
+            switchView('items');
+            loadItems();
+            saveViewState();
+        }
+
+        // 切换视图
+        function switchView(viewName) {
+            document.querySelectorAll('.view-content').forEach(view => view.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+        }
+
+        // 更新面包屑导航
+        function updateBreadcrumb() {
+            const separator1 = document.getElementById('breadcrumb-separator1');
+            const separator2 = document.getElementById('breadcrumb-separator2');
+            const namespaceSpan = document.getElementById('breadcrumb-namespace');
+            const groupSpan = document.getElementById('breadcrumb-group');
+
+            if (currentNamespace) {
+                separator1.style.display = 'inline';
+                namespaceSpan.style.display = 'inline';
+                namespaceSpan.innerHTML = `<span style="color: #999; font-size: 13px; margin-right: 4px;">命名空间:</span><a href="javascript:void(0)" onclick="showGroups(${currentNamespace.id}, '${escapeHtml(currentNamespace.name)}')" style="color: #059669; text-decoration: none; font-weight: 500;">${escapeHtml(currentNamespace.name)}</a>`;
+            } else {
+                separator1.style.display = 'none';
+                namespaceSpan.style.display = 'none';
+            }
+
+            if (currentGroup) {
+                separator2.style.display = 'inline';
+                groupSpan.style.display = 'inline';
+                groupSpan.innerHTML = `<span style="color: var(--text-muted); font-size: 13px; margin-right: 6px;">分组:</span><span style="color: var(--primary); font-weight: 500;">${escapeHtml(currentGroup.name)}</span>`;
+            } else {
+                separator2.style.display = 'none';
+                groupSpan.style.display = 'none';
+            }
+        }
+
+        // 加载配置项列表
+        async function loadItems() {
+            console.log('loadItems() 开始执行');
+            const loading = document.getElementById('items-loading');
+            const empty = document.getElementById('items-empty');
+            const table = document.getElementById('items-table');
+            const tbody = document.getElementById('items-tbody');
+            // 标题已移除，使用面包屑显示
+
+            if (!currentNamespace || !currentGroup) {
+                console.warn('loadItems: currentNamespace or currentGroup is missing', { currentNamespace, currentGroup });
+                return;
+            }
+
+            console.log('loadItems: 开始加载数据', { namespaceId: currentNamespace.id, groupId: currentGroup.id });
+            loading.style.display = 'block';
+            empty.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const url = `${API_BASE}/items?namespaceId=${currentNamespace.id}&groupId=${currentGroup.id}`;
+                console.log('loadItems: 请求 URL:', url);
+                const response = await fetch(url);
+                const items = await response.json();
+                console.log('loadItems: 获取到数据，数量:', items.length);
+
+                loading.style.display = 'none';
+
+                // 标题已移除，使用面包屑显示
+
+                if (items.length === 0) {
+                    console.log('loadItems: 没有数据，显示空状态');
+                    empty.style.display = 'block';
+                    // 控制空状态中的创建按钮显示
+                    const createBtn = empty.querySelector('button');
+                    if (createBtn) {
+                        createBtn.style.display = isLoggedIn() ? 'inline-block' : 'none';
+                    }
+                } else {
+                    console.log('loadItems: 更新表格，共', items.length, '条数据');
+                    table.style.display = 'table';
+                    tbody.innerHTML = items.map(item => {
+                        // 格式化变体配置显示
+                        let variantDisplay = '-';
+                        if (item.variant && item.variant.trim()) {
+                            try {
+                                // 尝试格式化 JSON
+                                const variantObj = JSON.parse(item.variant);
+                                variantDisplay = JSON.stringify(variantObj, null, 2);
+                            } catch (e) {
+                                // 如果不是有效的 JSON，直接显示原始内容
+                                variantDisplay = item.variant;
+                            }
+                        }
+                        
+                        return `
+                        <tr>
+                            <td><code>${escapeHtml(item.key)}</code></td>
+                            <td>
+                                <code style="max-width: 200px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.value)}">${escapeHtml(item.value)}</code>
+                            </td>
+                            <td>
+                                ${variantDisplay !== '-' 
+                                    ? `<code style="max-width: 250px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: pre-wrap; font-size: 12px; padding: 4px 6px; border-radius: 3px;" title="${escapeHtml(variantDisplay)}">${escapeHtml(variantDisplay)}</code>`
+                                    : '<span style="color: var(--text-muted); font-style: italic;">-</span>'}
+                            </td>
+                            <td><span class="badge badge-primary">${item.type || 'string'}</span></td>
+                            <td>${item.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-danger">禁用</span>'}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">
+                                ${item.operator ? `<div>${escapeHtml(item.operator)}</div>` : ''}
+                                ${item.updatedAt ? `<div style="color: var(--text-muted); font-size: 12px; margin-top: 2px;">${escapeHtml(item.updatedAt)}</div>` : ''}
+                                ${!item.operator && !item.updatedAt ? '-' : ''}
+                            </td>
+                            <td class="action-buttons-cell">
+                                <div class="action-buttons">
+                                    ${isLoggedIn() ? `<button class="btn btn-primary btn-sm" onclick="editItem(${item.id})">编辑</button>` : ''}
+                                    ${isLoggedIn() ? `<button class="btn btn-danger btn-sm" onclick="deleteItem(${item.id})">删除</button>` : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    }).join('');
+                    console.log('loadItems: 表格更新完成');
+                }
+                console.log('loadItems() 执行完成');
+            } catch (error) {
+                console.error('loadItems: 加载失败', error);
+                loading.style.display = 'none';
+                showAlert('items-alert', '加载失败: ' + error.message, 'error');
+            }
+        }
+
+        // 加载分组列表
+        async function loadGroups() {
+            console.log('loadGroups() 开始执行');
+            const loading = document.getElementById('groups-loading');
+            const empty = document.getElementById('groups-empty');
+            const table = document.getElementById('groups-table');
+            const tbody = document.getElementById('groups-tbody');
+            // 标题已移除，使用面包屑显示
+
+            if (!currentNamespace) {
+                console.warn('loadGroups: currentNamespace is missing', { currentNamespace });
+                return;
+            }
+
+            console.log('loadGroups: 开始加载数据', { namespaceId: currentNamespace.id });
+            loading.style.display = 'block';
+            empty.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const url = `${API_BASE}/namespaces/${currentNamespace.id}/groups`;
+                console.log('loadGroups: 请求 URL:', url);
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('加载失败: ' + response.statusText);
+                }
+                
+                const groups = await response.json();
+                console.log('loadGroups: 获取到数据，数量:', groups.length);
+
+                loading.style.display = 'none';
+
+                // 标题已移除，使用面包屑显示
+
+                if (groups.length === 0) {
+                    console.log('loadGroups: 没有数据，显示空状态');
+                    empty.style.display = 'block';
+                    // 控制空状态中的创建按钮显示
+                    const createBtn = empty.querySelector('button');
+                    if (createBtn) {
+                        createBtn.style.display = isLoggedIn() ? 'inline-block' : 'none';
+                    }
+                } else {
+                    console.log('loadGroups: 更新表格，共', groups.length, '条数据');
+                    table.style.display = 'table';
+                    tbody.innerHTML = groups.map(group => `
+                        <tr>
+                            <td><strong style="color: var(--text-primary); font-size: 15px;">${escapeHtml(group.name)}</strong></td>
+                            <td style="color: var(--text-secondary);">${escapeHtml(group.description || '-')}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${group.owner || '-'}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${group.operator || '-'}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${group.createdAt || '-'}</td>
+                            <td class="action-buttons-cell">
+                                <div class="action-buttons">
+                                    <button class="btn btn-success btn-sm" onclick="showItems(${group.id}, '${escapeHtml(group.name)}')">进入</button>
+                                    ${isLoggedIn() ? `<button class="btn btn-primary btn-sm" onclick="editGroup(${group.id})">编辑</button>` : ''}
+                                    ${isLoggedIn() ? `<button class="btn btn-danger btn-sm" onclick="deleteGroup(${group.id})">删除</button>` : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                    console.log('loadGroups: 表格更新完成');
+                }
+                console.log('loadGroups() 执行完成');
+            } catch (error) {
+                console.error('loadGroups: 加载失败', error);
+                loading.style.display = 'none';
+                showAlert('groups-alert', '加载失败: ' + error.message, 'error');
+            }
+        }
+
+        // 加载命名空间列表
+        async function loadNamespaces() {
+            const loading = document.getElementById('namespaces-loading');
+            const empty = document.getElementById('namespaces-empty');
+            const table = document.getElementById('namespaces-table');
+            const tbody = document.getElementById('namespaces-tbody');
+            // 标题已移除，使用面包屑显示
+
+            loading.style.display = 'block';
+            empty.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/namespaces`);
+                const namespaces = await response.json();
+
+                loading.style.display = 'none';
+
+                // 标题已移除，使用面包屑显示
+
+                if (namespaces.length === 0) {
+                    empty.style.display = 'block';
+                    // 控制空状态中的创建按钮显示
+                    const createBtn = empty.querySelector('button');
+                    if (createBtn) {
+                        createBtn.style.display = isLoggedIn() ? 'inline-block' : 'none';
+                    }
+                } else {
+                    table.style.display = 'table';
+                    tbody.innerHTML = namespaces.map(ns => `
+                        <tr>
+                            <td><strong style="color: var(--text-primary); font-size: 15px;">${escapeHtml(ns.name)}</strong></td>
+                            <td style="color: var(--text-secondary);">${escapeHtml(ns.description || '-')}</td>
+                            <td style="color: var(--text-secondary);">${escapeHtml(ns.owner || '-')}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${ns.operator || '-'}</td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">${ns.createdAt || '-'}</td>
+                            <td class="action-buttons-cell">
+                                <div class="action-buttons">
+                                    <button class="btn btn-success btn-sm" onclick="showGroups(${ns.id}, '${escapeHtml(ns.name)}')">进入</button>
+                                    ${isLoggedIn() ? `<button class="btn btn-primary btn-sm" onclick="editNamespace(${ns.id})">编辑</button>` : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                showAlert('namespaces-alert', '加载失败: ' + error.message, 'error');
+            }
+        }
+
+
+        // 关闭配置项模态框
+        function closeItemModal() {
+            document.getElementById('item-modal').classList.remove('active');
+            // 清除键名输入框的只读状态，确保下次打开时状态正确
+            const keyInput = document.getElementById('item-key');
+            if (keyInput) {
+                keyInput.removeAttribute('readonly');
+                keyInput.readOnly = false;
+            }
+        }
+
+        // 编辑配置项
+        async function editItem(id) {
+            try {
+                const response = await fetch(`${API_BASE}/items/${id}`);
+                if (!response.ok) {
+                    throw new Error('加载配置项失败: ' + response.statusText);
+                }
+                const item = await response.json();
+                console.log('编辑配置项，获取到的数据:', item);
+                showItemModal(item);
+            } catch (error) {
+                alert('加载配置项失败: ' + error.message);
+            }
+        }
+
+        // 删除配置项
+        function deleteItem(id) {
+            showDeleteConfirmModal({
+                message: '确定要删除这个配置项吗？',
+                warning: null,
+                onConfirm: async () => {
+                    try {
+                        console.log('开始删除配置项:', id);
+                        const response = await fetch(`${API_BASE}/items/${id}`, { 
+                            method: 'DELETE',
+                            headers: getRequestHeaders()
+                        });
+                        const result = await response.json();
+                        console.log('删除响应:', response.ok, result);
+
+                        if (response.ok) {
+                            console.log('删除成功，准备刷新');
+                            showAlert('items-alert', '删除成功', 'success');
+                            // 立即刷新配置项列表
+                            if (currentNamespace && currentGroup) {
+                                console.log('当前状态:', { namespace: currentNamespace, group: currentGroup });
+                                // 确保视图正确显示
+                                switchView('items');
+                                // 刷新列表
+                                console.log('调用 loadItems()');
+                                await loadItems();
+                                console.log('loadItems() 完成');
+                            } else {
+                                console.log('状态丢失，重新加载页面');
+                                location.reload();
+                            }
+                        } else {
+                            console.error('删除失败:', result);
+                            showAlert('items-alert', result.error || '删除失败', 'error');
+                        }
+                    } catch (error) {
+                        console.error('删除异常:', error);
+                        showAlert('items-alert', '删除失败: ' + error.message, 'error');
+                    }
+                }
+            });
+        }
+
+        // 提交配置项表单
+        document.getElementById('item-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('item-id').value;
+            const namespaceIdInput = document.getElementById('item-namespace-id');
+            const groupIdInput = document.getElementById('item-group-id');
+            
+            // 统一使用隐藏字段承载的 ID（编辑/新建都由 showItemModal 赋值）
+            const namespaceId = parseInt(namespaceIdInput.value);
+            const groupId = parseInt(groupIdInput.value);
+
+            if (!namespaceId || !groupId) {
+                showAlert('item-alert', '命名空间ID和分组ID不能为空', 'error');
+                return;
+            }
+
+            // 验证键名格式
+            const keyInput = document.getElementById('item-key');
+            const keyValue = keyInput.value.trim();
+            const keyPattern = /^[a-zA-Z0-9._-]+$/;
+            if (!keyPattern.test(keyValue)) {
+                showAlert('item-alert', '键名只能包含字母、数字、点(.)、下划线(_)、连字符(-)', 'error');
+                keyInput.focus();
+                return;
+            }
+
+            // 将变体行转换为 JSON
+            const variantJson = variantRowsToJson();
+            
+            const data = {
+                namespaceId: namespaceId,
+                groupId: groupId,
+                key: keyValue,
+                value: document.getElementById('item-value').value,
+                type: document.getElementById('item-type').value,
+                enabled: document.getElementById('item-enabled').checked,
+                variant: variantJson,
+                description: document.getElementById('item-description').value
+            };
+
+            try {
+                const url = id ? `${API_BASE}/items/${id}` : `${API_BASE}/items`;
+                const method = id ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: getRequestHeaders(),
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('item-alert', result.message || '保存成功', 'success');
+                    closeItemModal();
+                    loadItems();
+                } else {
+                    showAlert('item-alert', result.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                showAlert('item-alert', '保存失败: ' + error.message, 'error');
+            }
+        });
+
+        // 关闭分组模态框
+        function closeGroupModal() {
+            document.getElementById('group-modal').classList.remove('active');
+        }
+
+        // 提交分组表单
+        document.getElementById('group-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('group-id').value;
+            const namespaceId = parseInt(document.getElementById('group-namespace-id').value);
+            
+            // 验证分组名称格式
+            const nameInput = document.getElementById('group-name');
+            const nameValue = nameInput.value.trim();
+            const namePattern = /^[a-zA-Z0-9._-]+$/;
+            if (!namePattern.test(nameValue)) {
+                showAlert('group-alert', '分组名称只能包含字母、数字、点(.)、下划线(_)、连字符(-)', 'error');
+                nameInput.focus();
+                return;
+            }
+            
+            const data = {
+                name: nameValue,
+                description: document.getElementById('group-description').value,
+                owner: document.getElementById('group-owner').value || null
+            };
+
+            try {
+                let url, method;
+                if (id) {
+                    // 编辑模式
+                    url = `${API_BASE}/groups/${id}`;
+                    method = 'PUT';
+                } else {
+                    // 新建模式
+                    url = `${API_BASE}/namespaces/${namespaceId}/groups`;
+                    method = 'POST';
+                }
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: getRequestHeaders(),
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('group-alert', result.message || (id ? '更新成功' : '创建成功'), 'success');
+                    closeGroupModal();
+                    loadGroups();
+                } else {
+                    showAlert('group-alert', result.error || (id ? '更新失败' : '创建失败'), 'error');
+                }
+            } catch (error) {
+                showAlert('group-alert', (id ? '更新失败' : '创建失败') + ': ' + error.message, 'error');
+            }
+        });
+
+        // 显示命名空间编辑模态框
+        function showNamespaceModal(namespace = null) {
+            const modal = document.getElementById('namespace-modal');
+            const form = document.getElementById('namespace-form');
+            const title = document.getElementById('namespace-modal-title');
+
+            const currentUser = getCurrentUser();
+            const nameInput = document.getElementById('namespace-name');
+            if (namespace && namespace.id) {
+                title.textContent = '编辑命名空间';
+                document.getElementById('namespace-id').value = namespace.id;
+                // 编辑时，名称不可修改
+                nameInput.value = namespace.name || '';
+                nameInput.readOnly = true;
+                nameInput.style.backgroundColor = '#f5f5f5';
+                nameInput.style.cursor = 'not-allowed';
+                document.getElementById('namespace-description').value = namespace.description || '';
+                // 编辑时，负责人自动设置为当前用户
+                document.getElementById('namespace-owner').value = currentUser || namespace.owner || '';
+            } else {
+                // 新建时，名称可编辑
+                nameInput.readOnly = false;
+                nameInput.style.backgroundColor = '';
+                nameInput.style.cursor = 'text';
+                title.textContent = '新建命名空间';
+                // 手动清空所有字段，确保状态正确
+                document.getElementById('namespace-id').value = '';
+                document.getElementById('namespace-name').value = '';
+                document.getElementById('namespace-description').value = '';
+                // 新建时，负责人自动设置为当前用户
+                document.getElementById('namespace-owner').value = currentUser || '';
+            }
+
+            modal.classList.add('active');
+            document.getElementById('namespace-alert').innerHTML = '';
+        }
+
+        // 关闭命名空间模态框
+        function closeNamespaceModal() {
+            document.getElementById('namespace-modal').classList.remove('active');
+        }
+
+        // 编辑命名空间
+        async function editNamespace(id) {
+            try {
+                const response = await fetch(`${API_BASE}/namespaces/${id}`);
+                if (!response.ok) {
+                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorData.message || errorMessage;
+                    } catch (e) {
+                        const errorText = await response.text();
+                        if (errorText) {
+                            errorMessage = errorText;
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+                const namespace = await response.json();
+                showNamespaceModal(namespace);
+            } catch (error) {
+                console.error('加载命名空间失败:', error);
+                alert('加载命名空间失败: ' + error.message);
+            }
+        }
+
+        // 提交命名空间表单
+        document.getElementById('namespace-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('namespace-id').value;
+            
+            // 验证命名空间名称格式
+            const nameInput = document.getElementById('namespace-name');
+            const nameValue = nameInput.value.trim();
+            const namePattern = /^[a-zA-Z0-9._-]+$/;
+            if (!namePattern.test(nameValue)) {
+                showAlert('namespace-alert', '命名空间名称只能包含字母、数字、点(.)、下划线(_)、连字符(-)', 'error');
+                nameInput.focus();
+                return;
+            }
+            
+            const data = {
+                name: nameValue,
+                description: document.getElementById('namespace-description').value,
+                owner: document.getElementById('namespace-owner').value
+            };
+
+            try {
+                let url, method;
+                if (id) {
+                    // 编辑模式
+                    url = `${API_BASE}/namespaces/${id}`;
+                    method = 'PUT';
+                } else {
+                    // 新建模式
+                    url = `${API_BASE}/namespaces`;
+                    method = 'POST';
+                }
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: getRequestHeaders(),
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('namespace-alert', result.message || (id ? '更新成功' : '创建成功'), 'success');
+                    closeNamespaceModal();
+                    loadNamespaces();
+                } else {
+                    showAlert('namespace-alert', result.error || (id ? '更新失败' : '创建失败'), 'error');
+                }
+            } catch (error) {
+                showAlert('namespace-alert', (id ? '更新失败' : '创建失败') + ': ' + error.message, 'error');
+            }
+        });
+
+        // 显示提示信息
+        function showAlert(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.warn('Alert container not found:', containerId);
+                return;
+            }
+            container.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+            setTimeout(() => {
+                if (container) {
+                    container.innerHTML = '';
+                }
+            }, 5000);
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            if (text == null) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 显示分组编辑模态框
+        function showGroupModal(group = null) {
+            if (!currentNamespace) {
+                alert('请先选择命名空间');
+                return;
+            }
+
+            const modal = document.getElementById('group-modal');
+            const form = document.getElementById('group-form');
+            const title = document.getElementById('group-modal-title');
+
+            const currentUser = getCurrentUser();
+            const groupNameInput = document.getElementById('group-name');
+            if (group && group.id) {
+                title.textContent = '编辑配置分组';
+                document.getElementById('group-id').value = group.id;
+                document.getElementById('group-namespace-id').value = group.namespaceId;
+                document.getElementById('group-namespace-name').value = group.namespaceName || currentNamespace.name;
+                // 编辑时，分组名称不可修改
+                groupNameInput.value = group.name || '';
+                groupNameInput.readOnly = true;
+                groupNameInput.style.backgroundColor = '#f5f5f5';
+                groupNameInput.style.cursor = 'not-allowed';
+                document.getElementById('group-description').value = group.description || '';
+                // 编辑时，负责人自动设置为当前用户
+                document.getElementById('group-owner').value = currentUser || group.owner || '';
+            } else {
+                // 新建时，分组名称可编辑
+                groupNameInput.readOnly = false;
+                groupNameInput.style.backgroundColor = '';
+                groupNameInput.style.cursor = 'text';
+                title.textContent = '新建配置分组';
+                // 手动清空所有字段，确保状态正确
+                document.getElementById('group-id').value = '';
+                document.getElementById('group-namespace-id').value = currentNamespace.id;
+                document.getElementById('group-namespace-name').value = currentNamespace.name || '';
+                document.getElementById('group-name').value = '';
+                document.getElementById('group-description').value = '';
+                // 新建时，负责人自动设置为当前用户
+                document.getElementById('group-owner').value = currentUser || '';
+            }
+
+            modal.classList.add('active');
+            document.getElementById('group-alert').innerHTML = '';
+        }
+
+        // 编辑分组
+        async function editGroup(id) {
+            try {
+                const response = await fetch(`${API_BASE}/groups/${id}`);
+                if (!response.ok) {
+                    throw new Error('加载分组失败');
+                }
+                const group = await response.json();
+                showGroupModal(group);
+            } catch (error) {
+                alert('加载分组失败: ' + error.message);
+            }
+        }
+
+        // 删除分组
+        function deleteGroup(id) {
+            showDeleteConfirmModal({
+                message: '确定要删除这个配置分组吗？',
+                warning: '如果该分组下存在配置项，删除操作将失败。',
+                onConfirm: async () => {
+                    try {
+                        console.log('开始删除分组:', id);
+                        const response = await fetch(`${API_BASE}/groups/${id}`, { 
+                            method: 'DELETE',
+                            headers: getRequestHeaders()
+                        });
+                        const result = await response.json();
+                        console.log('删除响应:', response.ok, result);
+
+                        if (response.ok) {
+                            console.log('删除成功，准备刷新');
+                            showAlert('groups-alert', result.message || '删除成功', 'success');
+                            // 立即刷新分组列表
+                            if (currentNamespace) {
+                                console.log('当前状态:', { namespace: currentNamespace });
+                                // 确保视图正确显示
+                                switchView('groups');
+                                // 刷新列表
+                                console.log('调用 loadGroups()');
+                                await loadGroups();
+                                console.log('loadGroups() 完成');
+                            } else {
+                                console.log('状态丢失，重新加载页面');
+                                location.reload();
+                            }
+                        } else {
+                            console.error('删除失败:', result);
+                            showAlert('groups-alert', result.error || '删除失败', 'error');
+                        }
+                    } catch (error) {
+                        console.error('删除异常:', error);
+                        showAlert('groups-alert', '删除失败: ' + error.message, 'error');
+                    }
+                }
+            });
+        }
+
+        // 添加变体行
+        function addVariantRow(key = '', value = '') {
+            const container = document.getElementById('variant-rows');
+            const row = document.createElement('div');
+            row.className = 'variant-row';
+
+            const keyInput = document.createElement('input');
+            keyInput.type = 'text';
+            keyInput.className = 'variant-key';
+            keyInput.placeholder = '环境名 (如: gray)';
+            keyInput.value = key ?? '';
+
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.className = 'variant-value';
+            valueInput.placeholder = '配置值';
+            valueInput.value = value ?? '';
+
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'btn btn-danger btn-sm';
+            delBtn.textContent = '删除';
+            delBtn.onclick = function () { removeVariantRow(delBtn); };
+
+            row.appendChild(keyInput);
+            row.appendChild(valueInput);
+            row.appendChild(delBtn);
+            container.appendChild(row);
+        }
+
+        // 删除变体行
+        function removeVariantRow(btn) {
+            btn.closest('.variant-row').remove();
+        }
+
+        // 将变体行转换为 JSON
+        function variantRowsToJson() {
+            const rows = document.querySelectorAll('#variant-rows .variant-row');
+            const variant = {};
+            rows.forEach(row => {
+                const key = row.querySelector('.variant-key').value.trim();
+                const value = row.querySelector('.variant-value').value.trim();
+                if (key) {
+                    variant[key] = value;
+                }
+            });
+            return Object.keys(variant).length > 0 ? JSON.stringify(variant) : '';
+        }
+
+        // 将 JSON 解析为变体行
+        function jsonToVariantRows(jsonStr) {
+            const container = document.getElementById('variant-rows');
+            container.innerHTML = '';
+            
+            if (!jsonStr || !jsonStr.trim()) {
+                return;
+            }
+
+            try {
+                const variant = JSON.parse(jsonStr);
+                if (typeof variant === 'object' && variant !== null) {
+                    for (const [key, value] of Object.entries(variant)) {
+                        let vStr;
+                        if (value !== null && typeof value === 'object') {
+                            // 数组或对象，保持 JSON 形态
+                            vStr = JSON.stringify(value);
+                        } else {
+                            const sv = String(value);
+                            // 如果是可解析的 JSON（例如 "[\"u1\",\"u2\"]"）则保留原样
+                            if ((sv.startsWith('[') && sv.endsWith(']')) || (sv.startsWith('{') && sv.endsWith('}'))) {
+                                vStr = sv;
+                            } else {
+                                vStr = sv;
+                            }
+                        }
+                        addVariantRow(key, vStr);
+                    }
+                }
+            } catch (e) {
+                console.warn('解析变体 JSON 失败:', e);
+            }
+        }
+
+        // 显示配置项编辑模态框
+        function showItemModal(item = null) {
+            // 如果是从列表直接编辑，需要从 item 中获取命名空间和分组信息
+            let namespaceName, namespaceId, groupName, groupId;
+            
+            if (item && item.id) {
+                // 编辑模式：优先使用 item 中的信息，如果没有则使用当前上下文
+                namespaceName = item.namespaceName || (currentNamespace ? currentNamespace.name : `命名空间 ID: ${item.namespaceId}`);
+                namespaceId = item.namespaceId || (currentNamespace ? currentNamespace.id : null);
+                groupName = item.groupName || (currentGroup ? currentGroup.name : `分组 ID: ${item.groupId}`);
+                groupId = item.groupId || (currentGroup ? currentGroup.id : null);
+            } else {
+                // 新建模式：必须从当前上下文获取
+                if (!currentNamespace || !currentGroup) {
+                    alert('请先选择命名空间和分组');
+                    return;
+                }
+                namespaceName = currentNamespace.name;
+                namespaceId = currentNamespace.id;
+                groupName = currentGroup.name;
+                groupId = currentGroup.id;
+            }
+
+            const modal = document.getElementById('item-modal');
+            const form = document.getElementById('item-form');
+            const title = document.getElementById('item-modal-title');
+            const namespaceInput = document.getElementById('item-namespace');
+            const groupInput = document.getElementById('item-group');
+            const namespaceIdInput = document.getElementById('item-namespace-id');
+            const groupIdInput = document.getElementById('item-group-id');
+
+            const keyInput = document.getElementById('item-key');
+            
+            // 先清除键名输入框的状态，确保干净的状态
+            keyInput.removeAttribute('readonly');
+            keyInput.readOnly = false;
+            keyInput.style.cursor = '';
+            keyInput.style.backgroundColor = '';
+            
+            if (item && item.id) {
+                title.textContent = '编辑配置项';
+                document.getElementById('item-id').value = item.id || '';
+                
+                // 编辑模式：显示名称，禁用编辑
+                namespaceInput.value = namespaceName || '';
+                groupInput.value = groupName || '';
+                namespaceInput.readOnly = true;
+                groupInput.readOnly = true;
+                namespaceInput.style.backgroundColor = '#f5f5f5';
+                groupInput.style.backgroundColor = '#f5f5f5';
+                namespaceInput.style.cursor = 'not-allowed';
+                groupInput.style.cursor = 'not-allowed';
+                namespaceIdInput.value = namespaceId || '';
+                groupIdInput.value = groupId || '';
+                
+                // 键名不可修改
+                keyInput.value = item.key || '';
+                keyInput.readOnly = true;
+                keyInput.style.cursor = 'not-allowed';
+                keyInput.style.backgroundColor = '#f5f5f5';
+                
+                document.getElementById('item-value').value = item.value || '';
+                document.getElementById('item-type').value = item.type || 'string';
+                document.getElementById('item-enabled').checked = item.enabled !== false;
+                document.getElementById('item-description').value = item.description || '';
+                
+                // 解析变体 JSON 并显示为 key-value 行
+                jsonToVariantRows(item.variant || '');
+            } else {
+                title.textContent = '新建配置项';
+                
+                // 新建模式：显示当前命名空间和分组，不可编辑
+                namespaceInput.value = namespaceName || '';
+                groupInput.value = groupName || '';
+                namespaceInput.readOnly = true;
+                groupInput.readOnly = true;
+                namespaceInput.style.backgroundColor = '#f5f5f5';
+                groupInput.style.backgroundColor = '#f5f5f5';
+                namespaceInput.style.cursor = 'not-allowed';
+                groupInput.style.cursor = 'not-allowed';
+                namespaceIdInput.value = namespaceId || '';
+                groupIdInput.value = groupId || '';
+                
+                // 重置其他字段（手动重置，不使用 form.reset()，避免影响 readonly 状态）
+                document.getElementById('item-id').value = '';
+                document.getElementById('item-value').value = '';
+                document.getElementById('item-type').value = 'string';
+                document.getElementById('item-enabled').checked = true;
+                document.getElementById('item-description').value = '';
+                
+                // 新建模式下，键名必须可以输入
+                // 清除所有可能的只读状态（包括 HTML 属性和 JavaScript 属性）
+                keyInput.removeAttribute('readonly');
+                keyInput.removeAttribute('disabled');
+                keyInput.readOnly = false;
+                keyInput.disabled = false;
+                keyInput.value = '';
+                keyInput.placeholder = '例如: demo.name';
+                keyInput.style.cursor = 'text';
+                keyInput.style.backgroundColor = '';
+                keyInput.style.pointerEvents = 'auto';
+                // 强制移除可能阻止输入的样式
+                keyInput.style.opacity = '1';
+                keyInput.style.userSelect = 'text';
+                
+                // 清空变体行
+                document.getElementById('variant-rows').innerHTML = '';
+            }
+
+            modal.classList.add('active');
+            document.getElementById('item-alert').innerHTML = '';
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', async () => {
+            // 检查登录状态
+            checkLoginStatus();
+            
+            // 尝试恢复之前的状态
+            const savedState = restoreViewState();
+            
+            if (savedState) {
+                try {
+                    if (savedState.view === 'items' && savedState.namespace && savedState.group) {
+                        // 恢复配置项视图：需要验证命名空间和分组是否仍然存在
+                        currentNamespace = savedState.namespace;
+                        currentGroup = savedState.group;
+                        currentView = 'items';
+                        updateBreadcrumb();
+                        updateBreadcrumbAction();
+                        switchView('items');
+                        await loadItems();
+                        // 如果加载失败，loadItems 会显示错误，但不影响状态恢复
+                    } else if (savedState.view === 'groups' && savedState.namespace) {
+                        // 恢复分组视图：需要验证命名空间是否仍然存在
+                        currentNamespace = savedState.namespace;
+                        currentGroup = null;
+                        currentView = 'groups';
+                        updateBreadcrumb();
+                        updateBreadcrumbAction();
+                        switchView('groups');
+                        await loadGroups();
+                        // 如果加载失败，loadGroups 会显示错误，但不影响状态恢复
+                    } else {
+                        // 恢复命名空间视图
+                        showNamespaces();
+                    }
+                } catch (error) {
+                    console.warn('恢复视图状态失败，使用默认视图:', error);
+                    // 如果恢复失败，清除保存的状态并显示默认视图
+                    localStorage.removeItem('configViewState');
+                    showNamespaces();
+                }
+            } else {
+                // 没有保存的状态，显示默认视图
+                showNamespaces();
+            }
+        });
+
+        // 删除确认模态框相关变量
+        let deleteConfirmCallback = null;
+
+        // 显示删除确认模态框
+        function showDeleteConfirmModal(options) {
+            const modal = document.getElementById('delete-confirm-modal');
+            const messageEl = document.getElementById('delete-confirm-message');
+            const warningEl = document.getElementById('delete-confirm-warning');
+            const warningTextEl = document.getElementById('delete-warning-text');
+
+            // 设置消息
+            messageEl.textContent = options.message || '确定要删除吗？';
+
+            // 设置警告信息
+            if (options.warning) {
+                warningTextEl.textContent = options.warning;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
+
+            // 保存确认回调
+            deleteConfirmCallback = options.onConfirm;
+
+            // 显示模态框
+            modal.classList.add('active');
+        }
+
+        // 关闭删除确认模态框
+        function closeDeleteConfirmModal() {
+            const modal = document.getElementById('delete-confirm-modal');
+            modal.classList.remove('active');
+        }
+
+        // 确认删除
+        function confirmDelete() {
+            console.log('confirmDelete called, deleteConfirmCallback:', deleteConfirmCallback);
+            if (deleteConfirmCallback) {
+                const callback = deleteConfirmCallback;
+                // 先清空回调，防止重复执行
+                deleteConfirmCallback = null;
+                // 关闭模态框
+                closeDeleteConfirmModal();
+                // 执行回调（删除操作和刷新）
+                Promise.resolve(callback()).catch(error => {
+                    console.error('删除操作失败:', error);
+                    // 尝试显示错误，但不确定是哪个视图
+                    const itemsAlert = document.getElementById('items-alert');
+                    const groupsAlert = document.getElementById('groups-alert');
+                    if (itemsAlert) {
+                        showAlert('items-alert', '删除操作失败: ' + error.message, 'error');
+                    } else if (groupsAlert) {
+                        showAlert('groups-alert', '删除操作失败: ' + error.message, 'error');
+                    }
+                });
+            } else {
+                console.error('deleteConfirmCallback is null');
+            }
+        }
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                // 如果点击的是模态框本身（不是子元素），才关闭
+                if (e.target === modal) {
+                    if (modal.id === 'delete-confirm-modal') {
+                        closeDeleteConfirmModal();
+                    } else if (modal.id === 'confirm-modal') {
+                        closeConfirmModal();
+                    } else {
+                        modal.classList.remove('active');
+                    }
+                }
+            });
+        });
+
+        // 确保删除确认按钮的点击事件不被阻止
+        // 使用事件委托，因为按钮在页面加载时就存在
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'delete-confirm-btn') {
+                e.preventDefault();
+                e.stopPropagation();
+                confirmDelete();
+            }
+        });
+
+        // ESC 键关闭模态框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const deleteModal = document.getElementById('delete-confirm-modal');
+                if (deleteModal && deleteModal.classList.contains('active')) {
+                    closeDeleteConfirmModal();
+                }
+                const confirmModal = document.getElementById('confirm-modal');
+                if (confirmModal && confirmModal.classList.contains('active')) {
+                    closeConfirmModal();
+                }
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal && loginModal.classList.contains('active')) {
+                    closeLoginModal();
+                }
+            }
+        });
+
+        // ===================== 登录功能 =====================
+
+        // 登录状态管理
+        let currentUser = null;
+
+        // 页面加载时检查登录状态
+        function checkLoginStatus() {
+            const userStr = localStorage.getItem('currentUser');
+            if (userStr) {
+                try {
+                    currentUser = JSON.parse(userStr);
+                    updateLoginUI();
+                } catch (e) {
+                    console.error('解析用户信息失败:', e);
+                    localStorage.removeItem('currentUser');
+                }
+            }
+        }
+
+        // 更新登录UI
+        function updateLoginUI() {
+            const loginBtn = document.getElementById('login-btn');
+            const userInfo = document.getElementById('user-info');
+            const usernameDisplay = document.getElementById('username-display');
+
+            if (currentUser) {
+                loginBtn.style.display = 'none';
+                userInfo.style.display = 'flex';
+                usernameDisplay.textContent = currentUser.username;
+            } else {
+                loginBtn.style.display = 'inline-flex';
+                userInfo.style.display = 'none';
+            }
+            
+            // 刷新当前视图以更新按钮显示状态
+            if (currentView === 'namespaces') {
+                loadNamespaces();
+            } else if (currentView === 'groups' && currentNamespace) {
+                loadGroups();
+            } else if (currentView === 'items' && currentNamespace && currentGroup) {
+                loadItems();
+            }
+        }
+
+        // 显示登录模态框
+        function showLoginModal() {
+            const modal = document.getElementById('login-modal');
+            document.getElementById('login-form').reset();
+            document.getElementById('login-alert').innerHTML = '';
+            modal.classList.add('active');
+            // 聚焦到用户名输入框
+            setTimeout(() => {
+                document.getElementById('login-username').focus();
+            }, 100);
+        }
+
+        // 关闭登录模态框
+        function closeLoginModal() {
+            const modal = document.getElementById('login-modal');
+            modal.classList.remove('active');
+        }
+
+        // 登录表单提交处理函数
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!username || !password) {
+                showAlert('login-alert', '请输入用户名和密码', 'error');
+                return;
+            }
+
+            try {
+                console.log('发送登录请求:', { username, password: '***' });
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                console.log('登录响应:', { status: response.status, ok: response.ok, data });
+
+                if (response.ok && data.success && data.token) {
+                    // 登录成功，保存用户信息和 token
+                    currentUser = {
+                        username: data.username || username,
+                        token: data.token
+                    };
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateLoginUI();
+                    closeLoginModal();
+                    showAlert('namespaces-alert', '登录成功', 'success');
+                } else {
+                    // 登录失败
+                    const errorMsg = data.error || data.message || '登录失败，请检查用户名和密码';
+                    console.error('登录失败:', errorMsg);
+                    showAlert('login-alert', errorMsg, 'error');
+                }
+            } catch (error) {
+                console.error('登录请求失败:', error);
+                showAlert('login-alert', '登录请求失败，请稍后重试', 'error');
+            }
+        }
+
+        // 绑定登录表单提交事件（使用事件委托，确保在 DOM 加载后绑定）
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', handleLoginSubmit);
+            } else {
+                console.error('登录表单未找到');
+            }
+        });
+
+        // 通用确认模态框相关变量
+        let confirmCallback = null;
+
+        // 显示通用确认模态框
+        function showConfirmModal(options) {
+            const modal = document.getElementById('confirm-modal');
+            const titleEl = document.getElementById('confirm-modal-title');
+            const messageEl = document.getElementById('confirm-modal-message');
+            const btnEl = document.getElementById('confirm-modal-btn');
+
+            // 设置标题
+            titleEl.textContent = options.title || '确认';
+            // 设置消息
+            messageEl.textContent = options.message || '确定要执行此操作吗？';
+            // 设置按钮文字
+            btnEl.textContent = options.buttonText || '确认';
+            // 设置按钮样式
+            if (options.buttonType === 'danger') {
+                btnEl.className = 'btn btn-danger';
+            } else {
+                btnEl.className = 'btn btn-primary';
+            }
+
+            // 保存确认回调
+            confirmCallback = options.onConfirm;
+
+            // 显示模态框
+            modal.classList.add('active');
+        }
+
+        // 关闭通用确认模态框
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.remove('active');
+            confirmCallback = null;
+        }
+
+        // 确认操作
+        function confirmAction() {
+            if (confirmCallback) {
+                const callback = confirmCallback;
+                confirmCallback = null;
+                closeConfirmModal();
+                Promise.resolve(callback()).catch(error => {
+                    console.error('操作失败:', error);
+                });
+            }
+        }
+
+        // 绑定确认按钮事件
+        document.addEventListener('DOMContentLoaded', () => {
+            const confirmBtn = document.getElementById('confirm-modal-btn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', confirmAction);
+            }
+        });
+
+        // 登出（无状态系统：只需清除前端 token）
+        function logout() {
+            showConfirmModal({
+                title: '确认登出',
+                message: '确定要登出吗？',
+                buttonText: '登出',
+                buttonType: 'primary',
+                onConfirm: () => {
+                    // 无状态系统：直接清除本地 token 并刷新页面
+                    localStorage.removeItem('currentUser');
+                    location.reload();
+                }
+            });
+        }
+
+        // 点击登录模态框外部关闭（使用事件委托）
+        document.addEventListener('click', (e) => {
+            const loginModal = document.getElementById('login-modal');
+            if (loginModal && e.target === loginModal) {
+                closeLoginModal();
+            }
+        });
+
+    </script>
+</body>
+</html>
+
