@@ -178,7 +178,12 @@ public class ConfigController {
      * 删除配置分组。
      */
     @DeleteMapping("/groups/{id}")
-    public ResponseEntity<Map<String, Object>> deleteGroup(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deleteGroup(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        // 验证用户登录状态（拦截器已处理，这里可以获取用户信息用于日志）
+        String currentUser = getCurrentUser(httpRequest, null);
+        log.info("User {} deleting group {}", currentUser, id);
         configService.deleteGroup(id);
         return ResponseEntity.ok(ApiResponse.success("分组删除成功"));
     }
@@ -265,7 +270,12 @@ public class ConfigController {
      * 删除配置项。
      */
     @DeleteMapping("/items/{id}")
-    public ResponseEntity<Map<String, Object>> deleteItem(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deleteItem(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        // 验证用户登录状态（拦截器已处理，这里可以获取用户信息用于日志）
+        String currentUser = getCurrentUser(httpRequest, null);
+        log.info("User {} deleting item {}", currentUser, id);
         configService.deleteItem(id);
         return ResponseEntity.ok(ApiResponse.success("配置项删除成功"));
     }
