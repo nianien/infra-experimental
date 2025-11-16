@@ -29,7 +29,7 @@ Chaos 是一个轻量级的分布式配置中心，支持多环境配置管理�
 - **数据源**：使用 `JdbcDataProvider` 从数据库读取配置数据
 - **独立部署**：可作为独立的配置中心服务运行
 
-### chaos-web
+### atlas (原 chaos-web)
 Web 管理界面模块，提供配置的 Web 管理功能：
 - **RESTful API**：`ConfigController` 提供配置的 CRUD 接口
 - **Web 界面**：`config.html` 提供可视化的配置管理界面
@@ -192,7 +192,7 @@ public class MyService {
 
 ## 🌐 Web 管理界面
 
-启动 `chaos-web` 模块后，访问 `http://localhost:8080/` 即可打开配置管理界面。
+启动 `atlas` 模块后，访问 `http://localhost:8080/` 即可打开配置管理界面。
 
 功能包括：
 - 命名空间管理
@@ -204,7 +204,7 @@ public class MyService {
 
 ```
 ┌─────────────┐
-│  chaos-web  │  Web 管理界面
+│  atlas  │  Web 管理界面（原 chaos-web）
 └──────┬──────┘
        │
        ▼

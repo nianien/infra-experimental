@@ -15,6 +15,7 @@
     <modules>
         <module>argus</module>
         <module>chaos</module>
+        <module>atlas</module>
         <module>test</module>
     </modules>
     <properties>
@@ -31,6 +32,27 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Chaos 子模块版本统一管理 -->
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>chaos-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>chaos-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>chaos-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>atlas</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <!-- Spring Boot BOM -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>

@@ -16,7 +16,6 @@
         <module>chaos-core</module>
         <module>chaos-client</module>
         <module>chaos-server</module>
-        <module>chaos-web</module>
     </modules>
 
     <dependencyManagement>
@@ -35,11 +34,6 @@
             <dependency>
                 <groupId>com.ddm</groupId>
                 <artifactId>chaos-server</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.ddm</groupId>
-                <artifactId>chaos-web</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
