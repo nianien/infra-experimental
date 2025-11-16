@@ -2,13 +2,12 @@ package com.ddm.chaos.web;
 
 import com.ddm.chaos.web.dto.ApiResponse;
 import com.ddm.chaos.web.service.ConfigService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +28,8 @@ import java.util.Map;
 public class ConfigController {
 
     private static final Logger log = LoggerFactory.getLogger(ConfigController.class);
+    private static final String ATTR_CURRENT_USER = "currentUser";
+    private static final String DEFAULT_USER = "admin";
 
     private final ConfigService configService;
 
@@ -43,13 +44,8 @@ public class ConfigController {
      */
     @GetMapping("/namespaces")
     public ResponseEntity<List<Map<String, Object>>> listNamespaces() {
-        try {
-            List<Map<String, Object>> namespaces = configService.listNamespaces();
-            return ResponseEntity.ok(namespaces);
-        } catch (Exception e) {
-            log.error("Failed to list namespaces", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<Map<String, Object>> namespaces = configService.listNamespaces();
+        return ResponseEntity.ok(namespaces);
     }
 
     /**
@@ -57,16 +53,11 @@ public class ConfigController {
      */
     @GetMapping("/namespaces/{id}")
     public ResponseEntity<Map<String, Object>> getNamespace(@PathVariable Long id) {
-        try {
-            Map<String, Object> namespace = configService.getNamespace(id);
-            if (namespace == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(namespace);
-        } catch (Exception e) {
-            log.error("Failed to get namespace {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        Map<String, Object> namespace = configService.getNamespace(id);
+        if (namespace == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(namespace);
     }
 
     /**
@@ -112,13 +103,8 @@ public class ConfigController {
      */
     @GetMapping("/namespaces/{namespaceId}/groups")
     public ResponseEntity<List<Map<String, Object>>> listGroups(@PathVariable Long namespaceId) {
-        try {
-            List<Map<String, Object>> groups = configService.listGroups(namespaceId);
-            return ResponseEntity.ok(groups);
-        } catch (Exception e) {
-            log.error("Failed to list groups for namespace {}", namespaceId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<Map<String, Object>> groups = configService.listGroups(namespaceId);
+        return ResponseEntity.ok(groups);
     }
 
     /**
@@ -126,16 +112,11 @@ public class ConfigController {
      */
     @GetMapping("/groups/{id}")
     public ResponseEntity<Map<String, Object>> getGroup(@PathVariable Long id) {
-        try {
-            Map<String, Object> group = configService.getGroup(id);
-            if (group == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(group);
-        } catch (Exception e) {
-            log.error("Failed to get group {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        Map<String, Object> group = configService.getGroup(id);
+        if (group == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(group);
     }
 
     /**
@@ -197,13 +178,8 @@ public class ConfigController {
     public ResponseEntity<List<Map<String, Object>>> listItems(
             @RequestParam(required = false) Long namespaceId,
             @RequestParam(required = false) Long groupId) {
-        try {
-            List<Map<String, Object>> items = configService.listItems(namespaceId, groupId);
-            return ResponseEntity.ok(items);
-        } catch (Exception e) {
-            log.error("Failed to list config items", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<Map<String, Object>> items = configService.listItems(namespaceId, groupId);
+        return ResponseEntity.ok(items);
     }
 
     /**
@@ -211,16 +187,11 @@ public class ConfigController {
      */
     @GetMapping("/items/{id}")
     public ResponseEntity<Map<String, Object>> getItem(@PathVariable Long id) {
-        try {
-            Map<String, Object> item = configService.getItem(id);
-            if (item == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(item);
-        } catch (Exception e) {
-            log.error("Failed to get config item {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        Map<String, Object> item = configService.getItem(id);
+        if (item == null) {
+            return ResponseEntity.notFound().build();
         }
+        return ResponseEntity.ok(item);
     }
 
     /**
@@ -284,15 +255,23 @@ public class ConfigController {
 
     /**
      * 获取当前用户。
-     * 优先从请求头 X-User 获取，其次从请求参数 currentUser 获取，最后使用默认值 "admin"。
+     * 优先从请求属性获取（由拦截器设置），其次从请求头 X-User 获取，最后使用默认值。
      */
     private String getCurrentUser(HttpServletRequest httpRequest, Map<String, ?> request) {
-        // 1. 从请求头获取
+        // 1. 从请求属性获取（由 AuthenticationInterceptor 设置）
+        Object userAttr = httpRequest.getAttribute(ATTR_CURRENT_USER);
+        if (userAttr instanceof String) {
+            String user = (String) userAttr;
+            if (!user.isBlank()) {
+                return user;
+            }
+        }
+        // 2. 从请求头获取（向后兼容）
         String user = httpRequest.getHeader("X-User");
         if (user != null && !user.isBlank()) {
             return user;
         }
-        // 2. 从请求参数获取
+        // 3. 从请求参数获取（向后兼容）
         if (request != null) {
             Object currentUserObj = request.get("currentUser");
             if (currentUserObj instanceof String) {
@@ -302,8 +281,8 @@ public class ConfigController {
                 }
             }
         }
-        // 3. 默认值
-        return "admin";
+        // 4. 默认值
+        return DEFAULT_USER;
     }
 
     private Long getLong(Map<String, Object> map, String key) {

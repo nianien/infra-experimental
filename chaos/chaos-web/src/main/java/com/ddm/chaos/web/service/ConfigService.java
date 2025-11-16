@@ -1,6 +1,5 @@
 package com.ddm.chaos.web.service;
 
-import com.ddm.chaos.web.dto.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +27,7 @@ public class ConfigService {
     private static final Logger log = LoggerFactory.getLogger(ConfigService.class);
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String ERROR_VARIANT_INVALID_JSON = "variant 必须是有效的 JSON 格式";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -283,13 +283,7 @@ public class ConfigService {
         }
 
         // 验证 variant 是否为有效的 JSON
-        if (variant != null && !variant.isBlank()) {
-            try {
-                JSON.readTree(variant);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("variant 必须是有效的 JSON 格式");
-            }
-        }
+        validateVariantJson(variant);
 
         String sql = "INSERT INTO config_item (`namespace`, group_name, `key`, `value`, variants, type, enabled, description, operator) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -305,13 +299,7 @@ public class ConfigService {
     public boolean updateItem(Long id, String value, String variant, String type, Boolean enabled,
                              String description, String currentUser) {
         // 验证 variant 是否为有效的 JSON
-        if (variant != null && !variant.isBlank()) {
-            try {
-                JSON.readTree(variant);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("variant 必须是有效的 JSON 格式");
-            }
-        }
+        validateVariantJson(variant);
 
         StringBuilder sql = new StringBuilder("UPDATE config_item SET version = version + 1, operator = ?");
         List<Object> params = new ArrayList<>();
@@ -446,6 +434,22 @@ public class ConfigService {
                     groupId);
         } catch (EmptyResultDataAccessException e) {
             return null;
+        }
+    }
+
+    /**
+     * 验证 variant 是否为有效的 JSON 格式。
+     *
+     * @param variant variant 字符串
+     * @throws IllegalArgumentException 如果 variant 不是有效的 JSON
+     */
+    private void validateVariantJson(String variant) {
+        if (variant != null && !variant.isBlank()) {
+            try {
+                JSON.readTree(variant);
+            } catch (Exception e) {
+                throw new IllegalArgumentException(ERROR_VARIANT_INVALID_JSON, e);
+            }
         }
     }
 

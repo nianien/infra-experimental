@@ -11,6 +11,10 @@ import java.util.Map;
  */
 public class ApiResponse {
 
+    private static final String KEY_SUCCESS = "success";
+    private static final String KEY_MESSAGE = "message";
+    private static final String KEY_ERROR = "error";
+
     /**
      * 创建成功响应。
      *
@@ -19,9 +23,18 @@ public class ApiResponse {
      */
     public static Map<String, Object> success(String message) {
         Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("message", message);
+        result.put(KEY_SUCCESS, true);
+        result.put(KEY_MESSAGE, message);
         return result;
+    }
+
+    /**
+     * 创建成功响应（无消息）。
+     *
+     * @return 响应对象
+     */
+    public static Map<String, Object> success() {
+        return success("操作成功");
     }
 
     /**
@@ -32,7 +45,21 @@ public class ApiResponse {
      */
     public static Map<String, Object> error(String message) {
         Map<String, Object> result = new HashMap<>();
-        result.put("error", message);
+        result.put(KEY_SUCCESS, false);
+        result.put(KEY_ERROR, message);
+        return result;
+    }
+
+    /**
+     * 创建带数据的成功响应。
+     *
+     * @param message 成功消息
+     * @param data 数据对象
+     * @return 响应对象
+     */
+    public static Map<String, Object> successWithData(String message, Object data) {
+        Map<String, Object> result = success(message);
+        result.put("data", data);
         return result;
     }
 }

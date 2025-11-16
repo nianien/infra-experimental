@@ -1,7 +1,9 @@
 package com.ddm.chaos.web.interceptor;
 
+import com.ddm.chaos.web.dto.ApiResponse;
 import com.ddm.chaos.web.dto.User;
 import com.ddm.chaos.web.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -28,11 +30,16 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationInterceptor.class);
     private static final String HEADER_AUTHORIZATION = "Authorization";
     private static final String HEADER_USER = "X-User";
+    private static final String ATTR_CURRENT_USER = "currentUser";
+    private static final String ERROR_UNAUTHORIZED = "未登录，请先登录";
+    private static final int MIN_TOKEN_LENGTH = 20;
 
     private final UserService userService;
+    private final ObjectMapper objectMapper;
 
     public AuthenticationInterceptor(UserService userService) {
         this.userService = userService;
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override
@@ -54,26 +61,22 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
         String token = extractToken(request);
         if (token == null || token.isBlank()) {
             log.warn("Unauthorized request: {} {} - Missing token", method, uri);
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"success\":false,\"error\":\"未登录，请先登录\"}");
+            sendUnauthorizedResponse(response);
             return false;
         }
 
-        // 验证 token（简化实现：只检查用户是否存在）
+        // 验证 token
         // 实际生产环境中，token 验证应该由网关/SSO完成
         User user = userService.validateToken(token);
         if (user == null) {
             log.warn("Unauthorized request: {} {} - Invalid token or user not found", method, uri);
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"success\":false,\"error\":\"未登录，请先登录\"}");
+            sendUnauthorizedResponse(response);
             return false;
         }
 
         // 将用户信息存储到 request 属性中，供后续使用
         String username = user.username();
-        request.setAttribute("currentUser", username);
+        request.setAttribute(ATTR_CURRENT_USER, username);
         log.debug("Authenticated request: {} {} - User: {}", method, uri, username);
         return true;
     }
@@ -93,11 +96,34 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
         }
         // 向后兼容：使用 X-User header（如果它是 token 格式）
         String userHeader = request.getHeader(HEADER_USER);
-        if (userHeader != null && userHeader.length() > 20) {
-            // 假设 token 长度大于 20，否则可能是用户名
+        if (userHeader != null && userHeader.length() > MIN_TOKEN_LENGTH) {
+            // 假设 token 长度大于 MIN_TOKEN_LENGTH，否则可能是用户名
             return userHeader;
         }
         return null;
+    }
+
+    /**
+     * 发送未授权响应。
+     *
+     * @param response HTTP 响应
+     */
+    private void sendUnauthorizedResponse(HttpServletResponse response) {
+        try {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            String errorJson = objectMapper.writeValueAsString(ApiResponse.error(ERROR_UNAUTHORIZED));
+            response.getWriter().write(errorJson);
+        } catch (Exception e) {
+            log.error("Failed to send unauthorized response", e);
+            try {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"error\":\"" + ERROR_UNAUTHORIZED + "\"}");
+            } catch (Exception ex) {
+                log.error("Failed to send fallback unauthorized response", ex);
+            }
+        }
     }
 }
 

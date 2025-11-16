@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -79,7 +78,7 @@ public class AuthController {
                     .body(ApiResponse.error("Token 无效或已过期"));
         }
 
-        Map<String, Object> userInfo = new HashMap<>();
+        Map<String, Object> userInfo = ApiResponse.success("获取用户信息成功");
         userInfo.put("id", user.id());
         userInfo.put("username", user.username());
         return ResponseEntity.ok(userInfo);
