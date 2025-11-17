@@ -1836,6 +1836,28 @@
                 console.warn('Alert container not found:', containerId);
                 return;
             }
+            
+            // 如果是 auth.js 创建的 alert 元素（有 auth-alert 类），使用 auth.js 的方式处理
+            if (container.classList.contains('auth-alert')) {
+                if (!message) {
+                    container.classList.remove('is-visible', 'is-error');
+                    container.textContent = '';
+                    return;
+                }
+                container.textContent = message;
+                container.classList.add('is-visible');
+                if (type === 'error') {
+                    container.classList.add('is-error');
+                } else {
+                    container.classList.remove('is-error');
+                }
+                setTimeout(() => {
+                    container.classList.remove('is-visible');
+                }, 5000);
+                return;
+            }
+            
+            // 其他 alert 使用原来的方式
             container.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
             setTimeout(() => {
                 if (container) {
