@@ -1203,6 +1203,7 @@
     </div>
 
     <script src="/assets/banner/banner.js"></script>
+    <script src="/assets/js/login.js"></script>
     <script>
         initAtlasBanner('atlas-banner', {
             eyebrow: '',
@@ -1220,6 +1221,20 @@
                     </a>
                 </div>
             `,
+            loginSlotHtml: `
+                <div id="login-status">
+                    <a href="#" class="btn-login" id="login-btn" onclick="showLoginModal(); return false;">
+                        <span>🔐</span>
+                        <span>登录</span>
+                    </a>
+                    <div id="user-info" class="user-info" style="display: none;">
+                        <button type="button" class="user-chip" id="user-menu-trigger">
+                            <span class="username">欢迎, <strong id="username-display"></strong></span>
+                            <span class="user-menu-caret">⌄</span>
+                        </button>
+                    </div>
+                </div>
+            `,
             showLogin: false
         });
     </script>
@@ -1227,62 +1242,52 @@
     <script>
         const API_BASE = '/api/config';
 
+        // 当 login.js 未能正确加载时，提供一组兜底实现，避免页面初始化中断
+        (function ensureAuthHelpers() {
+            const noop = () => {};
+
+            if (typeof window.isLoggedIn !== 'function') {
+                window.isLoggedIn = () => false;
+                console.warn('[config] login.js 未加载，使用默认未登录状态');
+            }
+
+            if (typeof window.getRequestHeaders !== 'function') {
+                window.getRequestHeaders = () => ({ 'Content-Type': 'application/json' });
+            }
+
+            if (typeof window.checkLoginStatus !== 'function') {
+                window.checkLoginStatus = noop;
+            }
+
+            if (typeof window.showLoginModal !== 'function') {
+                window.showLoginModal = () => alert('登录模块未初始化，请联系管理员');
+            }
+
+            if (typeof window.closeLoginModal !== 'function') {
+                window.closeLoginModal = noop;
+            }
+
+            if (typeof window.closeUserMenuModal !== 'function') {
+                window.closeUserMenuModal = noop;
+            }
+
+            if (typeof window.showChangePasswordModal !== 'function') {
+                window.showChangePasswordModal = () => alert('暂未启用登录模块');
+            }
+
+            if (typeof window.closeChangePasswordModal !== 'function') {
+                window.closeChangePasswordModal = noop;
+            }
+
+            if (typeof window.handleLogoutFromMenu !== 'function') {
+                window.handleLogoutFromMenu = () => alert('当前环境未启用登录功能');
+            }
+        })();
+
         // 当前选中的命名空间和分组
         let currentNamespace = null;
         let currentGroup = null;
         let currentView = 'namespaces'; // 当前视图：'namespaces', 'groups', 'items'
-
-        // 获取当前用户信息（从 localStorage）
-        function getCurrentUserInfo() {
-            try {
-                const userStr = localStorage.getItem('currentUser');
-                if (userStr) {
-                    return JSON.parse(userStr);
-                }
-            } catch (e) {
-                console.warn('获取当前用户信息失败:', e);
-            }
-            return null;
-        }
-
-        // 获取当前用户名（向后兼容）
-        function getCurrentUser() {
-            const userInfo = getCurrentUserInfo();
-            return userInfo ? userInfo.username : null;
-        }
-
-        // 获取当前 token
-        function getCurrentToken() {
-            const userInfo = getCurrentUserInfo();
-            return userInfo ? userInfo.token : null;
-        }
-
-        // 检查是否已登录
-        function isLoggedIn() {
-            try {
-                const userStr = localStorage.getItem('currentUser');
-                if (userStr) {
-                    const user = JSON.parse(userStr);
-                    return user && user.username;
-                }
-            } catch (e) {
-                return false;
-            }
-            return false;
-        }
-
-        // 获取请求头（包含认证 token）
-        function getRequestHeaders() {
-            const headers = { 'Content-Type': 'application/json' };
-            const token = getCurrentToken();
-            if (token) {
-                // 使用标准的 Authorization Bearer token
-                headers['Authorization'] = 'Bearer ' + token;
-                // 向后兼容：同时设置 X-User（使用 token，拦截器会识别）
-                headers['X-User'] = token;
-            }
-            return headers;
-        }
 
         // 保存当前视图状态到 localStorage
         function saveViewState() {
@@ -1337,8 +1342,11 @@
             }
         }
 
-        // 显示命名空间视图
+        // 显示命名空间视图（点击首页时调用，清除之前的状态）
         function showNamespaces() {
+            // 清除之前保存的状态，因为用户主动点击了首页
+            localStorage.removeItem('configViewState');
+            
             currentView = 'namespaces';
             currentNamespace = null;
             currentGroup = null;
@@ -1394,7 +1402,7 @@
             if (currentNamespace) {
                 separator1.style.display = 'inline';
                 namespaceSpan.style.display = 'inline';
-                namespaceSpan.innerHTML = `<span style="color: #999; font-size: 13px; margin-right: 4px;">命名空间:</span><a href="javascript:void(0)" onclick="showGroups(${currentNamespace.id}, '${escapeHtml(currentNamespace.name)}')" style="color: #059669; text-decoration: none; font-weight: 500;">${escapeHtml(currentNamespace.name)}</a>`;
+                namespaceSpan.innerHTML = `<span style="color: var(--text-muted); font-size: 13px; margin-right: 4px;">命名空间:</span><a href="javascript:void(0)" onclick="showGroups(${currentNamespace.id}, '${escapeHtml(currentNamespace.name)}')" style="color: var(--primary); text-decoration: none; font-weight: 500;">${escapeHtml(currentNamespace.name)}</a>`;
             } else {
                 separator1.style.display = 'none';
                 namespaceSpan.style.display = 'none';
@@ -2294,8 +2302,14 @@
                         await loadGroups();
                         // 如果加载失败，loadGroups 会显示错误，但不影响状态恢复
                     } else {
-                        // 恢复命名空间视图
-                        showNamespaces();
+                        // 恢复命名空间视图（直接设置状态，不调用 showNamespaces，避免清除状态）
+                        currentView = 'namespaces';
+                        currentNamespace = null;
+                        currentGroup = null;
+                        updateBreadcrumb();
+                        updateBreadcrumbAction();
+                        switchView('namespaces');
+                        await loadNamespaces();
                     }
                 } catch (error) {
                     console.warn('恢复视图状态失败，使用默认视图:', error);
@@ -2304,7 +2318,7 @@
                     showNamespaces();
                 }
             } else {
-                // 没有保存的状态，显示默认视图
+                // 没有保存的状态，显示默认视图（命名空间列表）
                 showNamespaces();
             }
         });
@@ -2421,138 +2435,6 @@
             }
         });
 
-        // ===================== 登录功能 =====================
-
-        // 登录状态管理
-        let currentUser = null;
-
-        // 页面加载时检查登录状态
-        function checkLoginStatus() {
-            const userStr = localStorage.getItem('currentUser');
-            if (userStr) {
-                try {
-                    currentUser = JSON.parse(userStr);
-                    updateLoginUI();
-                } catch (e) {
-                    console.error('解析用户信息失败:', e);
-                    localStorage.removeItem('currentUser');
-                }
-            }
-        }
-
-        // 更新登录UI
-        function updateLoginUI() {
-            const loginBtn = document.getElementById('login-btn');
-            const userInfo = document.getElementById('user-info');
-            const usernameDisplay = document.getElementById('username-display');
-
-            if (loginBtn && userInfo && usernameDisplay) {
-                if (currentUser) {
-                    loginBtn.style.display = 'none';
-                    userInfo.style.display = 'flex';
-                    usernameDisplay.textContent = currentUser.username;
-                    bindUserMenuTrigger();
-                } else {
-                    loginBtn.style.display = 'inline-flex';
-                    userInfo.style.display = 'none';
-                }
-            }
-            
-            // 刷新当前视图以更新按钮显示状态
-            if (currentView === 'namespaces') {
-                loadNamespaces();
-            } else if (currentView === 'groups' && currentNamespace) {
-                loadGroups();
-            } else if (currentView === 'items' && currentNamespace && currentGroup) {
-                loadItems();
-            }
-        }
-
-        function bindUserMenuTrigger() {
-            const trigger = document.getElementById('user-menu-trigger');
-            if (trigger && !trigger.dataset.bound) {
-                trigger.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    openUserMenuModal();
-                });
-                trigger.dataset.bound = 'true';
-            }
-        }
-
-        // 显示登录模态框
-        function showLoginModal() {
-            const modal = document.getElementById('login-modal');
-            document.getElementById('login-form').reset();
-            document.getElementById('login-alert').innerHTML = '';
-            modal.classList.add('active');
-            // 聚焦到用户名输入框
-            setTimeout(() => {
-                document.getElementById('login-username').focus();
-            }, 100);
-        }
-
-        // 关闭登录模态框
-        function closeLoginModal() {
-            const modal = document.getElementById('login-modal');
-            modal.classList.remove('active');
-        }
-
-        // 登录表单提交处理函数
-        async function handleLoginSubmit(e) {
-            e.preventDefault();
-            const username = document.getElementById('login-username').value.trim();
-            const password = document.getElementById('login-password').value;
-
-            if (!username || !password) {
-                showAlert('login-alert', '请输入用户名和密码', 'error');
-                return;
-            }
-
-            try {
-                console.log('发送登录请求:', { username, password: '***' });
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const data = await response.json();
-                console.log('登录响应:', { status: response.status, ok: response.ok, data });
-
-                if (response.ok && data.success && data.token) {
-                    // 登录成功，保存用户信息和 token
-                    currentUser = {
-                        username: data.username || username,
-                        token: data.token
-                    };
-                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                    updateLoginUI();
-                    closeLoginModal();
-                    showAlert('namespaces-alert', '登录成功', 'success');
-                } else {
-                    // 登录失败
-                    const errorMsg = data.error || data.message || '登录失败，请检查用户名和密码';
-                    console.error('登录失败:', errorMsg);
-                    showAlert('login-alert', errorMsg, 'error');
-                }
-            } catch (error) {
-                console.error('登录请求失败:', error);
-                showAlert('login-alert', '登录请求失败，请稍后重试', 'error');
-            }
-        }
-
-        // 绑定登录表单提交事件（使用事件委托，确保在 DOM 加载后绑定）
-        document.addEventListener('DOMContentLoaded', () => {
-            const loginForm = document.getElementById('login-form');
-            if (loginForm) {
-                loginForm.addEventListener('submit', handleLoginSubmit);
-            } else {
-                console.error('登录表单未找到');
-            }
-        });
-
         // 通用确认模态框相关变量
         let confirmCallback = null;
 
@@ -2610,127 +2492,19 @@
             }
         });
 
-        function openUserMenuModal() {
-            const modal = document.getElementById('user-menu-modal');
-            const nameEl = document.getElementById('user-menu-username');
-            if (nameEl) {
-                const username = getCurrentUser();
-                nameEl.textContent = username ? `当前用户：${username}` : '未登录';
+        window.onLoginStateChange = function () {
+            if (currentView === 'namespaces') {
+                loadNamespaces();
+            } else if (currentView === 'groups' && currentNamespace) {
+                loadGroups();
+            } else if (currentView === 'items' && currentNamespace && currentGroup) {
+                loadItems();
             }
-            if (modal) {
-                modal.classList.add('active');
-            }
-        }
+        };
 
-        function closeUserMenuModal() {
-            const modal = document.getElementById('user-menu-modal');
-            if (modal) {
-                modal.classList.remove('active');
-            }
-        }
-
-        function handleLogoutFromMenu() {
-            closeUserMenuModal();
-            logout();
-        }
-
-        function showChangePasswordModal() {
-            closeUserMenuModal();
-            const modal = document.getElementById('change-password-modal');
-            if (!modal) return;
-            const form = document.getElementById('change-password-form');
-            if (form) {
-                form.reset();
-            }
-            setChangePasswordAlert('');
-            modal.classList.add('active');
-            setTimeout(() => {
-                const currentInput = document.getElementById('current-password');
-                if (currentInput) {
-                    currentInput.focus();
-                }
-            }, 100);
-        }
-
-        function closeChangePasswordModal() {
-            const modal = document.getElementById('change-password-modal');
-            if (modal) {
-                modal.classList.remove('active');
-            }
-        }
-
-        function setChangePasswordAlert(message, type = 'error') {
-            const container = document.getElementById('change-password-alert');
-            if (!container) return;
-            if (!message) {
-                container.innerHTML = '';
-                return;
-            }
-            container.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
-        }
-
-        async function handleChangePasswordSubmit(event) {
-            event.preventDefault();
-            const currentPassword = document.getElementById('current-password').value.trim();
-            const newPassword = document.getElementById('new-password').value.trim();
-            const confirmPassword = document.getElementById('confirm-password').value.trim();
-
-            if (!currentPassword || !newPassword || !confirmPassword) {
-                setChangePasswordAlert('请完整填写所有字段');
-                return;
-            }
-
-            if (newPassword !== confirmPassword) {
-                setChangePasswordAlert('两次输入的密码不一致');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/auth/change-password', {
-                    method: 'POST',
-                    headers: getRequestHeaders(),
-                    body: JSON.stringify({
-                        oldPassword: currentPassword,
-                        newPassword: newPassword
-                    })
-                });
-                const data = await response.json().catch(() => ({}));
-                if (response.ok) {
-                    setChangePasswordAlert('密码修改成功', 'success');
-                    setTimeout(() => {
-                        closeChangePasswordModal();
-                    }, 1200);
-                } else {
-                    setChangePasswordAlert(data.error || data.message || '修改失败，请重试');
-                }
-            } catch (error) {
-                console.error('修改密码失败:', error);
-                setChangePasswordAlert('修改失败，请稍后重试');
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            bindUserMenuTrigger();
-            const changePwdForm = document.getElementById('change-password-form');
-            if (changePwdForm) {
-                changePwdForm.addEventListener('submit', handleChangePasswordSubmit);
-            }
-        });
-
-        // 登出（无状态系统：只需清除前端 token）
-        function logout() {
-            localStorage.removeItem('currentUser');
-            currentUser = null;
+        window.onLogout = function () {
             location.reload();
-        }
-
-        // 点击登录模态框外部关闭（使用事件委托）
-        document.addEventListener('click', (e) => {
-            const loginModal = document.getElementById('login-modal');
-            if (loginModal && e.target === loginModal) {
-                closeLoginModal();
-            }
-        });
+        };
 
     </script>
 </body>
