@@ -2731,17 +2731,9 @@
 
         // 登出（无状态系统：只需清除前端 token）
         function logout() {
-            showConfirmModal({
-                title: '确认登出',
-                message: '确定要登出吗？',
-                buttonText: '登出',
-                buttonType: 'primary',
-                onConfirm: () => {
-                    // 无状态系统：直接清除本地 token 并刷新页面
-                    localStorage.removeItem('currentUser');
-                    location.reload();
-                }
-            });
+            localStorage.removeItem('currentUser');
+            currentUser = null;
+            location.reload();
         }
 
         // 点击登录模态框外部关闭（使用事件委托）
