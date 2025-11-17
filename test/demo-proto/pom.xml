@@ -11,13 +11,19 @@
 
     <artifactId>demo-proto</artifactId>
 
+    <properties>
+        <!-- 子模块：覆盖父模块的 oss，使用默认的 resolveCiFriendliesOnly 模式 -->
+        <flatten.mode>${default.flatten.mode}</flatten.mode>
+    </properties>
+
     <dependencies>
-        <!-- Protocol Buffers -->
+        <!-- ==================== Protocol Buffers ==================== -->
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
         </dependency>
 
+        <!-- ==================== gRPC ==================== -->
         <!-- gRPC dependencies (needed for generated code) -->
         <dependency>
             <groupId>io.grpc</groupId>
@@ -27,7 +33,6 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-protobuf</artifactId>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -36,32 +41,11 @@
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
             </plugin>
-            <!-- 子模块：只解析 revision，保留 parent 结构 -->
+            <!-- 只需引用父 POM 的 pluginManagement 配置，flatten.mode 已在 properties 中设置 -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.6.0</version>
-                <configuration>
-                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>flatten</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>flatten</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>flatten-clean</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
-
 </project>

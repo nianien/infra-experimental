@@ -14,9 +14,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication(scanBasePackages = {
         "com.ddm.chaos.web"
 })
-public class WebApplication {
+public class AtlasApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(WebApplication.class, args);
+        SpringApplication.run(AtlasApplication.class, args);
     }
 }

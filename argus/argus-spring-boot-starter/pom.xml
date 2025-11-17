@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.ddm</groupId>
+        <artifactId>argus</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>argus-spring-boot-starter</artifactId>
+
+    <properties>
+        <!-- 子模块：覆盖父模块的 oss，使用默认的 resolveCiFriendliesOnly 模式 -->
+        <flatten.mode>${default.flatten.mode}</flatten.mode>
+    </properties>
+
+    <dependencies>
+        <!-- ==================== 内部模块依赖 ==================== -->
+        <dependency>
+            <groupId>com.ddm</groupId>
+            <artifactId>argus-core</artifactId>
+            <version>${revision}</version>
+        </dependency>
+    </dependencies>
+
+</project>

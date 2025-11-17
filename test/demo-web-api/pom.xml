@@ -11,51 +11,48 @@
 
     <artifactId>demo-web-api</artifactId>
 
-    <dependencies>
-        <!-- ==================== Internal Dependencies ==================== -->
+    <properties>
+        <!-- 子模块：覆盖父模块的 oss，使用默认的 resolveCiFriendliesOnly 模式 -->
+        <flatten.mode>${default.flatten.mode}</flatten.mode>
+    </properties>
 
-        <!-- Demo Protocol Buffers definitions -->
+    <dependencies>
+        <!-- ==================== 内部模块依赖 ==================== -->
         <dependency>
             <groupId>com.ddm</groupId>
             <artifactId>demo-proto</artifactId>
             <!-- 同模块内依赖：版本由父 POM 的 <revision> 管理 -->
         </dependency>
-
-        <!-- Argus distributed tracing starter -->
         <dependency>
             <groupId>com.ddm</groupId>
-            <artifactId>argus-spring-boot-starter</artifactId>
+            <artifactId>argus</artifactId>
             <!-- 跨模块依赖：版本由根 POM 的 dependencyManagement 管理 -->
         </dependency>
-
-        <!-- Chaos dynamic configuration starter -->
         <dependency>
             <groupId>com.ddm</groupId>
             <artifactId>chaos-spring-boot-starter</artifactId>
             <!-- 跨模块依赖：版本由根 POM 的 dependencyManagement 管理 -->
         </dependency>
 
-        <!-- ==================== Spring Boot Dependencies ==================== -->
-
-        <!-- Spring Boot Web Starter (includes web, tomcat, jackson, etc.) -->
+        <!-- ==================== Spring Boot ==================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- MySQL Driver for JdbcDataProvider -->
+        <!-- ==================== gRPC ==================== -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+        </dependency>
+
+        <!-- ==================== Database ==================== -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
 
-        <!-- ==================== gRPC Dependencies ==================== -->
-
-        <!-- gRPC Netty Transport -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-        </dependency>
+        <!-- ==================== Utilities ==================== -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -69,32 +66,11 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
-            <!-- 子模块：只解析 revision，保留 parent 结构 -->
+            <!-- 只需引用父 POM 的 pluginManagement 配置，flatten.mode 已在 properties 中设置 -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.6.0</version>
-                <configuration>
-                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>flatten</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>flatten</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>flatten-clean</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
-
 </project>

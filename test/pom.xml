@@ -16,7 +16,10 @@
     <properties>
         <!-- Test 模块独立版本号 -->
         <revision>1.0-SNAPSHOT</revision>
+        <!-- 次顶级模块使用 oss 模式，裁掉 infra-lab:0 这个 parent -->
+        <flatten.mode>oss</flatten.mode>
     </properties>
+
     <modules>
         <module>demo-proto</module>
         <module>demo-user-rpc</module>
@@ -26,31 +29,11 @@
 
     <build>
         <plugins>
-            <!-- 次顶级模块：使用 oss 模式，裁掉 infra-lab:0 这个 parent -->
+            <!-- 只需引用父 POM 的 pluginManagement 配置，flatten.mode 已在 properties 中设置 -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.6.0</version>
                 <inherited>false</inherited>
-                <configuration>
-                    <flattenMode>oss</flattenMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>flatten</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>flatten</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>flatten-clean</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

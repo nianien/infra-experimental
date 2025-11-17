@@ -9,139 +9,32 @@
         <version>0</version>
     </parent>
 
-    <artifactId>argus-spring-boot-starter</artifactId>
+    <artifactId>argus</artifactId>
     <version>${revision}</version>
+    <packaging>pom</packaging>
+    <description>Spring Boot Starter for Argus distributed tracing</description>
 
     <properties>
         <!-- Argus 模块独立版本号 -->
         <revision>1.0-SNAPSHOT</revision>
+        <!-- 次顶级模块使用 oss 模式，裁掉 infra-lab:0 这个 parent -->
+        <flatten.mode>oss</flatten.mode>
     </properties>
-    <name>Argus Spring Boot Starter</name>
-    <description>Spring Boot Starter for Argus distributed tracing</description>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <!-- gRPC：最小必要集合（Starter 不绑定传输/编解码实现） -->
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-context</artifactId>
-        </dependency>
-
-        <!-- Spring Boot/Framework（作为 Starter，均标记 provided） -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.annotation</groupId>
-            <artifactId>jakarta.annotation-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-
-        <!-- ==================== gRPC Spring Boot ==================== -->
-        <dependency>
-            <groupId>net.devh</groupId>
-            <artifactId>grpc-server-spring-boot-autoconfigure</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>net.devh</groupId>
-            <artifactId>grpc-client-spring-boot-autoconfigure</artifactId>
-        </dependency>
-
-        <!-- ==================== AWS SDK（ECS/Cloud Map 工具类用） ==================== -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>url-connection-client</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>ecs</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>apache-client</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>servicediscovery</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>apache-client</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>argus-core</module>
+        <module>argus-spring-boot-starter</module>
+    </modules>
 
     <build>
         <plugins>
-            <!-- 次顶级模块：使用 oss 模式，裁掉 infra-lab:0 这个 parent -->
+            <!-- 只需引用父 POM 的 pluginManagement 配置，flatten.mode 已在 properties 中设置 -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.6.0</version>
                 <inherited>false</inherited>
-                <configuration>
-                    <flattenMode>oss</flattenMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>flatten</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>flatten</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>flatten-clean</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
+
 </project>

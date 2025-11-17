@@ -5,24 +5,20 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ddm</groupId>
-    <name>infra-lab</name>
-    <description>support tools for java development</description>
-    <url>https://github.com/ddmarketinghub/infra-lab</url>
-
     <artifactId>infra-lab</artifactId>
     <version>0</version>
     <packaging>pom</packaging>
     <!-- 根 POM 只作为 aggregator，版本号设为 0 表示不发布 -->
-    <modules>
-        <module>argus</module>
-        <module>chaos</module>
-        <module>atlas</module>
-        <module>test</module>
-    </modules>
+    <name>infra-lab</name>
+    <description>support tools for java development</description>
+    <url>https://github.com/ddmarketinghub/infra-lab</url>
+
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        
+        <!-- 第三方依赖版本 -->
         <slf4j.version>2.0.9</slf4j.version>
         <grpc.version>1.67.1</grpc.version>
         <protobuf.version>4.28.3</protobuf.version>
@@ -30,17 +26,27 @@
         <grpc.spring.boot.version>2.15.0.RELEASE</grpc.spring.boot.version>
         <aws.sdk.version>2.25.30</aws.sdk.version>
         
-        <!-- 注意：这些属性仅用于跨模块依赖，各模块自己的版本由各自的 <revision> 管理 -->
+        <!-- Flatten Maven Plugin 模式：默认只解析 CI 友好属性（revision），保留 parent 结构 -->
+        <!-- 子模块通过 ${default.flatten.mode} 覆盖父模块的 oss 模式 -->
+        <default.flatten.mode>resolveCiFriendliesOnly</default.flatten.mode>
+        
+        <!-- 跨模块依赖版本（注意：各模块自己的版本由各自的 <revision> 管理） -->
         <chaos.version>1.0-SNAPSHOT</chaos.version>
         <argus.version>1.0-SNAPSHOT</argus.version>
         <atlas.version>1.0-SNAPSHOT</atlas.version>
         <test.version>1.0-SNAPSHOT</test.version>
     </properties>
 
+    <modules>
+        <module>argus</module>
+        <module>chaos</module>
+        <module>atlas</module>
+        <module>test</module>
+    </modules>
+
     <dependencyManagement>
         <dependencies>
-            <!-- 跨模块依赖时，使用根 POM 定义的版本属性 -->
-            <!-- 注意：各模块自己的版本由各自的 <revision> 管理，这里仅用于跨模块依赖 -->
+            <!-- ==================== 内部模块依赖 ==================== -->
             <dependency>
                 <groupId>com.ddm</groupId>
                 <artifactId>chaos-core</artifactId>
@@ -58,7 +64,7 @@
             </dependency>
             <dependency>
                 <groupId>com.ddm</groupId>
-                <artifactId>argus-spring-boot-starter</artifactId>
+                <artifactId>argus</artifactId>
                 <version>${argus.version}</version>
             </dependency>
             <dependency>
@@ -89,13 +95,6 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Protocol Buffers -->
-            <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java</artifactId>
-                <version>${protobuf.version}</version>
-            </dependency>
-
             <!-- AWS SDK v2 BOM -->
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
@@ -104,14 +103,20 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
+            
+            <!-- ==================== 第三方依赖（非 BOM） ==================== -->
+            <!-- Protocol Buffers -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
             <!-- AWS SDK v2 HTTP clients -->
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>url-connection-client</artifactId>
                 <version>${aws.sdk.version}</version>
             </dependency>
-
             <!-- Spring Boot gRPC -->
             <dependency>
                 <groupId>net.devh</groupId>
@@ -186,7 +191,6 @@
                         <!-- ✅ 关键：用 pluginParameter 传给 protoc-gen-grpc-java -->
                         <pluginParameter>@generated=omit</pluginParameter>
                     </configuration>
-
                     <executions>
                         <execution>
                             <goals>
@@ -198,11 +202,30 @@
                     </executions>
                 </plugin>
 
-                <!-- Flatten Maven Plugin - 仅作为模板，不强制子模块使用 -->
+                <!-- Flatten Maven Plugin - 统一配置，子模块通过 ${flatten.mode} 属性控制模式 -->
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>flatten-maven-plugin</artifactId>
                     <version>1.6.0</version>
+                    <configuration>
+                        <flattenMode>${flatten.mode}</flattenMode>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>flatten</id>
+                            <phase>process-resources</phase>
+                            <goals>
+                                <goal>flatten</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>flatten-clean</id>
+                            <phase>clean</phase>
+                            <goals>
+                                <goal>clean</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
