@@ -1,23 +1,4 @@
 (function () {
-    function createMetaHtml(metaItems) {
-        if (!Array.isArray(metaItems) || metaItems.length === 0) {
-            return '';
-        }
-        const itemsHtml = metaItems
-            .filter(Boolean)
-            .map(item => `<span class="atlas-banner__meta-item">${item}</span>`)
-            .join('');
-        return itemsHtml ? `<div class="atlas-banner__meta">${itemsHtml}</div>` : '';
-    }
-
-    function createInfoBlock(tagline, metaItems, extraInfoHtml) {
-        const taglineHtml = tagline
-            ? `<p class="atlas-banner__tagline">${tagline}</p>`
-            : '';
-        const metaHtml = createMetaHtml(metaItems);
-        return `${taglineHtml}${metaHtml}${extraInfoHtml || ''}`;
-    }
-
     function createActionsHtml(actions) {
         if (!Array.isArray(actions) || actions.length === 0) {
             return '';
@@ -53,9 +34,6 @@
         const {
             title = 'Atlas 基础架构平台',
             subtitle = '',
-            tagline = '',
-            metaItems = [],
-            extraInfoHtml = '',
             logoIcon = 'A',
             eyebrow = '',
             actions = [],
@@ -70,7 +48,6 @@
         const eyebrowHtml = eyebrow
             ? `<span class="atlas-banner__eyebrow">${eyebrow}</span>`
             : '';
-        const infoBlockHtml = createInfoBlock(tagline, metaItems, extraInfoHtml);
         const actionsHtml = createActionsHtml(actions);
         const combinedActions = [actionsHtml, extraActionsHtml].filter(Boolean).join('');
 
@@ -94,7 +71,6 @@
                                 ${subtitleHtml}
                             </div>
                         </div>
-                        ${infoBlockHtml}
                     </div>
                     <div class="atlas-banner__actions">
                         ${combinedActions}

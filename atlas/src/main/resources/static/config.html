@@ -1220,20 +1220,6 @@
                     </a>
                 </div>
             `,
-            loginSlotHtml: `
-                <div id="login-status">
-                    <a href="#" class="btn-login" id="login-btn" onclick="showLoginModal(); return false;">
-                        <span>🔐</span>
-                        <span>登录</span>
-                    </a>
-                    <div id="user-info" class="user-info" style="display: none;">
-                        <button type="button" class="user-chip" id="user-menu-trigger">
-                            <span class="username">欢迎, <strong id="username-display"></strong></span>
-                            <span class="user-menu-caret">⌄</span>
-                        </button>
-                    </div>
-                </div>
-            `,
             showLogin: false
         });
     </script>
@@ -2460,14 +2446,16 @@
             const userInfo = document.getElementById('user-info');
             const usernameDisplay = document.getElementById('username-display');
 
-            if (currentUser) {
-                loginBtn.style.display = 'none';
-                userInfo.style.display = 'flex';
-                usernameDisplay.textContent = currentUser.username;
-                bindUserMenuTrigger();
-            } else {
-                loginBtn.style.display = 'inline-flex';
-                userInfo.style.display = 'none';
+            if (loginBtn && userInfo && usernameDisplay) {
+                if (currentUser) {
+                    loginBtn.style.display = 'none';
+                    userInfo.style.display = 'flex';
+                    usernameDisplay.textContent = currentUser.username;
+                    bindUserMenuTrigger();
+                } else {
+                    loginBtn.style.display = 'inline-flex';
+                    userInfo.style.display = 'none';
+                }
             }
             
             // 刷新当前视图以更新按钮显示状态
