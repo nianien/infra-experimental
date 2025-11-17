@@ -53,79 +53,123 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-            background: var(--bg-secondary);
+            background: linear-gradient(135deg, #f0fdf4 0%, #f9fafb 100%);
             color: var(--text-primary);
             line-height: 1.6;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .header {
-            background: var(--bg-primary);
-            border-bottom: 1px solid var(--border-color);
-            padding: 1rem 2rem;
-            box-shadow: var(--shadow-sm);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+            color: white;
+            padding: 20px 40px;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
         }
 
         .header-content {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            gap: 40px;
+        }
+
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            color: white;
+            flex: 1;
         }
 
         .logo {
-            font-size: 1.5rem;
             font-weight: 600;
-            color: var(--primary);
+            color: white;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 16px;
         }
 
         .logo-icon {
-            width: 32px;
-            height: 32px;
-            background: var(--primary);
-            border-radius: var(--radius-md);
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
+            color: var(--primary-bg);
+            font-weight: 600;
+            font-size: 22px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+        }
+
+        .logo-text {
+            font-size: 26px;
+            letter-spacing: -0.5px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            min-width: 240px;
         }
 
         .user-info {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 16px;
         }
 
         .user-name {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 15px;
         }
 
-        .login-btn, .logout-btn {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            background: var(--bg-primary);
-            color: var(--text-primary);
+        .login-btn,
+        .logout-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
             cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(10px);
         }
 
-        .login-btn:hover {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
+        .login-btn:hover,
         .logout-btn:hover {
-            background: var(--danger);
-            color: white;
-            border-color: var(--danger);
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-1px);
         }
 
         .container {
@@ -240,105 +284,55 @@
         }
 
         /* 弹窗样式 */
-        .modal-overlay {
+        .modal {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            z-index: 1500;
-            align-items: center;
-            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            overflow-y: auto;
             animation: fadeIn 0.2s ease;
         }
 
-        .modal-overlay.show {
-            display: flex;
-        }
-
-        .modal {
-            background: var(--bg-primary);
-            border-radius: var(--radius-xl);
-            padding: 2rem;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: var(--shadow-xl);
-            animation: slideUp 0.3s ease;
-            text-align: center;
-        }
-
-        .modal-icon {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 1rem;
-            background: var(--primary-bg);
-            border-radius: 50%;
+        .modal.active {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+            padding: 24px;
         }
 
-        .modal-title {
-            font-size: 1.5rem;
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: 36px;
+            max-width: 720px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border-light);
+            animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .modal-header h3 {
+            font-size: 24px;
             font-weight: 600;
             color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .modal-message {
-            color: var(--text-secondary);
-            font-size: 1rem;
-            margin-bottom: 1.5rem;
-            line-height: 1.6;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-        }
-
-        .modal-button {
-            padding: 0.75rem 2rem;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
-            min-width: 100px;
-        }
-
-        .modal-button:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .modal-button-secondary {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        .modal-button-secondary:hover {
-            background: var(--bg-hover);
-            transform: translateY(-1px);
-        }
-
-        .modal-button-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .modal-button-danger:hover {
-            background: var(--danger-hover);
+            margin: 0;
         }
 
 
@@ -359,6 +353,17 @@
             to {
                 transform: translateY(0);
                 opacity: 1;
+            }
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-24px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
             }
         }
 
@@ -521,6 +526,17 @@
         }
 
         @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 24px;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
             .components-grid {
                 grid-template-columns: 1fr;
             }
@@ -546,14 +562,18 @@
 <body>
     <div class="header">
         <div class="header-content">
-            <div class="logo">
-                <div class="logo-icon">A</div>
-                <span>Atlas 基础架构平台</span>
+            <div class="header-info">
+                <div class="logo">
+                    <div class="logo-icon">A</div>
+                    <div class="logo-text">Atlas 基础架构平台</div>
+                </div>
             </div>
-            <div class="user-info">
-                <span class="user-name" id="userName"></span>
-                <button class="login-btn" id="loginBtn" style="display: none;">登录</button>
-                <button class="logout-btn" id="logoutBtn" style="display: none;">登出</button>
+            <div class="header-actions">
+                <div class="user-info">
+                    <span class="user-name" id="userName"></span>
+                    <button class="login-btn" id="loginBtn" style="display: none;">登录</button>
+                    <button class="logout-btn" id="logoutBtn" style="display: none;">登出</button>
+                </div>
             </div>
         </div>
     </div>
@@ -636,14 +656,20 @@
     </div>
 
     <!-- 确认弹窗（用于登出等操作） -->
-    <div class="modal-overlay" id="confirmModal" onclick="closeConfirmModal(event)">
-        <div class="modal" onclick="event.stopPropagation()">
-            <div class="modal-icon" id="confirmModalIcon">⚠️</div>
-            <div class="modal-title" id="confirmModalTitle">确认操作</div>
-            <div class="modal-message" id="confirmModalMessage">确定要执行此操作吗？</div>
-            <div class="modal-buttons">
-                <button class="modal-button modal-button-secondary" onclick="closeConfirmModal()">取消</button>
-                <button class="modal-button" id="confirmModalButton" onclick="executeConfirmAction()">确认</button>
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3 id="confirm-modal-title">确认</h3>
+                <button class="close-btn" onclick="closeConfirmModal()">&times;</button>
+            </div>
+            <div id="confirm-modal-message" style="font-size: 15px; color: var(--text-primary); line-height: 1.6; margin-bottom: 20px;">
+                确定要执行此操作吗？
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 24px; border-top: 1px solid var(--border-light);">
+                <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()" style="min-width: 90px;">取消</button>
+                <button type="button" id="confirm-modal-btn" class="btn btn-primary" style="min-width: 90px;">
+                    确认
+                </button>
             </div>
         </div>
     </div>
@@ -721,53 +747,62 @@
 
         // 显示确认弹窗
         function showConfirmModal(options) {
-            const modal = document.getElementById('confirmModal');
-            const icon = document.getElementById('confirmModalIcon');
-            const title = document.getElementById('confirmModalTitle');
-            const message = document.getElementById('confirmModalMessage');
-            const button = document.getElementById('confirmModalButton');
+            const modal = document.getElementById('confirm-modal');
+            const titleEl = document.getElementById('confirm-modal-title');
+            const messageEl = document.getElementById('confirm-modal-message');
+            const btnEl = document.getElementById('confirm-modal-btn');
 
-            icon.textContent = options.icon || '⚠️';
-            title.textContent = options.title || '确认操作';
-            message.textContent = options.message || '确定要执行此操作吗？';
-            button.textContent = options.buttonText || '确认';
-            
-            // 设置按钮样式
-            button.className = 'modal-button';
-            if (options.buttonType === 'danger') {
-                button.classList.add('modal-button-danger');
+            if (titleEl) {
+                titleEl.textContent = options.title || '确认';
+            }
+            if (messageEl) {
+                messageEl.textContent = options.message || '确定要执行此操作吗？';
+            }
+            if (btnEl) {
+                btnEl.textContent = options.buttonText || '确认';
+                if (options.buttonType === 'danger') {
+                    btnEl.className = 'btn btn-danger';
+                } else {
+                    btnEl.className = 'btn btn-primary';
+                }
             }
 
             confirmCallback = options.onConfirm || null;
-            modal.classList.add('show');
+            if (modal) {
+                modal.classList.add('active');
+            }
         }
 
         // 关闭确认弹窗
-        function closeConfirmModal(event) {
-            if (event && event.target !== event.currentTarget) {
-                return;
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirm-modal');
+            if (modal) {
+                modal.classList.remove('active');
             }
-            const modal = document.getElementById('confirmModal');
-            modal.classList.remove('show');
             confirmCallback = null;
         }
 
         // 执行确认操作
-        function executeConfirmAction() {
+        function confirmAction() {
             if (confirmCallback) {
-                confirmCallback();
+                const callback = confirmCallback;
+                confirmCallback = null;
+                closeConfirmModal();
+                Promise.resolve(callback()).catch(error => {
+                    console.error('操作失败:', error);
+                });
+            } else {
+                closeConfirmModal();
             }
-            closeConfirmModal();
         }
 
         // 登出
         document.getElementById('logoutBtn').addEventListener('click', function() {
             showConfirmModal({
-                icon: '🚪',
                 title: '确认登出',
                 message: '确定要登出吗？',
                 buttonText: '登出',
-                buttonType: 'danger',
+                buttonType: 'primary',
                 onConfirm: function() {
                     localStorage.removeItem('currentUser');
                     location.reload();
@@ -846,6 +881,21 @@
             const loginForm = document.getElementById('login-form');
             if (loginForm) {
                 loginForm.addEventListener('submit', handleLoginSubmit);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const confirmBtn = document.getElementById('confirm-modal-btn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', confirmAction);
+            }
+            const confirmModal = document.getElementById('confirm-modal');
+            if (confirmModal) {
+                confirmModal.addEventListener('click', (event) => {
+                    if (event.target === confirmModal) {
+                        closeConfirmModal();
+                    }
+                });
             }
         });
 
