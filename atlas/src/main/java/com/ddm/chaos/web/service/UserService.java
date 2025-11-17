@@ -238,6 +238,46 @@ public class UserService {
     }
 
     /**
+     * 修改密码。
+     *
+     * @param userId 用户 ID
+     * @param oldPassword 旧密码（明文）
+     * @param newPassword 新密码（明文）
+     * @return 是否修改成功
+     */
+    public boolean changePassword(Long userId, String oldPassword, String newPassword) {
+        if (userId == null) {
+            return false;
+        }
+        User user = getUserById(userId);
+        if (user == null || !user.isEnabled()) {
+            log.warn("Change password failed: user not found or disabled, userId={}", userId);
+            return false;
+        }
+
+        String oldHash = hashPassword(oldPassword);
+        if (!oldHash.equals(user.password())) {
+            log.warn("Change password failed: old password mismatch, userId={}", userId);
+            return false;
+        }
+
+        String newHash = hashPassword(newPassword);
+        if (newHash.equals(user.password())) {
+            log.warn("Change password skipped: new password equals old, userId={}", userId);
+            return false;
+        }
+
+        int updated = jdbcTemplate.update("UPDATE sys_user SET password = ? WHERE id = ?", newHash, userId);
+        boolean success = updated > 0;
+        if (success) {
+            log.info("Password changed successfully for userId={}", userId);
+        } else {
+            log.error("Password change update returned 0 rows, userId={}", userId);
+        }
+        return success;
+    }
+
+    /**
      * HMAC-SHA256 签名。
      *
      * @param data 要签名的数据

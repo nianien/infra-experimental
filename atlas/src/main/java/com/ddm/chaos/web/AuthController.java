@@ -84,6 +84,43 @@ public class AuthController {
         return ResponseEntity.ok(userInfo);
     }
 
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody Map<String, String> request,
+                                                              HttpServletRequest httpRequest) {
+        String token = extractToken(httpRequest);
+        if (token == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("未登录"));
+        }
+
+        User user = userService.validateToken(token);
+        if (user == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Token 无效或已过期"));
+        }
+
+        String oldPassword = request.get("oldPassword");
+        String newPassword = request.get("newPassword");
+
+        if (oldPassword == null || oldPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("请输入当前密码"));
+        }
+        if (newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("请输入新密码"));
+        }
+        if (newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("新密码长度至少 6 位"));
+        }
+        if (oldPassword.equals(newPassword)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("新密码不能与旧密码相同"));
+        }
+
+        boolean updated = userService.changePassword(user.id(), oldPassword, newPassword);
+        if (!updated) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("密码修改失败，请确认旧密码正确"));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("密码修改成功"));
+    }
+
     private String extractToken(HttpServletRequest request) {
         String authHeader = request.getHeader(HEADER_TOKEN);
         if (authHeader != null && authHeader.startsWith("Bearer ")) {

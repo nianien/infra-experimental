@@ -61,117 +61,6 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
-        .header {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
-            color: white;
-            padding: 20px 40px;
-            box-shadow: var(--shadow-md);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background:
-                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-            pointer-events: none;
-        }
-
-        .header-content {
-            max-width: 1600px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            gap: 40px;
-        }
-
-        .header-info {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            color: white;
-            flex: 1;
-        }
-
-        .logo {
-            font-weight: 600;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .logo-icon {
-            width: 48px;
-            height: 48px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary-bg);
-            font-weight: 600;
-            font-size: 22px;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
-        }
-
-        .logo-text {
-            font-size: 26px;
-            letter-spacing: -0.5px;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            min-width: 240px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .user-name {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 15px;
-        }
-
-        .login-btn,
-        .logout-btn {
-            padding: 8px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.15);
-            color: white;
-            cursor: pointer;
-            font-size: 15px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            backdrop-filter: blur(10px);
-        }
-
-        .login-btn:hover,
-        .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.25);
-            border-color: rgba(255, 255, 255, 0.4);
-            transform: translateY(-1px);
-        }
-
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -558,25 +447,10 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="/assets/banner/banner.css">
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <div class="header-info">
-                <div class="logo">
-                    <div class="logo-icon">A</div>
-                    <div class="logo-text">Atlas 基础架构平台</div>
-                </div>
-            </div>
-            <div class="header-actions">
-                <div class="user-info">
-                    <span class="user-name" id="userName"></span>
-                    <button class="login-btn" id="loginBtn" style="display: none;">登录</button>
-                    <button class="logout-btn" id="logoutBtn" style="display: none;">登出</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="atlas-banner"></div>
 
     <div class="container">
         <div class="components-grid">
@@ -675,6 +549,16 @@
     </div>
 
 
+    <script src="/assets/banner/banner.js"></script>
+    <script>
+        initAtlasBanner('atlas-banner', {
+            title: 'Atlas 基础架构平台',
+            subtitle: '',
+            tagline: '',
+            metaItems: [],
+            logoIcon: 'A'
+        });
+    </script>
 
     <script>
         // 检查登录状态

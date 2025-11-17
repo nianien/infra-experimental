@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>流量染色 - Atlas 基础架构平台</title>
+    <link rel="stylesheet" href="/assets/banner/banner.css">
     <style>
         :root {
             --primary: #22c55e;
@@ -225,15 +226,7 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <a href="/index.html" class="logo">
-                <div class="logo-icon">A</div>
-                <span>Atlas 基础架构平台</span>
-            </a>
-            <a href="/index.html" class="back-btn">← 返回首页</a>
-        </div>
-    </div>
+    <div id="atlas-banner"></div>
 
     <div class="container">
         <div class="page-header">
@@ -308,6 +301,27 @@ Response response = stub.myMethod(request);</div>
             </div>
         </div>
     </div>
+
+    <script src="/assets/banner/banner.js"></script>
+    <script>
+        initAtlasBanner('atlas-banner', {
+            eyebrow: 'Traffic Coloring',
+            title: '流量染色',
+            subtitle: 'Lane-aware Routing',
+            tagline: '基于 Lane 的智能流量治理，支持灰度发布、A/B 测试与按泳道隔离的服务调度。',
+            metaItems: [
+                'Lane 透传',
+                '优雅回退',
+                '实例分桶负载'
+            ],
+            logoIcon: '🎨',
+            actions: [
+                { label: '返回首页', variant: 'secondary', href: '/index.html' },
+                { label: '进入配置中心', variant: 'primary', href: '/config.html' }
+            ],
+            showLogin: false
+        });
+    </script>
 </body>
 </html>
 

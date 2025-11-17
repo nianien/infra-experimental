@@ -142,8 +142,35 @@
         .user-info {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             font-size: 15px;
+        }
+
+        .user-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-chip:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .user-chip .user-menu-caret {
+            font-size: 0.75rem;
+            opacity: 0.8;
         }
 
         .user-info .username {
@@ -466,6 +493,43 @@
             position: relative;
         }
 
+        .user-menu-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .user-menu-btn {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .user-menu-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        .user-menu-btn-danger {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+        }
+
+        .user-menu-btn-danger:hover {
+            background: var(--danger-hover);
+        }
+
+        #change-password-alert {
+            margin-bottom: 16px;
+        }
+
         @keyframes modalSlideIn {
             from {
                 opacity: 0;
@@ -785,27 +849,10 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="/assets/banner/banner.css">
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <h1>🌿 Chaos 配置平台</h1>
-            <div class="header-actions">
-                <div id="login-status">
-                    <a href="#" class="btn-login" id="login-btn" onclick="showLoginModal(); return false;">
-                        <span>🔐</span>
-                        <span>登录</span>
-                    </a>
-                    <div id="user-info" class="user-info" style="display: none;">
-                        <span class="username">欢迎, <strong id="username-display"></strong></span>
-                        <a href="#" class="btn-login" onclick="logout(); return false;">
-                            <span>登出</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="atlas-banner"></div>
 
     <div class="container">
         <!-- 面包屑导航 -->
@@ -1064,6 +1111,52 @@
         </div>
     </div>
 
+    <!-- 用户菜单 -->
+    <div id="user-menu-modal" class="modal" onclick="if(event.target === this) closeUserMenuModal()">
+        <div class="modal-content" style="max-width: 360px;" onclick="event.stopPropagation()">
+            <div class="modal-header" style="margin-bottom: 16px;">
+                <div>
+                    <h3 style="margin-bottom: 4px;">账号中心</h3>
+                    <p id="user-menu-username" style="margin: 0; color: var(--text-secondary); font-size: 14px;"></p>
+                </div>
+                <button class="close-btn" onclick="closeUserMenuModal()">&times;</button>
+            </div>
+            <div class="user-menu-actions">
+                <button type="button" class="user-menu-btn" onclick="showChangePasswordModal()">修改密码</button>
+                <button type="button" class="user-menu-btn user-menu-btn-danger" onclick="handleLogoutFromMenu()">登出</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改密码 -->
+    <div id="change-password-modal" class="modal" onclick="if(event.target === this) closeChangePasswordModal()">
+        <div class="modal-content" style="max-width: 420px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>修改密码</h3>
+                <button class="close-btn" onclick="closeChangePasswordModal()">&times;</button>
+            </div>
+            <div id="change-password-alert"></div>
+            <form id="change-password-form">
+                <div class="form-group">
+                    <label for="current-password">当前密码 *</label>
+                    <input type="password" id="current-password" required placeholder="请输入当前密码" autocomplete="current-password">
+                </div>
+                <div class="form-group">
+                    <label for="new-password">新密码 *</label>
+                    <input type="password" id="new-password" required placeholder="请输入新密码" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">确认新密码 *</label>
+                    <input type="password" id="confirm-password" required placeholder="请再次输入新密码" autocomplete="new-password">
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 删除确认模态框 -->
     <div id="delete-confirm-modal" class="modal">
         <div class="modal-content" style="max-width: 480px;">
@@ -1108,6 +1201,42 @@
             </div>
         </div>
     </div>
+
+    <script src="/assets/banner/banner.js"></script>
+    <script>
+        initAtlasBanner('atlas-banner', {
+            eyebrow: '',
+            title: 'Chaos 配置平台',
+            subtitle: '',
+            tagline: '',
+            metaItems: [],
+            logoIcon: 'C',
+            actions: [],
+            extraActionsHtml: `
+                <div class="atlas-banner__quick-links">
+                    <a class="atlas-banner__quick-btn" href="/index.html">
+                        <span class="atlas-banner__quick-icon">⌂</span>
+                        <span>返回首页</span>
+                    </a>
+                </div>
+            `,
+            loginSlotHtml: `
+                <div id="login-status">
+                    <a href="#" class="btn-login" id="login-btn" onclick="showLoginModal(); return false;">
+                        <span>🔐</span>
+                        <span>登录</span>
+                    </a>
+                    <div id="user-info" class="user-info" style="display: none;">
+                        <button type="button" class="user-chip" id="user-menu-trigger">
+                            <span class="username">欢迎, <strong id="username-display"></strong></span>
+                            <span class="user-menu-caret">⌄</span>
+                        </button>
+                    </div>
+                </div>
+            `,
+            showLogin: false
+        });
+    </script>
 
     <script>
         const API_BASE = '/api/config';
@@ -2295,6 +2424,14 @@
                 if (loginModal && loginModal.classList.contains('active')) {
                     closeLoginModal();
                 }
+                const userMenuModal = document.getElementById('user-menu-modal');
+                if (userMenuModal && userMenuModal.classList.contains('active')) {
+                    closeUserMenuModal();
+                }
+                const changePwdModal = document.getElementById('change-password-modal');
+                if (changePwdModal && changePwdModal.classList.contains('active')) {
+                    closeChangePasswordModal();
+                }
             }
         });
 
@@ -2327,6 +2464,7 @@
                 loginBtn.style.display = 'none';
                 userInfo.style.display = 'flex';
                 usernameDisplay.textContent = currentUser.username;
+                bindUserMenuTrigger();
             } else {
                 loginBtn.style.display = 'inline-flex';
                 userInfo.style.display = 'none';
@@ -2339,6 +2477,17 @@
                 loadGroups();
             } else if (currentView === 'items' && currentNamespace && currentGroup) {
                 loadItems();
+            }
+        }
+
+        function bindUserMenuTrigger() {
+            const trigger = document.getElementById('user-menu-trigger');
+            if (trigger && !trigger.dataset.bound) {
+                trigger.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    openUserMenuModal();
+                });
+                trigger.dataset.bound = 'true';
             }
         }
 
@@ -2470,6 +2619,113 @@
             const confirmBtn = document.getElementById('confirm-modal-btn');
             if (confirmBtn) {
                 confirmBtn.addEventListener('click', confirmAction);
+            }
+        });
+
+        function openUserMenuModal() {
+            const modal = document.getElementById('user-menu-modal');
+            const nameEl = document.getElementById('user-menu-username');
+            if (nameEl) {
+                const username = getCurrentUser();
+                nameEl.textContent = username ? `当前用户：${username}` : '未登录';
+            }
+            if (modal) {
+                modal.classList.add('active');
+            }
+        }
+
+        function closeUserMenuModal() {
+            const modal = document.getElementById('user-menu-modal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        function handleLogoutFromMenu() {
+            closeUserMenuModal();
+            logout();
+        }
+
+        function showChangePasswordModal() {
+            closeUserMenuModal();
+            const modal = document.getElementById('change-password-modal');
+            if (!modal) return;
+            const form = document.getElementById('change-password-form');
+            if (form) {
+                form.reset();
+            }
+            setChangePasswordAlert('');
+            modal.classList.add('active');
+            setTimeout(() => {
+                const currentInput = document.getElementById('current-password');
+                if (currentInput) {
+                    currentInput.focus();
+                }
+            }, 100);
+        }
+
+        function closeChangePasswordModal() {
+            const modal = document.getElementById('change-password-modal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        function setChangePasswordAlert(message, type = 'error') {
+            const container = document.getElementById('change-password-alert');
+            if (!container) return;
+            if (!message) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+        }
+
+        async function handleChangePasswordSubmit(event) {
+            event.preventDefault();
+            const currentPassword = document.getElementById('current-password').value.trim();
+            const newPassword = document.getElementById('new-password').value.trim();
+            const confirmPassword = document.getElementById('confirm-password').value.trim();
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                setChangePasswordAlert('请完整填写所有字段');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                setChangePasswordAlert('两次输入的密码不一致');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: getRequestHeaders(),
+                    body: JSON.stringify({
+                        oldPassword: currentPassword,
+                        newPassword: newPassword
+                    })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (response.ok) {
+                    setChangePasswordAlert('密码修改成功', 'success');
+                    setTimeout(() => {
+                        closeChangePasswordModal();
+                    }, 1200);
+                } else {
+                    setChangePasswordAlert(data.error || data.message || '修改失败，请重试');
+                }
+            } catch (error) {
+                console.error('修改密码失败:', error);
+                setChangePasswordAlert('修改失败，请稍后重试');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            bindUserMenuTrigger();
+            const changePwdForm = document.getElementById('change-password-form');
+            if (changePwdForm) {
+                changePwdForm.addEventListener('submit', handleChangePasswordSubmit);
             }
         });
 
