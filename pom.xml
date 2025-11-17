@@ -5,13 +5,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ddm</groupId>
-    <name>infra-experimental</name>
+    <name>infra-lab</name>
     <description>support tools for java development</description>
-    <url>https://github.com/ddmarketinghub/infra-experimental</url>
+    <url>https://github.com/ddmarketinghub/infra-lab</url>
 
-    <artifactId>infra-experimental</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>infra-lab</artifactId>
+    <version>0</version>
     <packaging>pom</packaging>
+    <!-- 根 POM 只作为 aggregator，版本号设为 0 表示不发布 -->
     <modules>
         <module>argus</module>
         <module>chaos</module>
@@ -28,31 +29,50 @@
         <spring.boot.version>3.3.4</spring.boot.version>
         <grpc.spring.boot.version>2.15.0.RELEASE</grpc.spring.boot.version>
         <aws.sdk.version>2.25.30</aws.sdk.version>
+        
+        <!-- 注意：这些属性仅用于跨模块依赖，各模块自己的版本由各自的 <revision> 管理 -->
+        <chaos.version>1.0-SNAPSHOT</chaos.version>
+        <argus.version>1.0-SNAPSHOT</argus.version>
+        <atlas.version>1.0-SNAPSHOT</atlas.version>
+        <test.version>1.0-SNAPSHOT</test.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Chaos 子模块版本统一管理 -->
+            <!-- 跨模块依赖时，使用根 POM 定义的版本属性 -->
+            <!-- 注意：各模块自己的版本由各自的 <revision> 管理，这里仅用于跨模块依赖 -->
             <dependency>
                 <groupId>com.ddm</groupId>
                 <artifactId>chaos-core</artifactId>
-                <version>${project.version}</version>
+                <version>${chaos.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.ddm</groupId>
-                <artifactId>chaos-client</artifactId>
-                <version>${project.version}</version>
+                <artifactId>chaos-spring-boot-starter</artifactId>
+                <version>${chaos.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.ddm</groupId>
                 <artifactId>chaos-server</artifactId>
-                <version>${project.version}</version>
+                <version>${chaos.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>argus-spring-boot-starter</artifactId>
+                <version>${argus.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.ddm</groupId>
                 <artifactId>atlas</artifactId>
-                <version>${project.version}</version>
+                <version>${atlas.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>demo-proto</artifactId>
+                <version>${test.version}</version>
+            </dependency>
+            
+            <!-- ==================== 第三方依赖 BOM ==================== -->
             <!-- Spring Boot BOM -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
@@ -176,6 +196,13 @@
                             <phase>generate-sources</phase>
                         </execution>
                     </executions>
+                </plugin>
+
+                <!-- Flatten Maven Plugin - 仅作为模板，不强制子模块使用 -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>flatten-maven-plugin</artifactId>
+                    <version>1.6.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>

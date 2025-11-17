@@ -5,11 +5,17 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.ddm</groupId>
-        <artifactId>infra-experimental</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <artifactId>infra-lab</artifactId>
+        <version>0</version>
     </parent>
 
     <artifactId>atlas</artifactId>
+    <version>${revision}</version>
+
+    <properties>
+        <!-- Atlas 模块独立版本号 -->
+        <revision>1.0-SNAPSHOT</revision>
+    </properties>
 
 
     <dependencies>
@@ -17,13 +23,14 @@
         <dependency>
             <groupId>com.ddm</groupId>
             <artifactId>chaos-core</artifactId>
+            <!-- 跨模块依赖：版本由根 POM 的 dependencyManagement 管理 -->
         </dependency>
 
         <!-- Spring Boot -->
         <dependency>
             <groupId>com.ddm</groupId>
             <artifactId>argus-spring-boot-starter</artifactId>
-            <version>${project.version}</version>
+            <!-- 跨模块依赖：版本由根 POM 的 dependencyManagement 管理 -->
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -41,4 +48,39 @@
             <optional>true</optional>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 次顶级模块：使用 oss 模式，裁掉 infra-lab:0 这个 parent -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <inherited>false</inherited>
+                <configuration>
+                    <flattenMode>oss</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten-clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>

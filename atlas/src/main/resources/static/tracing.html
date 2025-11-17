@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>链路追踪 - Atlas 基础架构平台</title>
+    <style>
+        :root {
+            --primary: #22c55e;
+            --primary-hover: #16a34a;
+            --primary-light: #86efac;
+            --primary-bg: #f0fdf4;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --border-color: #e5e7eb;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .back-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .content-section {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--primary-bg);
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 0.75rem 0;
+            padding-left: 2rem;
+            position: relative;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .workflow-step {
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--primary);
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: var(--radius-md);
+        }
+
+        .workflow-step strong {
+            color: var(--text-primary);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .workflow-step ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .workflow-step li {
+            margin: 0.5rem 0;
+            color: var(--text-secondary);
+        }
+
+        .code-block {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .content-text {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin: 1rem 0;
+        }
+
+        .content-text code {
+            background: var(--bg-secondary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            color: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .content-section {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <a href="/index.html" class="logo">
+                <div class="logo-icon">A</div>
+                <span>Atlas 基础架构平台</span>
+            </a>
+            <a href="/index.html" class="back-btn">← 返回首页</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="page-header">
+            <div class="page-icon">🔗</div>
+            <h1 class="page-title">链路追踪</h1>
+            <p class="page-subtitle">基于 W3C Trace Context 标准的分布式追踪</p>
+        </div>
+
+        <div class="content-section">
+            <h2 class="section-title">功能特性</h2>
+            <ul class="feature-list">
+                <li>W3C 标准兼容：完全支持 traceparent 和 tracestate header</li>
+                <li>自动传播：HTTP 和 gRPC 请求自动解析和传播追踪信息</li>
+                <li>日志集成：自动注入 traceId、spanId、lane 到日志 MDC</li>
+                <li>跨服务追踪：支持分布式系统中的完整调用链追踪</li>
+                <li>零侵入：通过 Filter 和 Interceptor 自动处理，无需修改业务代码</li>
+            </ul>
+        </div>
+
+        <div class="content-section">
+            <h2 class="section-title">工作原理</h2>
+            
+            <div class="workflow-step">
+                <strong>HTTP 请求追踪：</strong>
+                <ol>
+                    <li><code>TraceFilter</code> 拦截 HTTP 请求，解析 <code>traceparent</code> 和 <code>tracestate</code> header</li>
+                    <li>提取 traceId、parentId、spanId、flags 和 lane 信息</li>
+                    <li>将 TraceInfo 存储到 gRPC Context 中</li>
+                    <li>注入到日志 MDC（traceId、spanId、lane）供日志输出使用</li>
+                    <li>在响应中回写标准 header，确保追踪信息继续传播</li>
+                </ol>
+            </div>
+
+            <div class="workflow-step">
+                <strong>gRPC 请求追踪：</strong>
+                <ol>
+                    <li><code>TraceInterceptor</code> 拦截 gRPC 请求</li>
+                    <li>入站请求：解析 metadata 中的 traceparent/tracestate，提取 TraceInfo</li>
+                    <li>出站请求：从 Context 获取 TraceInfo，写入 metadata</li>
+                    <li>自动生成新的 spanId，保持调用链的连续性</li>
+                    <li>透传 lane 信息到 tracestate，支持流量染色</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2 class="section-title">日志配置</h2>
+            <div class="code-block">logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{lane:--}] [%X{traceId:--}] %logger{36} - %msg%n"</div>
+            <p class="content-text">
+                配置日志格式包含 <code>%X{lane}</code> 和 <code>%X{traceId}</code>，即可在日志中自动输出追踪信息。
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+

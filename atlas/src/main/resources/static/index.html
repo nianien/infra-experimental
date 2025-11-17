@@ -341,6 +341,7 @@
             background: var(--danger-hover);
         }
 
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -565,43 +566,43 @@
                 <div class="component-desc">统一管理应用配置，支持多环境、多命名空间配置管理</div>
             </a>
 
-            <a href="#" class="component-card service-discovery" onclick="showComingSoonModal('服务发现'); return false;">
+            <a href="/service-discovery.html" class="component-card service-discovery">
                 <div class="component-icon">🔍</div>
                 <div class="component-title">服务发现</div>
                 <div class="component-desc">服务注册与发现，动态管理服务实例，支持健康检查</div>
             </a>
 
-            <a href="#" class="component-card tracing" onclick="showComingSoonModal('链路追踪'); return false;">
+            <a href="/tracing.html" class="component-card tracing">
                 <div class="component-icon">🔗</div>
                 <div class="component-title">链路追踪</div>
                 <div class="component-desc">分布式系统调用链追踪，可视化服务依赖关系</div>
             </a>
 
-            <a href="#" class="component-card traffic-coloring" onclick="showComingSoonModal('流量染色'); return false;">
+            <a href="/traffic-coloring.html" class="component-card traffic-coloring">
                 <div class="component-icon">🎨</div>
                 <div class="component-title">流量染色</div>
                 <div class="component-desc">流量标记和路由，支持灰度发布和A/B测试</div>
             </a>
 
-            <a href="#" class="component-card logging" onclick="showComingSoonModal('日志中心'); return false;">
+            <a href="/logging.html" class="component-card logging">
                 <div class="component-icon">📝</div>
                 <div class="component-title">日志中心</div>
                 <div class="component-desc">集中收集、查询和分析应用日志，快速定位问题</div>
             </a>
 
-            <a href="#" class="component-card gateway" onclick="showComingSoonModal('API 网关'); return false;">
+            <a href="/gateway.html" class="component-card gateway">
                 <div class="component-icon">🚪</div>
                 <div class="component-title">API 网关</div>
                 <div class="component-desc">统一入口管理，路由转发、限流、鉴权等功能</div>
             </a>
 
-            <a href="#" class="component-card sso" onclick="showComingSoonModal('SSO 登录'); return false;">
+            <a href="/sso.html" class="component-card sso">
                 <div class="component-icon">🔐</div>
                 <div class="component-title">SSO 登录</div>
                 <div class="component-desc">单点登录服务，统一身份认证，支持多系统免密登录</div>
             </a>
 
-            <a href="#" class="component-card permission" onclick="showComingSoonModal('权限中心'); return false;">
+            <a href="/permission.html" class="component-card permission">
                 <div class="component-icon">🛡️</div>
                 <div class="component-title">权限中心</div>
                 <div class="component-desc">统一权限管理，角色授权，细粒度权限控制</div>
@@ -647,17 +648,7 @@
         </div>
     </div>
 
-    <!-- 即将上线弹窗 -->
-    <div class="modal-overlay" id="comingSoonModal" onclick="closeComingSoonModal(event)">
-        <div class="modal" onclick="event.stopPropagation()">
-            <div class="modal-icon">🚀</div>
-            <div class="modal-title" id="modalTitle">即将上线</div>
-            <div class="modal-message">即将上线，敬请期待</div>
-            <div class="modal-buttons">
-                <button class="modal-button" onclick="closeComingSoonModal()">知道了</button>
-            </div>
-        </div>
-    </div>
+
 
     <script>
         // 检查登录状态
@@ -858,26 +849,7 @@
             }
         });
 
-        // 显示即将上线弹窗
-        function showComingSoonModal(componentName) {
-            const modal = document.getElementById('comingSoonModal');
-            const title = document.getElementById('modalTitle');
-            if (componentName) {
-                title.textContent = componentName + ' 即将上线';
-            } else {
-                title.textContent = '即将上线';
-            }
-            modal.classList.add('show');
-        }
 
-        // 关闭即将上线弹窗
-        function closeComingSoonModal(event) {
-            if (event && event.target !== event.currentTarget) {
-                return;
-            }
-            const modal = document.getElementById('comingSoonModal');
-            modal.classList.remove('show');
-        }
 
         // 页面加载时检查登录状态
         checkLoginStatus();
