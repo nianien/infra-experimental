@@ -233,20 +233,12 @@ grpc:
     </div>
 
     <script src="/assets/banner/banner.js"></script>
+    <script src="/assets/js/auth.js"></script>
     <script>
         initAtlasBanner('atlas-banner', {
             title: '服务发现',
-            subtitle: '',
             logoIcon: 'S',
-            extraActionsHtml: `
-                <div class="atlas-banner__quick-links">
-                    <a class="atlas-banner__quick-btn" href="/index.html">
-                        <span class="atlas-banner__quick-icon">⌂</span>
-                        <span>返回首页</span>
-                    </a>
-                </div>
-            `,
-            showLogin: false
+            showLogin: true
         });
     </script>
 </body>

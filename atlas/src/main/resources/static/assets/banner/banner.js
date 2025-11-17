@@ -49,15 +49,48 @@
             ? `<span class="atlas-banner__eyebrow">${eyebrow}</span>`
             : '';
         const actionsHtml = createActionsHtml(actions);
-        const combinedActions = [actionsHtml, extraActionsHtml].filter(Boolean).join('');
+        
+        // 自动添加返回首页按钮（如果不在首页）
+        let homeButtonHtml = '';
+        const currentPath = window.location.pathname;
+        const isIndexPage = currentPath === '/' || 
+                           currentPath === '/index.html' || 
+                           currentPath.endsWith('/index.html') ||
+                           (currentPath.endsWith('/') && currentPath.length <= 1);
+        if (!isIndexPage) {
+            homeButtonHtml = `
+                <div class="atlas-banner__quick-links">
+                    <a class="atlas-banner__quick-btn" href="/index.html">
+                        <span class="atlas-banner__quick-icon">⌂</span>
+                        <span>返回首页</span>
+                    </a>
+                </div>
+            `;
+        }
+        
+        const combinedActions = [actionsHtml, homeButtonHtml, extraActionsHtml].filter(Boolean).join('');
 
-        const loginHtml = loginSlotHtml || (showLogin ? `
-            <div class="user-info">
-                <span class="user-name" id="userName"></span>
-                <button class="login-btn" id="loginBtn" style="display: none;">登录</button>
-                <button class="logout-btn" id="logoutBtn" style="display: none;">登出</button>
-            </div>
-        ` : '');
+        // 自动生成登录相关的 HTML（使用 auth.js 的标准结构）
+        // 如果提供了 loginSlotHtml，使用它；否则如果 showLogin 为 true，自动生成
+        let loginHtml = '';
+        if (loginSlotHtml) {
+            loginHtml = loginSlotHtml;
+        } else if (showLogin) {
+            loginHtml = `
+                <div id="login-status">
+                    <a href="#" class="btn-login" id="login-btn">
+                        <span>🔐</span>
+                        <span>登录</span>
+                    </a>
+                    <div id="user-info" class="user-info" style="display: none;">
+                        <button type="button" class="user-chip" id="user-menu-trigger">
+                            <span class="username">欢迎, <strong id="username-display"></strong></span>
+                            <span class="user-menu-caret">⌄</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
 
         container.innerHTML = `
             <header class="atlas-banner">

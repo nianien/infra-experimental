@@ -352,6 +352,11 @@
         }
     }
 
+    function checkLoginStatus() {
+        getCurrentUserInfo();
+        updateLoginUI();
+    }
+
     function bindUserMenuTrigger() {
         const trigger = document.getElementById('user-menu-trigger');
         if (trigger && !trigger.dataset.authBound) {
@@ -678,6 +683,7 @@
         getCurrentToken,
         getRequestHeaders,
         updateLoginUI,
+        checkLoginStatus,
         showLoginModal,
         closeLoginModal,
         showConfirmModal,
@@ -694,6 +700,7 @@
     window.getCurrentToken = getCurrentToken;
     window.getRequestHeaders = getRequestHeaders;
     window.updateLoginUI = updateLoginUI;
+    window.checkLoginStatus = checkLoginStatus;
     window.showLoginModal = showLoginModal;
     window.closeLoginModal = closeLoginModal;
     window.showConfirmModal = showConfirmModal;

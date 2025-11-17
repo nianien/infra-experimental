@@ -694,28 +694,12 @@
 
 
     <script src="/assets/banner/banner.js"></script>
+    <script src="/assets/js/auth.js"></script>
     <script>
         initAtlasBanner('atlas-banner', {
             title: 'Atlas 基础架构平台',
-            subtitle: '',
-            tagline: '',
-            metaItems: [],
             logoIcon: 'A',
-            loginSlotHtml: `
-                <div id="login-status">
-                    <a href="#" class="btn-login" id="login-btn" onclick="showLoginModal(); return false;">
-                        <span>🔐</span>
-                        <span>登录</span>
-                    </a>
-                    <div id="user-info" class="user-info" style="display: none;">
-                        <button type="button" class="user-chip" id="user-menu-trigger">
-                            <span class="username">欢迎, <strong id="username-display"></strong></span>
-                            <span class="user-menu-caret">⌄</span>
-                        </button>
-                    </div>
-                </div>
-            `,
-            showLogin: false
+            showLogin: true
         });
     </script>
 
