@@ -1,4 +1,4 @@
-package com.ddm.demo.client;
+package com.ddm.demo.web;
 
 import com.ddm.chaos.annotation.Conf;
 import lombok.Getter;

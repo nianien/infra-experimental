@@ -1,4 +1,4 @@
-package com.ddm.demo.client;
+package com.ddm.demo.web;
 
 import com.ddm.demo.proto.order.OrderServiceGrpc;
 import com.ddm.demo.proto.user.UserServiceGrpc;
@@ -13,9 +13,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 集成了 gRPC 客户端测试功能
  */
 @SpringBootApplication(scanBasePackages = {
-        "com.ddm.demo.client"
+        "com.ddm.demo.web"
 })
-public class WebApplication {
+public class DemoApplication {
 
     @GrpcClient("user-service")
     private UserServiceGrpc.UserServiceBlockingStub userServiceStub;
@@ -24,7 +24,7 @@ public class WebApplication {
     private OrderServiceGrpc.OrderServiceBlockingStub orderServiceStub;
 
     public static void main(String[] args) {
-        SpringApplication.run(WebApplication.class, args);
+        SpringApplication.run(DemoApplication.class, args);
     }
 
 

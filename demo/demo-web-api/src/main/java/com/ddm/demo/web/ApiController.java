@@ -1,4 +1,4 @@
-package com.ddm.demo.client;
+package com.ddm.demo.web;
 
 import com.ddm.demo.proto.order.*;
 import com.ddm.demo.proto.user.*;
@@ -53,19 +53,19 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api")
-public class WebController {
-    private static final Logger log = LoggerFactory.getLogger(WebController.class);
+public class ApiController {
+    private static final Logger log = LoggerFactory.getLogger(ApiController.class);
 
     /**
      * 用户服务 gRPC 客户端 Stub。
      */
-//    @GrpcClient("user-service")
+    @GrpcClient("user-service")
     private UserServiceGrpc.UserServiceBlockingStub userServiceStub;
 
     /**
      * 订单服务 gRPC 客户端 Stub。
      */
-//    @GrpcClient("order-service")
+    @GrpcClient("order-service")
     private OrderServiceGrpc.OrderServiceBlockingStub orderServiceStub;
 
     /**
