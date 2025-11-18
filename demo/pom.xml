@@ -9,12 +9,12 @@
         <version>0</version>
     </parent>
 
-    <artifactId>test</artifactId>
+    <artifactId>demo</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
 
     <properties>
-        <!-- Test 模块独立版本号 -->
+        <!-- Demo 模块独立版本号 -->
         <revision>1.0-SNAPSHOT</revision>
         <!-- 次顶级模块使用 oss 模式，裁掉 infra-lab:0 这个 parent -->
         <flatten.mode>oss</flatten.mode>

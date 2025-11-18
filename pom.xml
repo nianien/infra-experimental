@@ -34,14 +34,14 @@
         <chaos.version>1.0-SNAPSHOT</chaos.version>
         <argus.version>1.0-SNAPSHOT</argus.version>
         <atlas.version>1.0-SNAPSHOT</atlas.version>
-        <test.version>1.0-SNAPSHOT</test.version>
+        <demo.version>1.0-SNAPSHOT</demo.version>
     </properties>
 
     <modules>
         <module>argus</module>
         <module>chaos</module>
         <module>atlas</module>
-        <module>test</module>
+        <module>demo</module>
     </modules>
 
     <dependencyManagement>
@@ -75,7 +75,7 @@
             <dependency>
                 <groupId>com.ddm</groupId>
                 <artifactId>demo-proto</artifactId>
-                <version>${test.version}</version>
+                <version>${demo.version}</version>
             </dependency>
             
             <!-- ==================== 第三方依赖 BOM ==================== -->

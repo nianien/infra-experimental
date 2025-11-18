@@ -240,7 +240,8 @@ curl -H "tracestate: ctx=lane:canary" \
 ---
 
 ## 配置示例一览
-- 本地：`static://localhost:PORT` 直连
+
+### 本地开发（static/localhost 直连）
 ```yaml
 grpc:
   client:
@@ -252,13 +253,31 @@ grpc:
       negotiationType: plaintext
 ```
 
-- ECS：`cloud:///service.namespace[:port]`
+### ECS 环境（启用 `cloud:///` 与泳道路由）
+使用 `test` profile：
+```yaml
+spring:
+  config:
+    activate:
+      on-profile: test
+
+grpc:
+  client:
+    user-service:
+      address: "cloud:///user.test.local:${GRPC_SERVER_PORT:8081}"
+    order-service:
+      address: "cloud:///order.test.local:${GRPC_SERVER_PORT:8081}"
+```
+
+### 下游服务在 ECS 的客户端配置
 ```yaml
 grpc:
   client:
     user-service:
       address: "cloud:///user.test.local:${GRPC_SERVER_PORT:8081}"
 ```
+
+**说明**：当入口请求（HTTP/gRPC）携带 `tracestate: ctx=lane:<laneName>` 时，同一条链路内的 gRPC 调用会优先路由到 lane 匹配的实例；若该泳道无 READY 实例，则回退到默认桶。
 
 ---
 
@@ -318,3 +337,49 @@ grpc:
 ---
 
 如需在业务代码中强制设置/覆盖 lane，可在入口处按 `tracestate: ctx=lane:<laneName>` 规范注入，或在必要时扩展拦截器写入自定义 lane 值。
+
+---
+
+## Demo 运行指南
+
+本仓库的 `demo` 模块提供了完整的使用示例，演示如何在本地和 ECS 环境下使用 Argus。
+
+### 前置要求
+- JDK 21
+- Maven
+- 本地演示默认直连端口 8081/8082
+
+### 编译项目
+```bash
+mvn -q -T1C -DskipTests package
+```
+
+### 启动服务
+
+#### 1. 启动 demo-user-rpc（gRPC: 8081）
+```bash
+mvn -q -f demo/demo-user-rpc/pom.xml spring-boot:run
+```
+
+#### 2. 启动 demo-order-rpc（gRPC: 8082，作为客户端调用 user-service）
+```bash
+mvn -q -f demo/demo-order-rpc/pom.xml spring-boot:run
+```
+
+#### 3. 启动 demo-web-api（HTTP: 8080，作为 web 入口与 gRPC 客户端）
+```bash
+mvn -q -f demo/demo-web-api/pom.xml spring-boot:run
+```
+
+### 切换到 ECS 配置（启用 `cloud:///`）
+- **方式一**：激活 `test` profile（示例中为 `test`）
+- **方式二**：在环境中提供 `ECS_CONTAINER_METADATA_URI_V4` 以启用 ECS 自动装配
+
+### 注入泳道（可选）
+从入口层（API 网关/上游）添加头：
+```http
+tracestate: ctx=lane:test-lane
+```
+随后查看日志中的 `%X{lane}` 与下游实例分布。
+
+详细示例代码请参考 `demo` 模块。

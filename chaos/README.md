@@ -122,7 +122,7 @@ chaos:
     ttl: 30S
 ```
 
-> **注意**：具体配置示例请参考 `test/demo-web-api/src/main/resources/application.yml`
+> **注意**：具体配置示例请参考 `demo/demo-web-api/src/main/resources/application.yml`
 
 ### 3. 添加依赖
 

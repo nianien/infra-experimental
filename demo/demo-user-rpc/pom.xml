@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.ddm</groupId>
-        <artifactId>test</artifactId>
+        <artifactId>demo</artifactId>
         <version>${revision}</version>
     </parent>
 

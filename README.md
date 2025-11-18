@@ -12,7 +12,7 @@ infra-lab/                    # 根聚合工程（version=0，仅作为 aggregat
 │   └── chaos-server/        # 服务端（gRPC Server）
 ├── argus/                    # Argus 分布式追踪模块
 ├── atlas/                    # Atlas 基础架构平台（原 chaos-web）
-└── test/                     # 测试和示例模块
+└── demo/                     # 演示和示例模块
     ├── demo-proto/          # Protocol Buffers 定义
     ├── demo-user-rpc/       # 用户服务示例
     ├── demo-order-rpc/      # 订单服务示例
@@ -35,7 +35,7 @@ mvn -pl chaos -am clean install
 
 ```bash
 # 运行 demo-web-api
-cd test/demo-web-api
+cd demo/demo-web-api
 mvn spring-boot:run
 ```
 
@@ -68,7 +68,7 @@ mvn spring-boot:run
 ### 核心规则
 
 1. **根 POM**：版本固定为 `0`，只作为 aggregator，不对外发布
-2. **次顶级模块**（如 `chaos`、`argus`、`atlas`、`test`）：
+2. **次顶级模块**（如 `chaos`、`argus`、`atlas`、`demo`）：
    - 使用 `${revision}` 作为版本号
    - 发布时通过 `flatten-maven-plugin` 裁掉 `infra-lab:0` 这个 parent
 3. **子模块**：
