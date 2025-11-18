@@ -1,4 +1,7 @@
-package com.ddm.chaos.defined;
+package com.ddm.chaos.resolver;
+
+import com.ddm.chaos.factory.ConfData;
+import com.ddm.chaos.provider.ConfItem;
 
 /**
  * 配置引用，用于唯一标识一个配置项的逻辑主键。

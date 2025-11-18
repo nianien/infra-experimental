@@ -1,6 +1,6 @@
 package com.ddm.chaos.factory;
 
-import com.ddm.chaos.defined.ConfDesc;
+import com.ddm.chaos.resolver.ConfDesc;
 
 import java.util.function.Supplier;
 

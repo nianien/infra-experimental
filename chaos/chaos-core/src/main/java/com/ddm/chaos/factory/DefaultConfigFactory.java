@@ -1,9 +1,8 @@
 package com.ddm.chaos.factory;
 
-import com.ddm.chaos.defined.ConfData;
-import com.ddm.chaos.defined.ConfDesc;
-import com.ddm.chaos.defined.ConfItem;
-import com.ddm.chaos.defined.ConfRef;
+import com.ddm.chaos.resolver.ConfDesc;
+import com.ddm.chaos.provider.ConfItem;
+import com.ddm.chaos.resolver.ConfRef;
 import com.ddm.chaos.provider.DataProvider;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;

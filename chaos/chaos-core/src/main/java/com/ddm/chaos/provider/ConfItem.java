@@ -1,6 +1,7 @@
-package com.ddm.chaos.defined;
+package com.ddm.chaos.provider;
 
-import com.ddm.chaos.provider.DataProvider;
+import com.ddm.chaos.factory.ConfData;
+import com.ddm.chaos.resolver.ConfRef;
 
 /**
  * 配置项，表示从数据源（如数据库）读取的完整配置数据。

@@ -1,7 +1,6 @@
 package com.ddm.chaos.provider;
 
-import com.ddm.chaos.defined.ConfItem;
-import com.ddm.chaos.defined.ConfRef;
+import com.ddm.chaos.resolver.ConfRef;
 
 /**
  * 数据提供者接口，负责从数据源（数据库、Redis、HTTP API 等）拉取配置数据。

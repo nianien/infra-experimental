@@ -1,5 +1,7 @@
 package com.ddm.chaos.utils;
 
+import com.ddm.chaos.resolver.ConfDesc;
+
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
@@ -35,7 +37,7 @@ import java.lang.reflect.Type;
  *
  * <p><strong>使用场景：</strong>
  * <ul>
- *   <li>在配置描述符（{@link com.ddm.chaos.defined.ConfDesc}）中指定泛型类型</li>
+ *   <li>在配置描述符（{@link ConfDesc}）中指定泛型类型</li>
  *   <li>在类型转换工具（{@link Converters}）中获取泛型类型信息</li>
  *   <li>在需要运行时获取泛型类型信息的场景中使用</li>
  * </ul>
@@ -60,7 +62,7 @@ import java.lang.reflect.Type;
  * @author liyifei
  * @see java.lang.reflect.Type
  * @see java.lang.reflect.ParameterizedType
- * @see com.ddm.chaos.defined.ConfDesc
+ * @see ConfDesc
  * @since 1.0
  */
 public abstract class TypeRef<T> implements Comparable<TypeRef<T>> {

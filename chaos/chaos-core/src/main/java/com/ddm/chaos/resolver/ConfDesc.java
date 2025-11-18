@@ -1,5 +1,6 @@
-package com.ddm.chaos.defined;
+package com.ddm.chaos.resolver;
 
+import com.ddm.chaos.factory.ConfData;
 import com.ddm.chaos.utils.TypeRef;
 
 import java.lang.reflect.Type;

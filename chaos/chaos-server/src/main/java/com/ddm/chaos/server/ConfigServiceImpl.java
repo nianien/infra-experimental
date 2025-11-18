@@ -1,7 +1,7 @@
 package com.ddm.chaos.server;
 
-import com.ddm.chaos.defined.ConfItem;
-import com.ddm.chaos.defined.ConfRef;
+import com.ddm.chaos.provider.ConfItem;
+import com.ddm.chaos.resolver.ConfRef;
 import com.ddm.chaos.proto.*;
 import com.ddm.chaos.provider.DataProvider;
 import io.grpc.stub.StreamObserver;

@@ -1,5 +1,8 @@
-package com.ddm.chaos.defined;
+package com.ddm.chaos.factory;
 
+import com.ddm.chaos.provider.ConfItem;
+import com.ddm.chaos.resolver.ConfDesc;
+import com.ddm.chaos.resolver.ConfRef;
 import com.ddm.chaos.utils.Converters;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

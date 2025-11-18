@@ -1,7 +1,6 @@
 package com.ddm.chaos.provider;
 
-import com.ddm.chaos.defined.ConfItem;
-import com.ddm.chaos.defined.ConfRef;
+import com.ddm.chaos.resolver.ConfRef;
 import com.ddm.chaos.proto.ConfigItem;
 import com.ddm.chaos.proto.ConfigRef;
 import com.ddm.chaos.proto.ConfigServiceGrpc;

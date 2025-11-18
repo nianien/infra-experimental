@@ -1,7 +1,6 @@
 package com.ddm.chaos.provider;
 
-import com.ddm.chaos.defined.ConfItem;
-import com.ddm.chaos.defined.ConfRef;
+import com.ddm.chaos.resolver.ConfRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
