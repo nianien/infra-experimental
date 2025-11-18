@@ -14,9 +14,7 @@
     <packaging>pom</packaging>
 
     <properties>
-        <!-- Demo 模块独立版本号 -->
-        <revision>1.0-SNAPSHOT</revision>
-        <!-- 次顶级模块使用 oss 模式，裁掉 infra-lab:0 这个 parent -->
+        <revision>${demo.version}</revision>
         <flatten.mode>oss</flatten.mode>
     </properties>
 

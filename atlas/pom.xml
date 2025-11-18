@@ -13,10 +13,7 @@
     <version>${revision}</version>
 
     <properties>
-        <!-- Atlas 模块独立版本号 -->
-        <revision>1.0-SNAPSHOT</revision>
-        <!-- 使用默认的 resolveCiFriendliesOnly 模式 -->
-        <flatten.mode>${default.flatten.mode}</flatten.mode>
+        <revision>${atlas.version}</revision>
     </properties>
 
     <dependencies>

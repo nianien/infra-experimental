@@ -15,9 +15,7 @@
     <description>Spring Boot Starter for Argus distributed tracing</description>
 
     <properties>
-        <!-- Argus 模块独立版本号 -->
-        <revision>1.0-SNAPSHOT</revision>
-        <!-- 次顶级模块使用 oss 模式，裁掉 infra-lab:0 这个 parent -->
+        <revision>${argus.version}</revision>
         <flatten.mode>oss</flatten.mode>
     </properties>
 
