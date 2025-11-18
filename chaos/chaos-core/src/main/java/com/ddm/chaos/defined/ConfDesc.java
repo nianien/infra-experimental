@@ -1,5 +1,6 @@
 package com.ddm.chaos.defined;
 
+import com.ddm.chaos.resolver.ConfRef;
 import com.ddm.chaos.utils.TypeRef;
 
 import java.lang.reflect.Type;
@@ -27,7 +28,6 @@ import java.lang.reflect.Type;
  * @param type         目标类型，配置值需要转换的目标类型，不能为 null
  * @author liyifei
  * @see ConfRef
- * @see ConfData
  * @since 1.0
  */
 public record ConfDesc(ConfRef ref, Object defaultValue, Type type) {
