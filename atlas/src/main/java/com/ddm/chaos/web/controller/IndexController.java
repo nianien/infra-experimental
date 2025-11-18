@@ -1,4 +1,4 @@
-package com.ddm.chaos.web;
+package com.ddm.chaos.web.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;

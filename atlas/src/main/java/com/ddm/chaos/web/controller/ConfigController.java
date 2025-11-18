@@ -1,4 +1,4 @@
-package com.ddm.chaos.web;
+package com.ddm.chaos.web.controller;
 
 import com.ddm.chaos.web.dto.ApiResponse;
 import com.ddm.chaos.web.service.ConfigService;
