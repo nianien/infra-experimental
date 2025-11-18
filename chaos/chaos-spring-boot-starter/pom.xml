@@ -12,8 +12,7 @@
     <artifactId>chaos-spring-boot-starter</artifactId>
 
     <properties>
-        <!-- 子模块：覆盖父模块的 oss，使用默认的 resolveCiFriendliesOnly 模式 -->
-        <flatten.mode>${default.flatten.mode}</flatten.mode>
+        <flatten.mode>resolveCiFriendliesOnly</flatten.mode>
     </properties>
 
     <dependencies>

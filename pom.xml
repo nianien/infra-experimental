@@ -17,7 +17,14 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        
+
+        <!-- 模块版本（注意：各模块版本由各自的 <revision> 管理） -->
+        <flatten.mode>resolveCiFriendliesOnly</flatten.mode>
+        <chaos.version>1.0-SNAPSHOT</chaos.version>
+        <argus.version>1.0-SNAPSHOT</argus.version>
+        <atlas.version>1.0-SNAPSHOT</atlas.version>
+        <demo.version>1.0-SNAPSHOT</demo.version>
+
         <!-- 第三方依赖版本 -->
         <slf4j.version>2.0.9</slf4j.version>
         <grpc.version>1.67.1</grpc.version>
@@ -25,16 +32,8 @@
         <spring.boot.version>3.3.4</spring.boot.version>
         <grpc.spring.boot.version>2.15.0.RELEASE</grpc.spring.boot.version>
         <aws.sdk.version>2.25.30</aws.sdk.version>
-        
-        <!-- Flatten Maven Plugin 模式：默认只解析 CI 友好属性（revision），保留 parent 结构 -->
-        <!-- 子模块通过 ${default.flatten.mode} 覆盖父模块的 oss 模式 -->
-        <default.flatten.mode>resolveCiFriendliesOnly</default.flatten.mode>
-        
-        <!-- 跨模块依赖版本（注意：各模块自己的版本由各自的 <revision> 管理） -->
-        <chaos.version>1.0-SNAPSHOT</chaos.version>
-        <argus.version>1.0-SNAPSHOT</argus.version>
-        <atlas.version>1.0-SNAPSHOT</atlas.version>
-        <demo.version>1.0-SNAPSHOT</demo.version>
+
+
     </properties>
 
     <modules>
@@ -77,7 +76,7 @@
                 <artifactId>demo-proto</artifactId>
                 <version>${demo.version}</version>
             </dependency>
-            
+
             <!-- ==================== 第三方依赖 BOM ==================== -->
             <!-- Spring Boot BOM -->
             <dependency>
@@ -103,7 +102,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            
+
             <!-- ==================== 第三方依赖（非 BOM） ==================== -->
             <!-- Protocol Buffers -->
             <dependency>
