@@ -48,7 +48,7 @@ logging:
 
 chaos:
   config-center:
-    tags: [ "gray", "hotfix" ]
+    profiles: [ "gray", "hotfix" ]
     ttl: 30S
 ---
 

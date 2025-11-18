@@ -1,8 +1,9 @@
-package com.ddm.chaos.config;
+package com.ddm.chaos.resolver;
 
 import com.ddm.chaos.annotation.Conf;
 import com.ddm.chaos.defined.ConfDesc;
 import com.ddm.chaos.defined.ConfRef;
+import com.ddm.chaos.factory.ConfigFactory;
 import com.ddm.chaos.utils.Converters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

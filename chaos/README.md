@@ -103,7 +103,7 @@ spring:
 
 chaos:
   config-center:
-    tags: [ "gray", "hotfix" ]  # 环境标签
+    profiles: [ "gray", "hotfix" ]  # 环境标签
     ttl: 30S                     # 缓存刷新时间
 ```
 
@@ -118,7 +118,7 @@ grpc:
 
 chaos:
   config-center:
-    tags: [ "gray", "hotfix" ]
+    profiles: [ "gray", "hotfix" ]
     ttl: 30S
 ```
 
@@ -176,7 +176,7 @@ public class MyService {
 
 ## 🔧 配置说明
 
-### chaos.config-center.tags
+### chaos.config-center.profiles
 环境标签列表，用于多环境配置覆盖。例如：
 - `["gray"]`：灰度环境
 - `["gray", "hotfix"]`：灰度 + 热修复环境

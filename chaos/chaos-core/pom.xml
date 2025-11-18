@@ -54,7 +54,10 @@
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
         <!-- ==================== Spring Framework (provided) ==================== -->
         <!-- Spring Framework (provided scope, should be provided by Spring Boot) -->
         <dependency>
@@ -72,6 +75,7 @@
             <artifactId>spring-boot</artifactId>
             <scope>provided</scope>
         </dependency>
+
     </dependencies>
 
     <build>

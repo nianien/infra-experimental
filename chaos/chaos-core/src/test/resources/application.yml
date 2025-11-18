@@ -14,15 +14,5 @@ spring:
       data-locations: classpath:data-h2.sql
 chaos:
   config-center:
-    tags: [ gray, hotfix ]
+    profiles: [ gray, hotfix ]
     ttl: 30S
-    provider:
-      type: jdbc
-      options:
-        jdbc-url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
-        username: sa
-        password: ""
-        hikari:
-          maximum-pool-size: 10
-          connection-timeout: 3000
-

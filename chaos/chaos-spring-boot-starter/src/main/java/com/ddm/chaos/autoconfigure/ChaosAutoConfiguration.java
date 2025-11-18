@@ -1,9 +1,9 @@
 package com.ddm.chaos.autoconfigure;
 
-import com.ddm.chaos.config.ConfigFactory;
-import com.ddm.chaos.config.ConfigProperties;
-import com.ddm.chaos.config.ConfigResolver;
-import com.ddm.chaos.config.DefaultConfigFactory;
+import com.ddm.chaos.factory.ConfigFactory;
+import com.ddm.chaos.factory.ConfigProperties;
+import com.ddm.chaos.resolver.ConfigResolver;
+import com.ddm.chaos.factory.DefaultConfigFactory;
 import com.ddm.chaos.proto.ConfigServiceGrpc.ConfigServiceBlockingStub;
 import com.ddm.chaos.provider.DataProvider;
 import com.ddm.chaos.provider.GrpcDataProvider;
