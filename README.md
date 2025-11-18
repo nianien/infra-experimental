@@ -63,79 +63,133 @@ mvn spring-boot:run
 
 ## 🎯 版本管理
 
-本项目采用 **多模块独立版本管理** 策略，每个「次顶级 parent」模块拥有自己独立的版本号。
+本项目采用 **集中式版本管理** 策略，所有模块版本在根 POM 中统一管理，实现一处修改、全局生效。
+
+### 版本管理架构
+
+```
+根 POM (infra-lab:0)
+  ├── 定义版本属性 (chaos.version, argus.version, ...)
+  │
+  ├── 一级模块 (chaos, argus, atlas, demo)
+  │   ├── version: ${revision}
+  │   └── revision: ${xxx.version}  ← 引用根 POM 的属性
+  │       │
+  │       └── 子模块 (chaos-core, argus-core, ...)
+  │           └── parent.version: ${revision}  ← 引用一级模块的 revision
+```
 
 ### 核心规则
 
-1. **根 POM**：版本固定为 `0`，只作为 aggregator，不对外发布
-2. **次顶级模块**（如 `chaos`、`argus`、`atlas`、`demo`）：
-   - 使用 `${revision}` 作为版本号
-   - 发布时通过 `flatten-maven-plugin` 裁掉 `infra-lab:0` 这个 parent
-3. **子模块**：
-   - `parent = com.ddm:chaos:${revision}`
+1. **根 POM** (`pom.xml`)
+   - 版本固定为 `0`，仅作为聚合器（aggregator），不对外发布
+   - 在 `<properties>` 中定义所有一级模块的版本属性：
+     ```xml
+     <properties>
+         <chaos.version>1.0-SNAPSHOT</chaos.version>
+         <argus.version>1.0-SNAPSHOT</argus.version>
+         <atlas.version>1.0-SNAPSHOT</atlas.version>
+         <demo.version>1.0-SNAPSHOT</demo.version>
+     </properties>
+     ```
+
+2. **一级模块** (`chaos/pom.xml`, `argus/pom.xml`, 等)
+   - `<version>${revision}</version>`：使用 revision 占位符
+   - `<revision>${xxx.version}</revision>`：引用根 POM 中定义的版本属性
+   - 发布时通过 `flatten-maven-plugin` 的 `oss` 模式裁掉 `infra-lab:0` 这个 parent
+
+3. **子模块** (`chaos/chaos-core/pom.xml`, 等)
+   - `<parent><version>${revision}</version></parent>`：引用一级模块的 revision
    - 发布时只解析 `${revision}` 为具体版本号，保留 parent 结构
 
-### 版本升级
+### 版本升级流程
 
-**升级某个模块版本（例如 Chaos 模块）：**
+**升级某个模块的版本（例如将 Chaos 从 1.0-SNAPSHOT 升级到 2.0-SNAPSHOT）：**
 
-1. 编辑 `chaos/pom.xml`，修改 `<revision>` 属性：
+1. **修改根 POM** (`pom.xml`)：
    ```xml
    <properties>
-     <revision>2.0-SNAPSHOT</revision>
+       <chaos.version>2.0-SNAPSHOT</chaos.version>  <!-- 只改这里 -->
+       <argus.version>1.0-SNAPSHOT</argus.version>
+       <atlas.version>1.0-SNAPSHOT</atlas.version>
+       <demo.version>1.0-SNAPSHOT</demo.version>
    </properties>
    ```
 
-2. 同步更新根 POM 的跨模块依赖版本（如果其他模块依赖 Chaos）：
-   ```xml
-   <!-- pom.xml -->
-   <properties>
-     <chaos.version>2.0-SNAPSHOT</chaos.version>
-   </properties>
-   ```
+2. **自动生效**：
+   - 一级模块 `chaos/pom.xml` 中的 `${chaos.version}` 自动更新
+   - 所有 Chaos 子模块的版本自动跟随更新
+   - 跨模块依赖的版本在根 POM 的 `dependencyManagement` 中自动更新
 
-**✅ 优点：**
-- 只需修改一处（次顶级 parent 的 `<revision>`），所有子模块自动跟随
-- 子模块的 `<parent><version>` 永远写成 `${revision}`，不需要手动修改
+**✅ 优势：**
+- ✅ **一处修改，全局生效**：只需修改根 POM 的版本属性
+- ✅ **版本一致性**：同一模块的所有子模块版本自动保持一致
+- ✅ **维护简单**：无需手动修改多个 POM 文件
+- ✅ **发布友好**：通过 flatten-maven-plugin 自动处理版本占位符
 
-### 示例
+### 配置示例
 
-**次顶级 Parent POM：**
-
+**根 POM** (`pom.xml`)：
 ```xml
-<!-- chaos/pom.xml -->
 <project>
-  <parent>
     <groupId>com.ddm</groupId>
     <artifactId>infra-lab</artifactId>
     <version>0</version>
-  </parent>
-  <artifactId>chaos</artifactId>
-  <version>${revision}</version>
-  <properties>
-    <revision>1.0-SNAPSHOT</revision>  <!-- 只改这里就能全树升级版本 -->
-  </properties>
+    <packaging>pom</packaging>
+    
+    <properties>
+        <chaos.version>1.0-SNAPSHOT</chaos.version>
+        <argus.version>1.0-SNAPSHOT</argus.version>
+        <atlas.version>1.0-SNAPSHOT</atlas.version>
+        <demo.version>1.0-SNAPSHOT</demo.version>
+    </properties>
+    
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.ddm</groupId>
+                <artifactId>chaos-core</artifactId>
+                <version>${chaos.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>
 ```
 
-**子模块 POM：**
-
+**一级模块** (`chaos/pom.xml`)：
 ```xml
-<!-- chaos/chaos-core/pom.xml -->
 <project>
-  <parent>
-    <groupId>com.ddm</groupId>
+    <parent>
+        <groupId>com.ddm</groupId>
+        <artifactId>infra-lab</artifactId>
+        <version>0</version>
+    </parent>
     <artifactId>chaos</artifactId>
-    <version>${revision}</version>  <!-- 永远不用改 -->
-  </parent>
-  <artifactId>chaos-core</artifactId>
+    <version>${revision}</version>
+    
+    <properties>
+        <revision>${chaos.version}</revision>  <!-- 引用根 POM 的属性 -->
+        <flatten.mode>oss</flatten.mode>
+    </properties>
 </project>
 ```
 
-### 跨模块依赖
+**子模块** (`chaos/chaos-core/pom.xml`)：
+```xml
+<project>
+    <parent>
+        <groupId>com.ddm</groupId>
+        <artifactId>chaos</artifactId>
+        <version>${revision}</version>  <!-- 引用一级模块的 revision -->
+    </parent>
+    <artifactId>chaos-core</artifactId>
+</project>
+```
 
-- **同模块内依赖**：版本由父 POM 的 `<revision>` 自动管理，无需指定版本
-- **跨模块依赖**：版本由根 POM 的 `dependencyManagement` 管理
+### 依赖管理
+
+- **同模块内依赖**：版本由一级模块的 `<revision>` 自动管理，子模块无需指定版本
+- **跨模块依赖**：版本由根 POM 的 `dependencyManagement` 统一管理，使用 `${xxx.version}` 属性
 
 ## 🛠️ 技术栈
 
