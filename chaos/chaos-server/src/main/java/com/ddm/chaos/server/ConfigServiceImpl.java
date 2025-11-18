@@ -33,7 +33,7 @@ public class ConfigServiceImpl extends ConfigServiceGrpc.ConfigServiceImplBase {
      * @param dataProvider 数据提供者，不能为 null
      */
     public ConfigServiceImpl(DataProvider dataProvider) {
-        this.dataProvider = Objects.requireNonNull(dataProvider, "dataProvider cannot be null");
+        this.dataProvider = Objects.requireNonNull(dataProvider, "dataProvider required");
     }
 
     @Override

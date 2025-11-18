@@ -1,6 +1,6 @@
 package com.ddm.chaos.defined;
 
-import com.ddm.chaos.utils.Converters;
+import com.ddm.chaos.utils.TypeRef;
 
 import java.lang.reflect.Type;
 
@@ -14,16 +14,10 @@ import java.lang.reflect.Type;
  */
 public record ConfDesc(ConfRef ref, Object defaultValue, Type type) {
 
-    /**
-     * 使用字符串默认值构造配置描述符。
-     * <p>会自动将字符串默认值转换为目标类型。
-     *
-     * @param ref          配置引用
-     * @param defaultValue 默认值字符串
-     * @param type         目标类型
-     */
-    public ConfDesc(ConfRef ref, String defaultValue, Type type) {
-        this(ref, (Object) Converters.cast(defaultValue, type), type);
+
+    public <T> ConfDesc(ConfRef ref, T defaultValue, TypeRef<T> typeRef) {
+        this(ref, defaultValue, typeRef.getType());
     }
+
 
 }

@@ -3,6 +3,7 @@ package com.ddm.chaos.config;
 import com.ddm.chaos.annotation.Conf;
 import com.ddm.chaos.defined.ConfDesc;
 import com.ddm.chaos.defined.ConfRef;
+import com.ddm.chaos.utils.Converters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.DependencyDescriptor;
@@ -86,18 +87,14 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
             log.trace("No @Conf annotation found on dependency: {}", desc);
             return null;
         }
-        
+
         // 验证配置引用是否完整
         if (conf.key() == null || conf.key().isBlank()) {
             log.warn("Invalid @Conf annotation: key is empty on {}", desc);
             return null;
         }
-        
-        // 统一惰性 Supplier 实现
-        ConfRef ref = new ConfRef(conf.namespace(), conf.group(), conf.key());
-        ConfDesc confDesc = new ConfDesc(ref, conf.defaultValue(), targetType);
-        log.debug("Creating lazy supplier for config: {}", ref);
-        return getLazySupplier(confDesc);
+
+        return getLazySupplier(conf, targetType);
     }
 
 
@@ -107,10 +104,15 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
      * 使用双重检查锁定模式，确保线程安全且性能优化。
      *
      * @param <T>  目标类型
-     * @param desc 配置描述符
+     * @param conf 配置注解
+     * @param type 配置类型
      * @return Supplier 实例
      */
-    private <T> Supplier<T> getLazySupplier(ConfDesc desc) {
+    private <T> Supplier<T> getLazySupplier(Conf conf, Type type) {
+        // 统一惰性 Supplier 实现
+        ConfRef ref = new ConfRef(conf.namespace(), conf.group(), conf.key());
+        Object value = Converters.cast(conf.defaultValue(), type);
+        ConfDesc desc = new ConfDesc(ref, value, type);
         return new Supplier<>() {
             private volatile Supplier<T> delegate;
 
@@ -156,9 +158,9 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
     /**
      * 安全地获取配置值，如果失败则返回默认值。
      *
-     * @param <T> 目标类型
+     * @param <T>      目标类型
      * @param supplier 配置 Supplier
-     * @param desc 配置描述符
+     * @param desc     配置描述符
      * @return 配置值或默认值
      */
     private <T> T getValueSafely(Supplier<T> supplier, ConfDesc desc) {
@@ -173,7 +175,7 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
     /**
      * 获取默认值。
      *
-     * @param <T> 目标类型
+     * @param <T>  目标类型
      * @param desc 配置描述符
      * @return 默认值
      */
@@ -247,11 +249,11 @@ public class ConfigResolver extends ContextAnnotationAutowireCandidateResolver {
                 return conf;
             }
         } catch (Exception e) {
-            log.debug("Failed to resolve parameter annotations on {}, will try field injection", 
+            log.debug("Failed to resolve parameter annotations on {}, will try field injection",
                     desc.getMethodParameter(), e);
         } catch (Error e) {
             // 对于 Error（如 OutOfMemoryError），记录错误并重新抛出
-            log.error("Error while resolving parameter annotations on {}", 
+            log.error("Error while resolving parameter annotations on {}",
                     desc.getMethodParameter(), e);
             throw e;
         }

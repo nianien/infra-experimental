@@ -62,7 +62,6 @@ public interface ConfigFactory extends AutoCloseable {
      * @param <T>  目标类型
      * @param desc 配置描述符，包含配置引用、目标类型和默认值
      * @return 类型化的 Supplier 实例，调用 {@code get()} 方法可获取配置值
-     * @throws NullPointerException 如果 desc 为 null
      */
     <T> Supplier<T> createSupplier(ConfDesc desc);
 

@@ -42,7 +42,7 @@ final class LaneRoundRobinLoadBalancer extends LoadBalancer {
     private final Map<String, AtomicInteger> cursors = new ConcurrentHashMap<>();
 
     LaneRoundRobinLoadBalancer(Helper helper) {
-        this.helper = Objects.requireNonNull(helper, "helper");
+        this.helper = Objects.requireNonNull(helper, "helper required");
         log.info("==>[argus] LaneRoundRobinLoadBalancer created");
     }
 

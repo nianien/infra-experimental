@@ -55,8 +55,8 @@ public final class CloudMapNameResolver extends NameResolver {
     private final AtomicBoolean resolving = new AtomicBoolean(false);
 
     public CloudMapNameResolver(String hostPort, String region, Duration refreshInterval, Args args) {
-        this.hostPortRaw = Objects.requireNonNull(hostPort, "hostPort");
-        this.region = Objects.requireNonNull(region, "ecs.instance.region-id is required");
+        this.hostPortRaw = Objects.requireNonNull(hostPort, "hostPort required");
+        this.region = Objects.requireNonNull(region, "ecs.instance.region-id required");
         this.refreshInterval = Objects.requireNonNull(refreshInterval, "refreshInterval required");
         this.args = Objects.requireNonNull(args, "args required");
 
@@ -79,7 +79,7 @@ public final class CloudMapNameResolver extends NameResolver {
 
     @Override
     public void start(Listener2 listener) {
-        this.listener = Objects.requireNonNull(listener, "listener");
+        this.listener = Objects.requireNonNull(listener, "listener required");
         ensureSd();
 
         // 先来一次同步解析（允许报错），随后进入仅靠周期的刷新（固定延迟，避免重入堆积）

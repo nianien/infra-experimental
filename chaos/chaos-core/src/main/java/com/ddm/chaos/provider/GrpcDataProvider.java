@@ -42,7 +42,7 @@ public class GrpcDataProvider implements DataProvider {
      * @throws NullPointerException 如果 stub 为 null
      */
     public GrpcDataProvider(ConfigServiceBlockingStub stub) {
-        this.stub = Objects.requireNonNull(stub, "stub cannot be null");
+        this.stub = Objects.requireNonNull(stub, "stub required");
     }
 
 

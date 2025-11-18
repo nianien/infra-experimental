@@ -174,8 +174,8 @@ public final class ConfData {
          * @param type 目标类型，不能为 null
          */
         public CacheKey(ConfRef ref, Type type) {
-            this.ref = Objects.requireNonNull(ref, "ref cannot be null");
-            this.type = Objects.requireNonNull(type, "type cannot be null");
+            this.ref = Objects.requireNonNull(ref, "ref required");
+            this.type = Objects.requireNonNull(type, "type required");
         }
 
         /**

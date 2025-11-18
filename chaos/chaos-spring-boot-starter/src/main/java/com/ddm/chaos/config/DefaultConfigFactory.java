@@ -17,121 +17,65 @@ import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 /**
- * 默认的配置工厂实现，使用 Caffeine 缓存和异步刷新机制。
- * <p>
- * 该实现提供了以下功能：
- * <ul>
- *   <li><strong>配置缓存</strong>：使用 Caffeine LoadingCache 缓存配置数据，缓存键为 {@link ConfRef}</li>
- *   <li><strong>异步刷新</strong>：配置数据在 TTL 到期后异步刷新，读路径始终返回旧值，保证可用性</li>
- *   <li><strong>类型转换</strong>：支持将配置值转换为任意类型，转换结果在 {@link ConfData} 内部缓存</li>
- *   <li><strong>数据提供者</strong>：通过构造函数接收 {@link DataProvider} 实例，由外部管理其生命周期</li>
- * </ul>
- *
- * <p><strong>缓存策略：</strong>
- * <ul>
- *   <li>首次未命中：同步加载（阻塞当前调用线程一次）</li>
- *   <li>到期刷新：异步在后台执行，读路径始终返回旧值</li>
- *   <li>刷新失败：永远回退旧值（旧值不失效）</li>
- * </ul>
- *
- * @author liyifei
- * @see ConfigFactory
- * @see DataProvider
- * @see ConfData
- * @since 1.0
+ * 默认的配置工厂实现，基于 Caffeine LoadingCache + 异步刷新。
  */
 public final class DefaultConfigFactory implements ConfigFactory {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultConfigFactory.class);
 
     /**
-     * 仅用于异步刷新（reload）的执行器；load 仍在调用线程中同步执行
+     * 缺省哨兵（负缓存标记：表示 provider 没有这个 key）
      */
-    private final ExecutorService refreshPool;
+    private static final ConfData MISSING_DATA = new ConfData("", "", new String[0]);
 
-    /**
-     * 配置数据缓存，键为配置引用（ConfRef），值为配置数据（ConfData）
-     */
-    private final LoadingCache<ConfRef, ConfData> cache;
-
-    /**
-     * 数据提供者，用于从数据源加载配置数据
-     */
-    private final DataProvider provider;
-
-    /**
-     * 配置属性
-     */
-    private final ConfigProperties props;
-
-    /**
-     * 刷新线程池大小
-     */
     private static final int REFRESH_POOL_SIZE = 2;
 
-    /**
-     * 构造配置工厂实例。
-     * <p>
-     * 初始化过程：
-     * <ol>
-     *   <li>接收已初始化的 DataProvider 实例</li>
-     *   <li>创建用于异步刷新的线程池</li>
-     *   <li>初始化 Caffeine 缓存，配置 TTL 和刷新策略</li>
-     * </ol>
-     *
-     * @param provider 数据提供者实例，不能为 null，应由外部初始化
-     * @param props    配置属性，不能为 null，必须包含有效的 ttl
-     * @throws NullPointerException 如果 provider 或 props 或其必需字段为 null
-     */
+    private final ExecutorService refreshPool;
+    private final LoadingCache<ConfRef, ConfData> cache;
+    private final DataProvider provider;
+    private final ConfigProperties props;
+
     public DefaultConfigFactory(DataProvider provider, ConfigProperties props) {
-        Objects.requireNonNull(props.ttl(), "ttl");
-        // 专用于 refresh 的后台线程（daemon）
+        Objects.requireNonNull(props.ttl(), "ttl required");
+        Objects.requireNonNull(provider, "provider required");
+
         this.provider = provider;
         this.props = props;
         this.refreshPool = createRefreshExecutor();
 
         this.cache = Caffeine.newBuilder()
-                // 读到期触发异步 reload，读路径返回旧值
                 .refreshAfterWrite(props.ttl())
-                // 仅影响 reload 的执行线程
-                .executor(this.refreshPool)
+                .executor(refreshPool)
                 .build(this::loadData);
 
         log.info("Config factory initialized with provider '{}' (ttl={})",
                 provider.getClass(), props.ttl());
     }
 
-
     /**
-     * 从数据提供者加载配置数据。
-     * <p>
-     * 该方法由 Caffeine 缓存调用，用于加载或刷新配置数据。
-     * 如果加载失败，会抛出异常，Caffeine 会保留旧值。
-     *
-     * @param ref 配置引用，包含 namespace、group、key
-     * @return 配置数据，包含已解析的配置值和类型转换缓存
-     * @throws IllegalStateException 如果数据提供者返回 null 或加载失败
+     * 加载配置（被 Caffeine 调用）。
+     * 三种情况：
+     * 1) item 存在 → 返回真实数据
+     * 2) item 不存在 → 返回 MISSING_DATA（负缓存）
+     * 3) provider 异常 → 抛异常（Caffeine 保留旧值）
      */
     private ConfData loadData(ConfRef ref) {
         log.debug("Loading config item: {}", ref);
         try {
             ConfItem item = provider.loadData(ref);
             if (item == null) {
-                String message = String.format("DataProvider '%s' returned null ConfigItem for %s",
-                        provider.getClass(), ref);
-                log.error(message);
-                throw new IllegalStateException(message);
+                log.info("Config {} not found in provider, caching MISSING_DATA", ref);
+                return MISSING_DATA;
             }
-            log.trace("Successfully loaded config item: {} (value length: {})",
-                    ref, item.value() != null ? item.value().length() : 0);
+
+            log.trace("Loaded config {} = {}", ref, previewValue(item.value(), 100));
+
             return new ConfData(item, props.tags());
-        } catch (IllegalStateException e) {
-            // 重新抛出 IllegalStateException，不包装
-            throw e;
+
         } catch (Exception e) {
-            log.error("Failed to load config item: {} (provider: {})", ref, provider.getClass(), e);
-            throw new IllegalStateException(
-                    String.format("Failed to load config item: %s (provider: %s)", ref, provider.getClass()), e);
+            log.error("Failed to load config {} from provider {}, keeping old value",
+                    ref, provider.getClass().getSimpleName(), e);
+            throw new IllegalStateException("Failed to load config " + ref, e);
         }
     }
 
@@ -139,32 +83,36 @@ public final class DefaultConfigFactory implements ConfigFactory {
     @SuppressWarnings("unchecked")
     public <T> Supplier<T> createSupplier(ConfDesc desc) {
         Objects.requireNonNull(desc, "desc");
+
         ConfRef ref = desc.ref();
-        log.debug("Creating supplier for config: {} (type: {})", ref, desc.type().getTypeName());
+        log.debug("Creating supplier for config: {} (type={})",
+                ref, desc.type().getTypeName());
+
         return () -> {
             try {
                 ConfData data = cache.get(ref);
+
+                // 1) key 不存在（负缓存）
+                if (data == MISSING_DATA) {
+                    T def = (T) desc.defaultValue();
+                    log.trace("Config {} missing, using default value", ref);
+                    return def;
+                }
+
+                // 2) 正常解析
                 T value = data.getValue(desc);
-                log.trace("Retrieved config value for {}: {}", ref, value);
+                log.trace("Retrieved config {} = {}", ref, value);
                 return value;
-            } catch (IllegalStateException e) {
-                // 缓存加载失败，记录错误并返回默认值
-                log.error("Failed to load config from cache for {}, returning default value", ref, e);
-                return (T) desc.defaultValue();
+
             } catch (Exception e) {
-                // 其他异常（如类型转换失败），记录警告并返回默认值
-                log.warn("Failed to get config value for {}, returning default value. Error: {}",
-                        ref, e.getMessage());
-                return (T) desc.defaultValue();
+                // 3) 真异常：cache loader/parse 异常
+                T def = (T) desc.defaultValue();
+                log.error("Config load error for {}, using default value", ref, e);
+                return def;
             }
         };
     }
 
-    /**
-     * 创建用于异步刷新的执行器。
-     *
-     * @return 守护线程执行器
-     */
     private static ExecutorService createRefreshExecutor() {
         return Executors.newFixedThreadPool(REFRESH_POOL_SIZE, r -> {
             Thread t = new Thread(r, "config-refresh");
@@ -173,34 +121,26 @@ public final class DefaultConfigFactory implements ConfigFactory {
         });
     }
 
-    /**
-     * 关闭配置工厂，释放相关资源。
-     * <p>
-     * 该方法会：
-     * <ul>
-     *   <li>关闭刷新线程池</li>
-     *   <li>关闭数据提供者</li>
-     * </ul>
-     * 通常在 Spring 容器销毁时自动调用（通过 {@code @PreDestroy} 注解）。
-     */
     @PreDestroy
     @Override
     public void close() {
-        log.info("Shutting down config factory (provider: {})", provider.getClass());
+        log.info("Shutting down config factory (provider={})", provider.getClass());
+
         try {
             refreshPool.shutdownNow();
-            log.debug("Refresh pool shutdown completed");
-        } catch (Exception e) {
-            log.warn("Error while shutting down refresh pool", e);
+        } catch (Exception ignore) {
         }
+
         try {
             provider.close();
-            log.debug("DataProvider '{}' closed successfully", provider.getClass());
         } catch (Exception e) {
-            log.warn("Failed to close provider '{}'", provider.getClass(), e);
+            log.warn("Failed to close provider {}", provider.getClass(), e);
         }
     }
 
+    private static String previewValue(String v, int maxLength) {
+        if (v == null) return "null";
+        if (v.length() <= maxLength) return v;
+        return v.substring(0, maxLength) + "...(truncated)";
+    }
 }
-
-

@@ -1,7 +1,6 @@
 package com.ddm.argus.utils;
 
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
@@ -15,19 +14,20 @@ import java.util.function.Supplier;
  */
 public final class Retry {
 
-    private Retry() {}
+    private Retry() {
+    }
 
     /* ======================= 基础固定间隔 ======================= */
 
-    /** 不抛异常版本：返回 Optional，空表示失败 */
+    /**
+     * 不抛异常版本：返回 Optional，空表示失败
+     */
     public static <T> Optional<T> get(
             Supplier<T> supplier,
-            Predicate<T> ok,
+            Predicate<T> predicate,
             int attempts,
             Duration interval
     ) {
-        Objects.requireNonNull(supplier, "supplier");
-        Objects.requireNonNull(ok, "ok");
         if (attempts <= 0) return Optional.empty();
         long sleepMs = Math.max(0, interval == null ? 0 : interval.toMillis());
 
@@ -39,7 +39,7 @@ public final class Retry {
                 // 保持"轻量探测"语义：把异常视作失败一次
                 v = null;
             }
-            if (ok.test(v)) return Optional.ofNullable(v);
+            if (predicate.test(v)) return Optional.ofNullable(v);
 
             if (i < attempts && sleepMs > 0) {
                 sleepQuietly(sleepMs);
@@ -50,16 +50,16 @@ public final class Retry {
 
     /* ======================= 指数退避 + 抖动（可选） ======================= */
 
-    /** 指数退避：base * 2^(i-1)，可加抖动百分比（0~1） */
+    /**
+     * 指数退避：base * 2^(i-1)，可加抖动百分比（0~1）
+     */
     public static <T> Optional<T> getWithBackoff(
             Supplier<T> supplier,
-            Predicate<T> ok,
+            Predicate<T> predicate,
             int attempts,
             Duration baseInterval,
             double jitterRatio   // 0：无抖动；0.2：±20% 抖动
     ) {
-        Objects.requireNonNull(supplier, "supplier");
-        Objects.requireNonNull(ok, "ok");
         if (attempts <= 0) return Optional.empty();
 
         long baseMs = Math.max(0, baseInterval == null ? 0 : baseInterval.toMillis());
@@ -72,7 +72,7 @@ public final class Retry {
             } catch (RuntimeException e) {
                 v = null;
             }
-            if (ok.test(v)) return Optional.ofNullable(v);
+            if (predicate.test(v)) return Optional.ofNullable(v);
 
             if (i < attempts && baseMs > 0) {
                 long exp = baseMs << (i - 1);           // base * 2^(i-1)
@@ -97,12 +97,10 @@ public final class Retry {
      */
     public static <T> Optional<T> getThrowing(
             ThrowingSupplier<T> supplier,
-            Predicate<T> ok,
+            Predicate<T> predicate,
             int attempts,
             Duration interval
     ) {
-        Objects.requireNonNull(supplier, "supplier");
-        Objects.requireNonNull(ok, "ok");
         if (attempts <= 0) return Optional.empty();
         long sleepMs = Math.max(0, interval == null ? 0 : interval.toMillis());
 
@@ -113,7 +111,7 @@ public final class Retry {
             } catch (Exception e) {
                 v = null; // 视作失败一次
             }
-            if (ok.test(v)) return Optional.ofNullable(v);
+            if (predicate.test(v)) return Optional.ofNullable(v);
 
             if (i < attempts && sleepMs > 0) {
                 sleepQuietly(sleepMs);
