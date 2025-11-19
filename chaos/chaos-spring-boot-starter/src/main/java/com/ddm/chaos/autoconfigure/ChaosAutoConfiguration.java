@@ -2,12 +2,12 @@ package com.ddm.chaos.autoconfigure;
 
 import com.ddm.chaos.factory.ConfigFactory;
 import com.ddm.chaos.factory.ConfigProperties;
-import com.ddm.chaos.resolver.ConfigResolver;
 import com.ddm.chaos.factory.DefaultConfigFactory;
 import com.ddm.chaos.proto.ConfigServiceGrpc.ConfigServiceBlockingStub;
 import com.ddm.chaos.provider.DataProvider;
 import com.ddm.chaos.provider.GrpcDataProvider;
 import com.ddm.chaos.provider.JdbcDataProvider;
+import com.ddm.chaos.resolver.ConfigResolver;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +22,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+
+import javax.sql.DataSource;
 
 /**
  * Chaos 配置中心的自动配置类。
@@ -77,11 +79,17 @@ public class ChaosAutoConfiguration {
     }
 
 
+    @Bean
     @ConditionalOnBean(name = "chaosDataSourceProperties")
+    public DataSource chaosDataSource(@Qualifier("chaosDataSourceProperties") DataSourceProperties props) {
+        return props.initializeDataSourceBuilder().build();
+    }
+
+    @ConditionalOnBean(name = "chaosDataSource")
     @Bean
     @Primary
-    public DataProvider jdbcDataProvider(@Qualifier("chaosDataSourceProperties") DataSourceProperties props) {
-        return new JdbcDataProvider(props.initializeDataSourceBuilder().build());
+    public DataProvider jdbcDataProvider(@Qualifier("chaosDataSource") DataSource ds) {
+        return new JdbcDataProvider(ds);
     }
 
 
